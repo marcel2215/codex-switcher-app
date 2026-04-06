@@ -1,5 +1,5 @@
 //
-//  Codex_SwitcherApp.swift
+//  CodexSwitcherApp.swift
 //  Codex Switcher
 //
 //  Created by Marcel Kwiatkowski on 2026-04-06.
@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct Codex_SwitcherApp: App {
+struct CodexSwitcherApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,

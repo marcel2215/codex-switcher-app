@@ -1,14 +1,14 @@
 //
-//  Codex_SwitcherTests.swift
+//  CodexSwitcherTests.swift
 //  Codex SwitcherTests
 //
 //  Created by Marcel Kwiatkowski on 2026-04-06.
 //
 
 import Testing
-@testable import Codex_Switcher
+@testable import CodexSwitcher
 
-struct Codex_SwitcherTests {
+struct CodexSwitcherTests {
 
     @Test func example() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.

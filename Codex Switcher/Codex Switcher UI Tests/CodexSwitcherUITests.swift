@@ -1,5 +1,5 @@
 //
-//  Codex_SwitcherUITests.swift
+//  CodexSwitcherUITests.swift
 //  Codex SwitcherUITests
 //
 //  Created by Marcel Kwiatkowski on 2026-04-06.
@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class Codex_SwitcherUITests: XCTestCase {
+final class CodexSwitcherUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

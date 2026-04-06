@@ -1,5 +1,5 @@
 //
-//  Codex_SwitcherUITestsLaunchTests.swift
+//  CodexSwitcherUITestsLaunchTests.swift
 //  Codex SwitcherUITests
 //
 //  Created by Marcel Kwiatkowski on 2026-04-06.
@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class Codex_SwitcherUITestsLaunchTests: XCTestCase {
+final class CodexSwitcherUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true
