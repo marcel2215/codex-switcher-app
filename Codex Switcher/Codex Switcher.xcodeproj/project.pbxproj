@@ -25,8 +25,8 @@
 
 /* Begin PBXFileReference section */
 		1F87C9472F8406C7007DED25 /* Codex Switcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Codex Switcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		1F87C9562F8406C9007DED25 /* Codex SwitcherTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex SwitcherTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		1F87C9602F8406C9007DED25 /* Codex SwitcherUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex SwitcherUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F87C9562F8406C9007DED25 /* Codex Switcher Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F87C9602F8406C9007DED25 /* Codex Switcher UI Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher UI Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -86,8 +86,8 @@
 			isa = PBXGroup;
 			children = (
 				1F87C9472F8406C7007DED25 /* Codex Switcher.app */,
-				1F87C9562F8406C9007DED25 /* Codex SwitcherTests.xctest */,
-				1F87C9602F8406C9007DED25 /* Codex SwitcherUITests.xctest */,
+				1F87C9562F8406C9007DED25 /* Codex Switcher Tests.xctest */,
+				1F87C9602F8406C9007DED25 /* Codex Switcher UI Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -117,9 +117,9 @@
 			productReference = 1F87C9472F8406C7007DED25 /* Codex Switcher.app */;
 			productType = "com.apple.product-type.application";
 		};
-		1F87C9552F8406C9007DED25 /* Codex SwitcherTests */ = {
+		1F87C9552F8406C9007DED25 /* Codex Switcher Tests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1F87C96D2F8406C9007DED25 /* Build configuration list for PBXNativeTarget "Codex SwitcherTests" */;
+			buildConfigurationList = 1F87C96D2F8406C9007DED25 /* Build configuration list for PBXNativeTarget "Codex Switcher Tests" */;
 			buildPhases = (
 				1F87C9522F8406C9007DED25 /* Sources */,
 				1F87C9532F8406C9007DED25 /* Frameworks */,
@@ -133,16 +133,16 @@
 			fileSystemSynchronizedGroups = (
 				1F87C9592F8406C9007DED25 /* Codex SwitcherTests */,
 			);
-			name = "Codex SwitcherTests";
+			name = "Codex Switcher Tests";
 			packageProductDependencies = (
 			);
 			productName = "Codex SwitcherTests";
-			productReference = 1F87C9562F8406C9007DED25 /* Codex SwitcherTests.xctest */;
+			productReference = 1F87C9562F8406C9007DED25 /* Codex Switcher Tests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		1F87C95F2F8406C9007DED25 /* Codex SwitcherUITests */ = {
+		1F87C95F2F8406C9007DED25 /* Codex Switcher UI Tests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1F87C9702F8406C9007DED25 /* Build configuration list for PBXNativeTarget "Codex SwitcherUITests" */;
+			buildConfigurationList = 1F87C9702F8406C9007DED25 /* Build configuration list for PBXNativeTarget "Codex Switcher UI Tests" */;
 			buildPhases = (
 				1F87C95C2F8406C9007DED25 /* Sources */,
 				1F87C95D2F8406C9007DED25 /* Frameworks */,
@@ -156,11 +156,11 @@
 			fileSystemSynchronizedGroups = (
 				1F87C9632F8406C9007DED25 /* Codex SwitcherUITests */,
 			);
-			name = "Codex SwitcherUITests";
+			name = "Codex Switcher UI Tests";
 			packageProductDependencies = (
 			);
 			productName = "Codex SwitcherUITests";
-			productReference = 1F87C9602F8406C9007DED25 /* Codex SwitcherUITests.xctest */;
+			productReference = 1F87C9602F8406C9007DED25 /* Codex Switcher UI Tests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -201,8 +201,8 @@
 			projectRoot = "";
 			targets = (
 				1F87C9462F8406C7007DED25 /* Codex Switcher */,
-				1F87C9552F8406C9007DED25 /* Codex SwitcherTests */,
-				1F87C95F2F8406C9007DED25 /* Codex SwitcherUITests */,
+				1F87C9552F8406C9007DED25 /* Codex Switcher Tests */,
+				1F87C95F2F8406C9007DED25 /* Codex Switcher UI Tests */,
 			);
 		};
 /* End PBXProject section */
@@ -554,7 +554,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1F87C96D2F8406C9007DED25 /* Build configuration list for PBXNativeTarget "Codex SwitcherTests" */ = {
+		1F87C96D2F8406C9007DED25 /* Build configuration list for PBXNativeTarget "Codex Switcher Tests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1F87C96E2F8406C9007DED25 /* Debug */,
@@ -563,7 +563,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1F87C9702F8406C9007DED25 /* Build configuration list for PBXNativeTarget "Codex SwitcherUITests" */ = {
+		1F87C9702F8406C9007DED25 /* Build configuration list for PBXNativeTarget "Codex Switcher UI Tests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1F87C9712F8406C9007DED25 /* Debug */,
