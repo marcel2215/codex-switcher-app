@@ -35,14 +35,14 @@
 			path = "Codex Switcher";
 			sourceTree = "<group>";
 		};
-		1F87C9592F8406C9007DED25 /* Codex SwitcherTests */ = {
+		1F87C9592F8406C9007DED25 /* Codex Switcher Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Codex SwitcherTests";
+			path = "Codex Switcher Tests";
 			sourceTree = "<group>";
 		};
-		1F87C9632F8406C9007DED25 /* Codex SwitcherUITests */ = {
+		1F87C9632F8406C9007DED25 /* Codex Switcher UI Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Codex SwitcherUITests";
+			path = "Codex Switcher UI Tests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -76,8 +76,8 @@
 			isa = PBXGroup;
 			children = (
 				1F87C9492F8406C7007DED25 /* Codex Switcher */,
-				1F87C9592F8406C9007DED25 /* Codex SwitcherTests */,
-				1F87C9632F8406C9007DED25 /* Codex SwitcherUITests */,
+				1F87C9592F8406C9007DED25 /* Codex Switcher Tests */,
+				1F87C9632F8406C9007DED25 /* Codex Switcher UI Tests */,
 				1F87C9482F8406C7007DED25 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -131,7 +131,7 @@
 				1F87C9582F8406C9007DED25 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1F87C9592F8406C9007DED25 /* Codex SwitcherTests */,
+				1F87C9592F8406C9007DED25 /* Codex Switcher Tests */,
 			);
 			name = "Codex Switcher Tests";
 			packageProductDependencies = (
@@ -154,7 +154,7 @@
 				1F87C9622F8406C9007DED25 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1F87C9632F8406C9007DED25 /* Codex SwitcherUITests */,
+				1F87C9632F8406C9007DED25 /* Codex Switcher UI Tests */,
 			);
 			name = "Codex Switcher UI Tests";
 			packageProductDependencies = (
