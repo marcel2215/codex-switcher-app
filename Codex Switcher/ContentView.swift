@@ -119,6 +119,22 @@ struct ContentView: View {
                     controller.beginRenaming(accountID: accountID)
                 }
 
+                Menu("Choose Icon") {
+                    if let selectedAccount = accounts.first(where: { $0.id == accountID }) {
+                        ForEach(AccountIconOption.allCases) { icon in
+                            Button {
+                                controller.setIcon(icon, for: accountID)
+                            } label: {
+                                menuChoiceLabel(
+                                    title: icon.title,
+                                    systemImage: icon.systemName,
+                                    isSelected: AccountIconOption.resolve(from: selectedAccount.iconSystemName) == icon
+                                )
+                            }
+                        }
+                    }
+                }
+
                 Divider()
 
                 Button("Remove", role: .destructive) {
@@ -170,6 +186,17 @@ struct ContentView: View {
     private func sortMenuLabel(title: String, isSelected: Bool) -> some View {
         HStack {
             Text(title)
+            if isSelected {
+                Spacer()
+                Image(systemName: "checkmark")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func menuChoiceLabel(title: String, systemImage: String, isSelected: Bool) -> some View {
+        HStack {
+            Label(title, systemImage: systemImage)
             if isSelected {
                 Spacer()
                 Image(systemName: "checkmark")

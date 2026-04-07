@@ -59,6 +59,7 @@ struct CodexSwitcherTests {
         #expect(accounts.count == 1)
         #expect(controller.selection == [accounts[0].id])
         #expect(accounts[0].name == "Unnamed Account 1")
+        #expect(accounts[0].iconSystemName == AccountIconOption.defaultOption.systemName)
     }
 
     @Test func captureAddsDistinctAccountsWhenStableSubjectDiffers() throws {
@@ -209,6 +210,26 @@ struct CodexSwitcherTests {
         let refreshedAccount = try #require(fetchAccounts(in: container.mainContext).first)
         #expect(controller.presentedAlert == nil)
         #expect(refreshedAccount.lastLoginAt == nil)
+    }
+
+    @Test func selectedAccountIconCanBeChanged() throws {
+        let container = try makeInMemoryContainer()
+        let fakeFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
+        let controller = AppController(
+            authFileManager: fakeFileManager,
+            notificationManager: FakeNotificationManager()
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.captureCurrentAccount()
+
+        let account = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(account.iconSystemName == AccountIconOption.defaultOption.systemName)
+
+        controller.setIcon(.terminal, for: account.id)
+
+        let updatedAccount = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(updatedAccount.iconSystemName == AccountIconOption.terminal.systemName)
     }
 }
 

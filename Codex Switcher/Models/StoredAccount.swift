@@ -23,6 +23,7 @@ final class StoredAccount {
     var authModeRaw: String = "chatgpt"
     var emailHint: String?
     var accountIdentifier: String?
+    var iconSystemName: String = "key.fill"
 
     init(
         id: UUID = UUID(),
@@ -34,7 +35,8 @@ final class StoredAccount {
         authFileContents: String,
         authModeRaw: String,
         emailHint: String? = nil,
-        accountIdentifier: String? = nil
+        accountIdentifier: String? = nil,
+        iconSystemName: String = "key.fill"
     ) {
         self.id = id
         self.identityKey = identityKey
@@ -46,5 +48,6 @@ final class StoredAccount {
         self.authModeRaw = authModeRaw
         self.emailHint = emailHint
         self.accountIdentifier = accountIdentifier
+        self.iconSystemName = iconSystemName
     }
 }

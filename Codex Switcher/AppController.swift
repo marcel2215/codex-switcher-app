@@ -149,6 +149,24 @@ final class AppController: ObservableObject {
         renameTargetID = accountID
     }
 
+    func setIcon(_ icon: AccountIconOption, for accountID: UUID) {
+        do {
+            guard let account = try account(withID: accountID) else {
+                throw ControllerError.accountNotFound
+            }
+
+            let resolvedSystemName = AccountIconOption.resolve(from: icon.systemName).systemName
+            guard account.iconSystemName != resolvedSystemName else {
+                return
+            }
+
+            account.iconSystemName = resolvedSystemName
+            try requireModelContext().save()
+        } catch {
+            present(error, title: "Couldn't Change Icon")
+        }
+    }
+
     func cancelRename(for accountID: UUID) {
         guard renameTargetID == accountID else {
             return
@@ -309,8 +327,12 @@ final class AppController: ObservableObject {
                     || account.authModeRaw != snapshot.authMode.rawValue
                     || account.emailHint != snapshot.email
                     || account.accountIdentifier != snapshot.accountIdentifier
+                    || account.iconSystemName.isEmpty
                 {
                     update(account: account, from: snapshot)
+                    if account.iconSystemName.isEmpty {
+                        account.iconSystemName = AccountIconOption.defaultOption.systemName
+                    }
                     changedAccounts = true
                 }
             }

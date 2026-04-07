@@ -28,7 +28,12 @@ struct AccountRowView: View {
     }
 
     private var rowContent: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: AccountIconOption.resolve(from: account.iconSystemName).systemName)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+
             VStack(alignment: .leading, spacing: 4) {
                 if isRenaming {
                     TextField("", text: $draftName)
