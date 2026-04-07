@@ -132,26 +132,36 @@ struct ContentView: View {
         .searchable(text: $controller.searchText)
         .contextMenu(forSelectionType: UUID.self) { selection in
             if selection.count == 1, let accountID = selection.first {
-                Button("Log In") {
+                Button {
                     controller.login(accountID: accountID)
+                } label: {
+                    menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
                 }
 
-                Button("Rename") {
+                Button {
                     controller.beginRenaming(accountID: accountID)
+                } label: {
+                    menuActionLabel(title: "Rename", systemImage: "pencil")
                 }
 
-                Button("Choose Icon") {
+                Button {
                     iconPickerAccountID = accountID
+                } label: {
+                    menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
                 }
 
                 Divider()
 
-                Button("Remove", role: .destructive) {
+                Button(role: .destructive) {
                     controller.removeAccounts(withIDs: selection)
+                } label: {
+                    destructiveMenuLabel(title: "Remove", systemImage: "trash")
                 }
             } else if !selection.isEmpty {
-                Button("Remove", role: .destructive) {
+                Button(role: .destructive) {
                     controller.removeAccounts(withIDs: selection)
+                } label: {
+                    destructiveMenuLabel(title: "Remove", systemImage: "trash")
                 }
             }
         }
@@ -211,6 +221,15 @@ struct ContentView: View {
                 Image(systemName: "checkmark")
             }
         }
+    }
+
+    private func menuActionLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+    }
+
+    private func destructiveMenuLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .foregroundStyle(.red)
     }
 }
 
