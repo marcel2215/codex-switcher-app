@@ -73,6 +73,45 @@ struct ContentView: View {
                                 controller.cancelRename(for: account.id)
                             }
                         )
+                        .contextMenu {
+                            let targetIDs = contextMenuTargetIDs(for: account.id)
+
+                            if targetIDs.count == 1 {
+                                Button {
+                                    controller.selection = [account.id]
+                                    controller.login(accountID: account.id)
+                                } label: {
+                                    menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
+                                }
+
+                                Button {
+                                    controller.beginRenaming(accountID: account.id)
+                                } label: {
+                                    menuActionLabel(title: "Rename", systemImage: "pencil")
+                                }
+
+                                Button {
+                                    controller.selection = [account.id]
+                                    iconPickerAccountID = account.id
+                                } label: {
+                                    menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
+                                }
+
+                                Divider()
+
+                                Button(role: .destructive) {
+                                    controller.removeAccounts(withIDs: targetIDs)
+                                } label: {
+                                    destructiveMenuLabel(title: "Remove", systemImage: "trash")
+                                }
+                            } else {
+                                Button(role: .destructive) {
+                                    controller.removeAccounts(withIDs: targetIDs)
+                                } label: {
+                                    destructiveMenuLabel(title: "Remove", systemImage: "trash")
+                                }
+                            }
+                        }
                         .tag(account.id)
                     }
                     .dropDestination(for: String.self) { items, index in
@@ -130,52 +169,10 @@ struct ContentView: View {
             }
         }
         .searchable(text: $controller.searchText)
-        .contextMenu(forSelectionType: UUID.self) { selection in
-            if selection.count == 1, let accountID = selection.first {
-                Button {
-                    controller.login(accountID: accountID)
-                } label: {
-                    menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
-                }
-
-                Button {
-                    controller.beginRenaming(accountID: accountID)
-                } label: {
-                    menuActionLabel(title: "Rename", systemImage: "pencil")
-                }
-
-                Button {
-                    iconPickerAccountID = accountID
-                } label: {
-                    menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
-                }
-
-                Divider()
-
-                Button(role: .destructive) {
-                    controller.removeAccounts(withIDs: selection)
-                } label: {
-                    destructiveMenuLabel(title: "Remove", systemImage: "trash")
-                }
-            } else if !selection.isEmpty {
-                Button(role: .destructive) {
-                    controller.removeAccounts(withIDs: selection)
-                } label: {
-                    destructiveMenuLabel(title: "Remove", systemImage: "trash")
-                }
-            }
-        }
-        .onDeleteCommand {
-            guard controller.renameTargetID == nil else {
-                return
-            }
-
-            controller.removeSelectedAccounts()
-        }
         .onMoveCommand { direction in
             controller.moveSelection(direction: direction, visibleAccounts: displayedAccounts)
         }
-        .onKeyPress(.delete, phases: [.down, .repeat]) { keyPress in
+        .onKeyPress(.delete, phases: [.down]) { keyPress in
             guard
                 !controller.selection.isEmpty,
                 controller.renameTargetID == nil,
@@ -236,6 +233,13 @@ struct ContentView: View {
         Self.supportsRemovalShortcut(modifiers: keyPress.modifiers)
     }
 
+    private func contextMenuTargetIDs(for accountID: UUID) -> Set<UUID> {
+        Self.contextMenuTargetIDs(
+            clickedAccountID: accountID,
+            currentSelection: controller.selection
+        )
+    }
+
     private func menuActionLabel(title: String, systemImage: String) -> some View {
         Label(title, systemImage: systemImage)
     }
@@ -262,6 +266,17 @@ extension ContentView {
             true
         default:
             false
+        }
+    }
+
+    /// Right-click actions should target the clicked row unless that row is
+    /// already part of the current multi-selection, in which case the menu
+    /// applies to the selected rows together.
+    static func contextMenuTargetIDs(clickedAccountID: UUID, currentSelection: Set<UUID>) -> Set<UUID> {
+        if currentSelection.count > 1, currentSelection.contains(clickedAccountID) {
+            currentSelection
+        } else {
+            [clickedAccountID]
         }
     }
 }

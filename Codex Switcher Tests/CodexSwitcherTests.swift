@@ -274,6 +274,33 @@ struct CodexSwitcherTests {
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.control]) == false)
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.command, .option]) == false)
     }
+
+    @Test func contextMenuTargetsClickedRowUnlessItBelongsToMultiSelection() {
+        let first = UUID()
+        let second = UUID()
+        let third = UUID()
+
+        #expect(
+            ContentView.contextMenuTargetIDs(
+                clickedAccountID: third,
+                currentSelection: [first, second]
+            ) == [third]
+        )
+
+        #expect(
+            ContentView.contextMenuTargetIDs(
+                clickedAccountID: second,
+                currentSelection: [first, second]
+            ) == [first, second]
+        )
+
+        #expect(
+            ContentView.contextMenuTargetIDs(
+                clickedAccountID: first,
+                currentSelection: [first]
+            ) == [first]
+        )
+    }
 }
 
 private func makeInMemoryContainer() throws -> ModelContainer {
