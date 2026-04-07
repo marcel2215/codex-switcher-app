@@ -42,6 +42,7 @@ struct ContentView: View {
                         AccountRowView(
                             account: account,
                             isCurrentAccount: controller.activeIdentityKey == account.identityKey,
+                            isSelected: controller.selection.contains(account.id),
                             isRenaming: controller.renameTargetID == account.id,
                             canReorder: controller.canEditCustomOrder,
                             onRemove: { controller.removeAccounts(withIDs: [account.id]) },

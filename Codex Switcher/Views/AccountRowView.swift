@@ -10,6 +10,7 @@ import SwiftUI
 struct AccountRowView: View {
     let account: StoredAccount
     let isCurrentAccount: Bool
+    let isSelected: Bool
     let isRenaming: Bool
     let canReorder: Bool
     let onRemove: () -> Void
@@ -71,7 +72,7 @@ struct AccountRowView: View {
 
             if isCurrentAccount {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(isSelected ? Color.white : Color.accentColor)
                     .help("Currently active in Codex")
             }
         }
