@@ -14,6 +14,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.undoManager) private var undoManager
     @Query private var accounts: [StoredAccount]
+    @State private var iconPickerAccountID: UUID?
 
     private var displayedAccounts: [StoredAccount] {
         controller.displayedAccounts(from: accounts)
@@ -21,6 +22,25 @@ struct ContentView: View {
 
     private var undoManagerTaskID: ObjectIdentifier? {
         undoManager.map(ObjectIdentifier.init)
+    }
+
+    private var iconPickerAccount: StoredAccount? {
+        guard let iconPickerAccountID else {
+            return nil
+        }
+
+        return accounts.first(where: { $0.id == iconPickerAccountID })
+    }
+
+    private var isShowingIconPicker: Binding<Bool> {
+        Binding(
+            get: { iconPickerAccount != nil },
+            set: { isPresented in
+                if !isPresented {
+                    iconPickerAccountID = nil
+                }
+            }
+        )
     }
 
     var body: some View {
@@ -120,20 +140,8 @@ struct ContentView: View {
                     controller.beginRenaming(accountID: accountID)
                 }
 
-                Menu("Choose Icon") {
-                    if let selectedAccount = accounts.first(where: { $0.id == accountID }) {
-                        ForEach(AccountIconOption.allCases) { icon in
-                            Button {
-                                controller.setIcon(icon, for: accountID)
-                            } label: {
-                                menuChoiceLabel(
-                                    title: icon.title,
-                                    systemImage: icon.systemName,
-                                    isSelected: AccountIconOption.resolve(from: selectedAccount.iconSystemName) == icon
-                                )
-                            }
-                        }
-                    }
+                Button("Choose Icon") {
+                    iconPickerAccountID = accountID
                 }
 
                 Divider()
@@ -174,6 +182,17 @@ struct ContentView: View {
         .task(id: undoManagerTaskID) {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
         }
+        .sheet(isPresented: isShowingIconPicker) {
+            if let iconPickerAccount {
+                AccountIconPickerView(
+                    selectedIcon: AccountIconOption.resolve(from: iconPickerAccount.iconSystemName),
+                    onSelect: { icon in
+                        controller.setIcon(icon, for: iconPickerAccount.id)
+                        iconPickerAccountID = nil
+                    }
+                )
+            }
+        }
         .alert(item: $controller.presentedAlert) { alert in
             Alert(
                 title: Text(alert.title),
@@ -187,17 +206,6 @@ struct ContentView: View {
     private func sortMenuLabel(title: String, isSelected: Bool) -> some View {
         HStack {
             Text(title)
-            if isSelected {
-                Spacer()
-                Image(systemName: "checkmark")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func menuChoiceLabel(title: String, systemImage: String, isSelected: Bool) -> some View {
-        HStack {
-            Label(title, systemImage: systemImage)
             if isSelected {
                 Spacer()
                 Image(systemName: "checkmark")
