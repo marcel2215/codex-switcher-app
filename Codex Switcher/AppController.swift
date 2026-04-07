@@ -214,11 +214,28 @@ final class AppController: ObservableObject {
     }
 
     func reorderDraggedAccounts(_ items: [String], to destinationIndex: Int, visibleAccounts: [StoredAccount]) {
-        guard canEditCustomOrder, let movingID = items.first.flatMap(UUID.init(uuidString:)) else {
+        guard
+            canEditCustomOrder,
+            let movingID = items.first.flatMap(UUID.init(uuidString:)),
+            let sourceIndex = visibleAccounts.firstIndex(where: { $0.id == movingID })
+        else {
             return
         }
 
-        moveAccount(withID: movingID, to: destinationIndex, visibleAccounts: visibleAccounts)
+        let boundedDropIndex = min(max(destinationIndex, 0), visibleAccounts.count)
+        var finalIndex = boundedDropIndex
+
+        // Drop destinations are insertion points in the pre-move list, while
+        // moveAccount expects the final row index after the item is removed.
+        if sourceIndex < boundedDropIndex {
+            finalIndex -= 1
+        }
+
+        finalIndex = min(max(finalIndex, 0), max(visibleAccounts.count - 1, 0))
+
+        Task { @MainActor in
+            moveAccount(withID: movingID, to: finalIndex, visibleAccounts: visibleAccounts)
+        }
     }
 
     func moveSelection(direction: MoveCommandDirection, visibleAccounts: [StoredAccount]) {
@@ -247,21 +264,30 @@ final class AppController: ObservableObject {
     private func moveAccount(withID movingID: UUID, to destinationIndex: Int, visibleAccounts: [StoredAccount]) {
         guard
             let sourceIndex = visibleAccounts.firstIndex(where: { $0.id == movingID }),
-            destinationIndex != sourceIndex
+            !visibleAccounts.isEmpty
         else {
+            return
+        }
+
+        let boundedDestinationIndex = min(max(destinationIndex, 0), visibleAccounts.count - 1)
+        guard boundedDestinationIndex != sourceIndex else {
             return
         }
 
         var reorderedAccounts = visibleAccounts
         let movingAccount = reorderedAccounts.remove(at: sourceIndex)
-        reorderedAccounts.insert(movingAccount, at: destinationIndex)
+        let insertionIndex = min(max(boundedDestinationIndex, 0), reorderedAccounts.count)
+        reorderedAccounts.insert(movingAccount, at: insertionIndex)
 
         for (index, account) in reorderedAccounts.enumerated() {
             account.customOrder = Double(index)
         }
 
-        try? modelContext?.save()
-        selection = [movingID]
+        do {
+            try requireModelContext().save()
+        } catch {
+            present(error, title: "Couldn't Reorder Accounts")
+        }
     }
 
     private func switchToAccount(id: UUID) async {

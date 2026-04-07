@@ -231,6 +231,38 @@ struct CodexSwitcherTests {
         let updatedAccount = try #require(fetchAccounts(in: container.mainContext).first)
         #expect(updatedAccount.iconSystemName == AccountIconOption.terminal.systemName)
     }
+
+    @Test func dragReorderMovesAccountToEndWithoutInvalidInsertIndex() async throws {
+        let container = try makeInMemoryContainer()
+        let controller = AppController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")),
+            notificationManager: FakeNotificationManager()
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.sortCriterion = .custom
+
+        let first = makeStoredAccount(name: "First", customOrder: 0, accountID: "acct-1")
+        let second = makeStoredAccount(name: "Second", customOrder: 1, accountID: "acct-2")
+        let third = makeStoredAccount(name: "Third", customOrder: 2, accountID: "acct-3")
+
+        container.mainContext.insert(first)
+        container.mainContext.insert(second)
+        container.mainContext.insert(third)
+        try container.mainContext.save()
+
+        controller.reorderDraggedAccounts(
+            [first.id.uuidString],
+            to: 3,
+            visibleAccounts: [first, second, third]
+        )
+
+        try await Task.sleep(for: .milliseconds(50))
+
+        let reordered = controller.displayedAccounts(from: try fetchAccounts(in: container.mainContext))
+        #expect(reordered.map(\.name) == ["Second", "Third", "First"])
+        #expect(controller.presentedAlert == nil)
+    }
 }
 
 private func makeInMemoryContainer() throws -> ModelContainer {
@@ -292,6 +324,22 @@ private func makeChatGPTAuthJSON(
       }
     }
     """
+}
+
+@MainActor
+private func makeStoredAccount(name: String, customOrder: Double, accountID: String) -> StoredAccount {
+    let contents = makeChatGPTAuthJSON(accountID: accountID)
+    let snapshot = try! CodexAuthFile.parse(contents: contents)
+
+    return StoredAccount(
+        identityKey: snapshot.identityKey,
+        name: name,
+        customOrder: customOrder,
+        authFileContents: contents,
+        authModeRaw: snapshot.authMode.rawValue,
+        emailHint: snapshot.email,
+        accountIdentifier: snapshot.accountIdentifier
+    )
 }
 
 private func makeJWT(_ payload: [String: Any]) -> String {

@@ -75,11 +75,13 @@ struct ListDoubleClickBridge<RowID: Hashable>: NSViewRepresentable {
 
         private weak var tableView: NSTableView?
         private weak var previousTarget: AnyObject?
+        private var previousAction: Selector?
         private var previousDoubleAction: Selector?
 
         func install(on tableView: NSTableView) {
             if self.tableView === tableView,
                tableView.target === self,
+               tableView.action == #selector(handleAction(_:)),
                tableView.doubleAction == #selector(handleDoubleClick(_:)) {
                 return
             }
@@ -88,26 +90,38 @@ struct ListDoubleClickBridge<RowID: Hashable>: NSViewRepresentable {
 
             self.tableView = tableView
             previousTarget = tableView.target as AnyObject?
+            previousAction = tableView.action
             previousDoubleAction = tableView.doubleAction
             tableView.target = self
+            tableView.action = #selector(handleAction(_:))
             tableView.doubleAction = #selector(handleDoubleClick(_:))
         }
 
         func uninstall() {
             guard let tableView else {
                 previousTarget = nil
+                previousAction = nil
                 previousDoubleAction = nil
                 return
             }
 
             if tableView.target === self {
                 tableView.target = previousTarget
+                tableView.action = previousAction
                 tableView.doubleAction = previousDoubleAction
             }
 
             self.tableView = nil
             previousTarget = nil
+            previousAction = nil
             previousDoubleAction = nil
+        }
+
+        /// Preserve SwiftUI's original single-click behavior while still
+        /// allowing us to own the table view target for native double-click.
+        @objc
+        private func handleAction(_ sender: Any?) {
+            forwardStoredAction(previousAction, sender: sender)
         }
 
         @objc
@@ -120,6 +134,17 @@ struct ListDoubleClickBridge<RowID: Hashable>: NSViewRepresentable {
             }
 
             onDoubleClick?(rowIDs[tableView.clickedRow])
+        }
+
+        private func forwardStoredAction(_ action: Selector?, sender: Any?) {
+            guard
+                let action,
+                let previousTarget
+            else {
+                return
+            }
+
+            NSApp.sendAction(action, to: previousTarget, from: sender)
         }
     }
 }
