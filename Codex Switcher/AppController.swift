@@ -149,6 +149,25 @@ final class AppController: ObservableObject {
         renameTargetID = accountID
     }
 
+    var selectedAccountID: UUID? {
+        guard selection.count == 1 else {
+            return nil
+        }
+
+        return selection.first
+    }
+
+    var selectedAccountIconOption: AccountIconOption? {
+        guard
+            let selectedAccountID,
+            let account = try? account(withID: selectedAccountID)
+        else {
+            return nil
+        }
+
+        return AccountIconOption.resolve(from: account.iconSystemName)
+    }
+
     func setIcon(_ icon: AccountIconOption, for accountID: UUID) {
         do {
             guard let account = try account(withID: accountID) else {
@@ -165,6 +184,14 @@ final class AppController: ObservableObject {
         } catch {
             present(error, title: "Couldn't Change Icon")
         }
+    }
+
+    func setSelectedAccountIcon(_ icon: AccountIconOption) {
+        guard let selectedAccountID else {
+            return
+        }
+
+        setIcon(icon, for: selectedAccountID)
     }
 
     func cancelRename(for accountID: UUID) {

@@ -11,34 +11,57 @@ struct AccountsCommands: Commands {
     @ObservedObject var controller: AppController
 
     var body: some Commands {
-        CommandMenu("Accounts") {
+        // Keep standard macOS categories intact, and only use a custom top-level
+        // menu for actions that are truly account-specific.
+        CommandGroup(after: .newItem) {
             Button("Add Current Account") {
                 controller.captureCurrentAccount()
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
+        }
 
-            Button("Log In") {
-                controller.switchSelectedAccount()
-            }
-            .disabled(controller.selection.count != 1)
+        CommandGroup(after: .pasteboard) {
+            Divider()
 
-            Button("Rename") {
+            Button("Rename Account") {
                 controller.beginRenamingSelectedAccount()
             }
+            .keyboardShortcut(.return, modifiers: [])
             .disabled(controller.selection.count != 1)
 
-            Button("Remove") {
-                controller.removeSelectedAccounts()
+            Menu("Choose Account Icon") {
+                ForEach(AccountIconOption.allCases) { icon in
+                    Button {
+                        controller.setSelectedAccountIcon(icon)
+                    } label: {
+                        checkedMenuLabel(
+                            title: icon.title,
+                            systemImage: icon.systemName,
+                            isSelected: controller.selectedAccountIconOption == icon
+                        )
+                    }
+                }
             }
-            .disabled(controller.selection.isEmpty)
+            .disabled(controller.selection.count != 1)
 
+            Button(role: .destructive) {
+                controller.removeSelectedAccounts()
+            } label: {
+                Label("Remove Account", systemImage: "trash")
+                    .foregroundStyle(.red)
+            }
+            .keyboardShortcut(.delete, modifiers: [])
+            .disabled(controller.selection.isEmpty)
+        }
+
+        CommandGroup(after: .toolbar) {
             Divider()
 
             ForEach(AccountSortCriterion.allCases) { criterion in
                 Button {
                     controller.sortCriterion = criterion
                 } label: {
-                    menuLabel(
+                    checkedMenuLabel(
                         title: criterion.menuTitle,
                         isSelected: controller.sortCriterion == criterion
                     )
@@ -51,19 +74,42 @@ struct AccountsCommands: Commands {
                 Button {
                     controller.sortDirection = direction
                 } label: {
-                    menuLabel(
+                    checkedMenuLabel(
                         title: direction.menuTitle,
                         isSelected: controller.sortDirection == direction
                     )
                 }
             }
+
+            Divider()
+
+            Button("Clear Search") {
+                controller.searchText = ""
+            }
+            .disabled(controller.searchText.isEmpty)
+        }
+
+        CommandMenu("Account") {
+            Button("Log In to Selected Account") {
+                controller.switchSelectedAccount()
+            }
+            .disabled(controller.selection.count != 1)
+
+            Button("Refresh Active Account") {
+                controller.refreshActiveAccountIndicator(promptIfNeeded: false)
+            }
         }
     }
 
     @ViewBuilder
-    private func menuLabel(title: String, isSelected: Bool) -> some View {
+    private func checkedMenuLabel(title: String, systemImage: String? = nil, isSelected: Bool) -> some View {
         HStack {
-            Text(title)
+            if let systemImage {
+                Label(title, systemImage: systemImage)
+            } else {
+                Text(title)
+            }
+
             if isSelected {
                 Spacer()
                 Image(systemName: "checkmark")
