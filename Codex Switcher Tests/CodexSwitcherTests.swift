@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 import SwiftData
 import Testing
 @testable import Codex_Switcher
@@ -262,6 +263,16 @@ struct CodexSwitcherTests {
         let reordered = controller.displayedAccounts(from: try fetchAccounts(in: container.mainContext))
         #expect(reordered.map(\.name) == ["Second", "Third", "First"])
         #expect(controller.presentedAlert == nil)
+    }
+
+    @Test func removalShortcutSupportsDeleteWithExpectedModifiersOnly() {
+        #expect(ContentView.supportsRemovalShortcut(modifiers: []) == true)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.command]) == true)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.shift]) == true)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.command, .shift]) == true)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.option]) == false)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.control]) == false)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.command, .option]) == false)
     }
 }
 

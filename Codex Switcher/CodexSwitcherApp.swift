@@ -10,6 +10,7 @@ import SwiftData
 
 @main
 struct CodexSwitcherApp: App {
+    @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
     @StateObject private var controller = AppController(
         authFileManager: SecurityScopedAuthFileManager(),
         notificationManager: AccountSwitchNotificationManager()
@@ -37,7 +38,7 @@ struct CodexSwitcherApp: App {
     }()
 
     var body: some Scene {
-        WindowGroup {
+        Window("Codex Switcher", id: "main") {
             ContentView(controller: controller)
         }
         .defaultSize(width: 620, height: 720)

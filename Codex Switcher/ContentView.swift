@@ -166,15 +166,24 @@ struct ContentView: View {
             }
         }
         .onDeleteCommand {
+            guard controller.renameTargetID == nil else {
+                return
+            }
+
             controller.removeSelectedAccounts()
         }
         .onMoveCommand { direction in
             controller.moveSelection(direction: direction, visibleAccounts: displayedAccounts)
         }
-        .onKeyPress(.delete) {
-            guard !controller.selection.isEmpty else {
+        .onKeyPress(.delete, phases: [.down, .repeat]) { keyPress in
+            guard
+                !controller.selection.isEmpty,
+                controller.renameTargetID == nil,
+                shouldRemoveSelection(for: keyPress)
+            else {
                 return .ignored
             }
+
             controller.removeSelectedAccounts()
             return .handled
         }
@@ -223,6 +232,10 @@ struct ContentView: View {
         }
     }
 
+    private func shouldRemoveSelection(for keyPress: KeyPress) -> Bool {
+        Self.supportsRemovalShortcut(modifiers: keyPress.modifiers)
+    }
+
     private func menuActionLabel(title: String, systemImage: String) -> some View {
         Label(title, systemImage: systemImage)
     }
@@ -230,6 +243,26 @@ struct ContentView: View {
     private func destructiveMenuLabel(title: String, systemImage: String) -> some View {
         Label(title, systemImage: systemImage)
             .foregroundStyle(.red)
+    }
+}
+
+extension ContentView {
+    /// Matches the delete-key combinations this list treats as an account
+    /// removal shortcut. Keep this narrow so regular text editing shortcuts
+    /// continue to work when inline rename is active.
+    static func supportsRemovalShortcut(modifiers: EventModifiers) -> Bool {
+        switch modifiers {
+        case []:
+            true
+        case [.command]:
+            true
+        case [.shift]:
+            true
+        case [.command, .shift]:
+            true
+        default:
+            false
+        }
     }
 }
 

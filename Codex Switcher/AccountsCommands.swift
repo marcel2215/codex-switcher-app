@@ -13,23 +13,25 @@ struct AccountsCommands: Commands {
     var body: some Commands {
         // Keep standard macOS categories intact, and only use a custom top-level
         // menu for actions that are truly account-specific.
-        CommandGroup(after: .newItem) {
-            Button("Add Current Account") {
+        CommandGroup(replacing: .newItem) {
+            Button("Add Account") {
                 controller.captureCurrentAccount()
             }
-            .keyboardShortcut("n", modifiers: [.command, .shift])
+            // This is a single-window utility app, so the File > New command
+            // should create a saved account entry rather than open another window.
+            .keyboardShortcut("n", modifiers: [.command])
         }
 
         CommandGroup(after: .pasteboard) {
             Divider()
 
-            Button("Rename Account") {
+            Button("Rename") {
                 controller.beginRenamingSelectedAccount()
             }
             .keyboardShortcut(.return, modifiers: [])
             .disabled(controller.selection.count != 1)
 
-            Menu("Choose Account Icon") {
+            Menu("Choose Icon") {
                 ForEach(AccountIconOption.allCases) { icon in
                     Button {
                         controller.setSelectedAccountIcon(icon)
@@ -47,7 +49,7 @@ struct AccountsCommands: Commands {
             Button(role: .destructive) {
                 controller.removeSelectedAccounts()
             } label: {
-                Label("Remove Account", systemImage: "trash")
+                Label("Remove", systemImage: "trash")
                     .foregroundStyle(.red)
             }
             .keyboardShortcut(.delete, modifiers: [])
@@ -90,12 +92,12 @@ struct AccountsCommands: Commands {
         }
 
         CommandMenu("Account") {
-            Button("Log In to Selected Account") {
+            Button("Log In") {
                 controller.switchSelectedAccount()
             }
             .disabled(controller.selection.count != 1)
 
-            Button("Refresh Active Account") {
+            Button("Refresh") {
                 controller.refreshActiveAccountIndicator(promptIfNeeded: false)
             }
         }
