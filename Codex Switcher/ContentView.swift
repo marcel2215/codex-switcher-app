@@ -47,7 +47,7 @@ struct ContentView: View {
         Group {
             if displayedAccounts.isEmpty {
                 ContentUnavailableView(
-                    controller.searchText.isEmpty ? "No Accounts" : "No Matching Accounts",
+                    controller.searchText.isEmpty ? "No Accounts" : "No Results",
                     systemImage: controller.searchText.isEmpty ? "person.crop.rectangle.stack" : "magnifyingglass",
                     description: Text(
                         controller.searchText.isEmpty
