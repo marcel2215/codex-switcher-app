@@ -59,7 +59,7 @@ struct CodexSwitcherTests {
         let accounts = try fetchAccounts(in: container.mainContext)
         #expect(accounts.count == 1)
         #expect(controller.selection == [accounts[0].id])
-        #expect(accounts[0].name == "Unnamed Account 1")
+        #expect(accounts[0].name == "Account 1")
         #expect(accounts[0].iconSystemName == AccountIconOption.defaultOption.systemName)
     }
 
@@ -124,7 +124,7 @@ struct CodexSwitcherTests {
         let targetSnapshot = try CodexAuthFile.parse(contents: targetContents)
         let account = StoredAccount(
             identityKey: targetSnapshot.identityKey,
-            name: "Unnamed Account 1",
+            name: "Account 1",
             customOrder: 0,
             authFileContents: targetContents,
             authModeRaw: targetSnapshot.authMode.rawValue,
@@ -157,7 +157,7 @@ struct CodexSwitcherTests {
         let targetSnapshot = try CodexAuthFile.parse(contents: targetContents)
         let account = StoredAccount(
             identityKey: targetSnapshot.identityKey,
-            name: "Unnamed Account 1",
+            name: "Account 1",
             customOrder: 0,
             authFileContents: targetContents,
             authModeRaw: targetSnapshot.authMode.rawValue,
@@ -211,7 +211,7 @@ struct CodexSwitcherTests {
         let targetSnapshot = try CodexAuthFile.parse(contents: targetContents)
         let account = StoredAccount(
             identityKey: targetSnapshot.identityKey,
-            name: "Unnamed Account 1",
+            name: "Account 1",
             customOrder: 0,
             authFileContents: targetContents,
             authModeRaw: targetSnapshot.authMode.rawValue,

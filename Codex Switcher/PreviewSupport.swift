@@ -25,7 +25,7 @@ enum PreviewData {
         context.insert(
             StoredAccount(
                 identityKey: "account:preview-one",
-                name: "Unnamed Account 1",
+                name: "Account 1",
                 createdAt: .now.addingTimeInterval(-86_400),
                 lastLoginAt: .now.addingTimeInterval(-3_600),
                 customOrder: 0,
@@ -39,7 +39,7 @@ enum PreviewData {
         context.insert(
             StoredAccount(
                 identityKey: "account:preview-two",
-                name: "Unnamed Account 2",
+                name: "Account 2",
                 createdAt: .now,
                 lastLoginAt: nil,
                 customOrder: 1,

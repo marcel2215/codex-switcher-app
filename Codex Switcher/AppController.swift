@@ -105,7 +105,7 @@ final class AppController: ObservableObject {
                 let nextCustomOrder = (accounts.map(\.customOrder).max() ?? -1) + 1
                 let account = StoredAccount(
                     identityKey: snapshot.identityKey,
-                    name: "Unnamed Account \(accounts.count + 1)",
+                    name: "Account \(accounts.count + 1)",
                     customOrder: nextCustomOrder,
                     authFileContents: snapshot.rawContents,
                     authModeRaw: snapshot.authMode.rawValue,
