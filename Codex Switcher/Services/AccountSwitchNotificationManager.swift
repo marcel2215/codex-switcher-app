@@ -34,7 +34,7 @@ final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
 
         let content = UNMutableNotificationContent()
         content.title = "Account Switched"
-        content.body = "Now using \(accountName)."
+        content.body = "Now using \"\(accountName)\"."
         content.sound = nil
         content.interruptionLevel = .active
         content.relevanceScore = 0
