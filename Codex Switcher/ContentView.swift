@@ -47,11 +47,11 @@ struct ContentView: View {
         Group {
             if displayedAccounts.isEmpty {
                 ContentUnavailableView(
-                    controller.searchText.isEmpty ? "No Saved Accounts" : "No Matching Accounts",
+                    controller.searchText.isEmpty ? "No Accounts" : "No Matching Accounts",
                     systemImage: controller.searchText.isEmpty ? "person.crop.rectangle.stack" : "magnifyingglass",
                     description: Text(
                         controller.searchText.isEmpty
-                            ? "Click the add button to capture the account currently stored in Codex."
+                            ? "Click the plus button to add the currently used account."
                             : "Try a different search term."
                     )
                 )
