@@ -110,6 +110,64 @@ struct CodexSwitcherTests {
         #expect(controller.searchText.isEmpty)
     }
 
+    @Test func lastLoginDescriptionUsesNeverUsedForAccountsWithoutHistory() {
+        #expect(AccountRowView.makeLastLoginDescription(from: nil) == "Last login: never")
+    }
+
+    @Test func lastLoginDescriptionUsesThisHourForRecentLogins() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let lastLoginAt = now.addingTimeInterval(-(59 * 60))
+
+        #expect(AccountRowView.makeLastLoginDescription(from: lastLoginAt, relativeTo: now) == "Last login: this hour")
+    }
+
+    @Test func lastLoginDescriptionUsesHoursForSameDayLogins() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+
+        #expect(
+            AccountRowView.makeLastLoginDescription(
+                from: now.addingTimeInterval(-(1 * 60 * 60)),
+                relativeTo: now
+            ) == "Last login: 1 hour ago"
+        )
+        #expect(
+            AccountRowView.makeLastLoginDescription(
+                from: now.addingTimeInterval(-(10 * 60 * 60)),
+                relativeTo: now
+            ) == "Last login: 10 hours ago"
+        )
+    }
+
+    @Test func lastLoginDescriptionUsesDaysForOlderLogins() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+
+        #expect(
+            AccountRowView.makeLastLoginDescription(
+                from: now.addingTimeInterval(-(24 * 60 * 60)),
+                relativeTo: now
+            ) == "Last login: 1 day ago"
+        )
+        #expect(
+            AccountRowView.makeLastLoginDescription(
+                from: now.addingTimeInterval(-(7 * 24 * 60 * 60)),
+                relativeTo: now
+            ) == "Last login: 7 days ago"
+        )
+        #expect(
+            AccountRowView.makeLastLoginDescription(
+                from: now.addingTimeInterval(-(3_432 * 24 * 60 * 60)),
+                relativeTo: now
+            ) == "Last login: 3432 days ago"
+        )
+    }
+
+    @Test func lastLoginDescriptionClampsFutureDatesToThisHour() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let lastLoginAt = now.addingTimeInterval(5 * 60)
+
+        #expect(AccountRowView.makeLastLoginDescription(from: lastLoginAt, relativeTo: now) == "Last login: this hour")
+    }
+
     @Test func switchingAccountWritesStoredSnapshotAndRefreshesLastLogin() async throws {
         let container = try makeInMemoryContainer()
         let fakeFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))
