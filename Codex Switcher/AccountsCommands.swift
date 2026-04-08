@@ -89,6 +89,13 @@ struct AccountsCommands: Commands {
                 controller.searchText = ""
             }
             .disabled(controller.searchText.isEmpty)
+
+            Divider()
+
+            Button("Refresh") {
+                controller.refreshActiveAccountIndicator(promptIfNeeded: false)
+            }
+            .keyboardShortcut("r", modifiers: [.command])
         }
 
         CommandMenu("Account") {
@@ -96,10 +103,6 @@ struct AccountsCommands: Commands {
                 controller.switchSelectedAccount()
             }
             .disabled(controller.selection.count != 1)
-
-            Button("Refresh") {
-                controller.refreshActiveAccountIndicator(promptIfNeeded: false)
-            }
         }
     }
 
