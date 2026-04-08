@@ -116,8 +116,9 @@ enum AuthFileAccessError: LocalizedError, Equatable {
 }
 
 actor SecurityScopedAuthFileManager: AuthFileManaging {
-    private let defaults: UserDefaults = .standard
+    private let legacyDefaults: UserDefaults = .standard
     private let fileManager: FileManager = .default
+    private let bookmarkStore = CodexSharedBookmarkStore()
     private let bookmarkKey = "CodexLinkedFolderBookmark"
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
@@ -224,7 +225,13 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
     }
 
     private func resolveLinkedFolderURL() throws -> URL {
-        guard let bookmarkData = defaults.data(forKey: bookmarkKey) else {
+        let bookmarkData: Data
+        if let sharedBookmark = try bookmarkStore.load() {
+            bookmarkData = sharedBookmark
+        } else if let legacyBookmark = legacyDefaults.data(forKey: bookmarkKey) {
+            bookmarkData = legacyBookmark
+            try? bookmarkStore.save(legacyBookmark)
+        } else {
             throw AuthFileAccessError.accessRequired
         }
 
@@ -309,11 +316,13 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
-        defaults.set(bookmark, forKey: bookmarkKey)
+        try bookmarkStore.save(bookmark)
+        legacyDefaults.set(bookmark, forKey: bookmarkKey)
     }
 
     private func clearStoredBookmark() {
-        defaults.removeObject(forKey: bookmarkKey)
+        try? bookmarkStore.clear()
+        legacyDefaults.removeObject(forKey: bookmarkKey)
     }
 
     private func restartMonitoringIfPossible() async {

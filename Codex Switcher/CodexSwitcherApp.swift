@@ -25,24 +25,55 @@ struct CodexSwitcherApp: App {
     }
 
     var body: some Scene {
+        mainWindowScene
+        settingsScene
+        menuBarScene
+    }
+
+    @SceneBuilder
+    private var mainWindowScene: some Scene {
         Window("Codex Switcher", id: "main") {
-            Group {
-                if let sharedModelContainer {
-                    ContentView(controller: controller)
-                        .modelContainer(sharedModelContainer)
-                } else {
-                    StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
-                }
-            }
+            rootContentView
         }
         .defaultSize(width: 620, height: 720)
         .commands {
             AccountsCommands(controller: controller)
         }
+    }
 
+    @SceneBuilder
+    private var settingsScene: some Scene {
         Settings {
             SettingsView(controller: controller)
                 .frame(width: 520, height: 220)
+        }
+    }
+
+    @SceneBuilder
+    private var menuBarScene: some Scene {
+        // The menu bar extra remains available even when the main window is
+        // closed. If SwiftData failed to initialize, keep the extra alive and
+        // show a recovery surface instead of removing the system entry point.
+        MenuBarExtra("Codex Switcher", systemImage: "arrow.left.arrow.right.circle") {
+            if let sharedModelContainer {
+                MenuBarAccountsView(controller: controller)
+                    .modelContainer(sharedModelContainer)
+            } else {
+                MenuBarStorageRecoveryView(
+                    message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database."
+                )
+            }
+        }
+        .menuBarExtraStyle(.window)
+    }
+
+    @ViewBuilder
+    private var rootContentView: some View {
+        if let sharedModelContainer {
+            ContentView(controller: controller)
+                .modelContainer(sharedModelContainer)
+        } else {
+            StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
         }
     }
 }
@@ -183,6 +214,29 @@ private struct StorageRecoveryView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(24)
+    }
+}
+
+private struct MenuBarStorageRecoveryView: View {
+    let message: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Storage Unavailable", systemImage: "externaldrive.badge.exclamationmark")
+                .font(.headline)
+
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Divider()
+
+            SettingsLink {
+                Label("Settings", systemImage: "gearshape")
+            }
+        }
+        .frame(width: 300, alignment: .leading)
+        .padding(14)
     }
 }
 

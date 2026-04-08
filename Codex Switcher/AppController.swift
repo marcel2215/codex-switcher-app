@@ -44,6 +44,7 @@ final class AppController {
     @ObservationIgnored private var initializationTask: Task<Void, Never>?
     @ObservationIgnored private var switchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSwitchOperationID: UUID?
+    @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
 
     init(
         authFileManager: AuthFileManaging,
@@ -62,6 +63,7 @@ final class AppController {
     deinit {
         initializationTask?.cancel()
         switchTask?.cancel()
+        sharedStatePublishTask?.cancel()
     }
 
     func configure(modelContext: ModelContext, undoManager: UndoManager?) {
@@ -88,6 +90,7 @@ final class AppController {
             await self.reconcileStoredSnapshotsIfNeeded()
             await self.refreshAuthState(showUnexpectedErrors: false)
             self.reconcileDisplayOnlyFieldsIfNeeded()
+            self.publishSharedState()
             self.initializationTask = nil
         }
         self.initializationTask = initializationTask
@@ -154,7 +157,7 @@ final class AppController {
             }
         }
 
-        return filteredAccounts.sorted(by: sortComparator)
+        return sortedAccounts(from: filteredAccounts)
     }
 
     func beginLinkingCodexLocation() {
@@ -249,6 +252,7 @@ final class AppController {
             account.name = trimmedName
             try requireModelContext().save()
             renameTargetID = nil
+            publishSharedState()
         } catch {
             present(error, title: "Couldn't Rename Account")
         }
@@ -267,6 +271,7 @@ final class AppController {
 
             account.iconSystemName = resolvedSystemName
             try requireModelContext().save()
+            publishSharedState()
         } catch {
             present(error, title: "Couldn't Change Icon")
         }
@@ -381,6 +386,7 @@ final class AppController {
             searchText = ""
             activeIdentityKey = snapshot.identityKey
             authAccessState = .ready(linkedFolder: readResult.url.deletingLastPathComponent())
+            publishSharedState()
         } catch {
             await handleExpectedAuthOperationError(
                 error,
@@ -435,6 +441,7 @@ final class AppController {
                 )
             }
 
+            publishSharedState()
             await notificationManager.postSwitchNotification(for: targetAccount.name)
         } catch is CancellationError {
             return
@@ -469,6 +476,7 @@ final class AppController {
             }
 
             try modelContext.save()
+            publishSharedState()
         } catch {
             present(error, title: "Couldn't Remove Account")
         }
@@ -623,6 +631,8 @@ final class AppController {
     }
 
     private func refreshAuthState(showUnexpectedErrors: Bool) async {
+        defer { publishSharedState() }
+
         guard let linkedLocation = await authFileManager.linkedLocation() else {
             activeIdentityKey = nil
             authAccessState = .unlinked
@@ -978,9 +988,70 @@ final class AppController {
 
         do {
             try requireModelContext().save()
+            publishSharedState()
         } catch {
             present(error, title: "Couldn't Reorder Accounts")
         }
+    }
+
+    private func sortedAccounts(from accounts: [StoredAccount]) -> [StoredAccount] {
+        accounts.sorted(by: sortComparator)
+    }
+
+    private func publishSharedState() {
+        let sharedState: SharedCodexState
+        do {
+            sharedState = try makeSharedState()
+        } catch {
+            logger.error("Couldn't prepare shared widget state: \(String(describing: error), privacy: .private)")
+            return
+        }
+
+        sharedStatePublishTask?.cancel()
+        sharedStatePublishTask = Task.detached(priority: .utility) {
+            do {
+                try? await Task.sleep(for: .milliseconds(150))
+                try Task.checkCancellation()
+                try CodexSharedStateStore().save(sharedState)
+                CodexSharedSurfaceReloader.reloadAll()
+            } catch is CancellationError {
+                return
+            } catch {
+                let logger = Logger(
+                    subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+                    category: "SharedState"
+                )
+                logger.error("Couldn't publish shared widget state: \(String(describing: error), privacy: .private)")
+            }
+        }
+    }
+
+    private func makeSharedState() throws -> SharedCodexState {
+        let allAccounts = try fetchAccounts()
+        let sharedAccounts = sortedAccounts(from: allAccounts)
+            .filter { !$0.identityKey.isEmpty }
+            .map { account in
+                SharedCodexAccountRecord(
+                    id: account.identityKey,
+                    name: account.name,
+                    iconSystemName: account.iconSystemName,
+                    emailHint: account.emailHint,
+                    accountIdentifier: account.accountIdentifier,
+                    authModeRaw: account.authModeRaw,
+                    lastLoginAt: account.lastLoginAt,
+                    sortOrder: account.customOrder,
+                    authFileContents: account.authFileContents
+                )
+            }
+
+        return SharedCodexState(
+            schemaVersion: SharedCodexState.currentSchemaVersion,
+            authState: SharedCodexAuthState(authAccessState: authAccessState),
+            linkedFolderPath: linkedFolderPath,
+            currentAccountID: activeIdentityKey,
+            accounts: sharedAccounts,
+            updatedAt: .now
+        )
     }
 
     private func fetchAccounts() throws -> [StoredAccount] {
@@ -1119,6 +1190,27 @@ private enum ControllerError: LocalizedError {
             "That account no longer exists."
         case .accountLimitReached:
             "Codex Switcher supports up to 1000 saved accounts."
+        }
+    }
+}
+
+private extension SharedCodexAuthState {
+    init(authAccessState: AuthAccessState) {
+        switch authAccessState {
+        case .unlinked:
+            self = .unlinked
+        case .ready:
+            self = .ready
+        case .missingAuthFile:
+            self = .loggedOut
+        case .locationUnavailable:
+            self = .locationUnavailable
+        case .accessDenied:
+            self = .accessDenied
+        case .corruptAuthFile:
+            self = .corruptAuthFile
+        case .unsupportedCredentialStore:
+            self = .unsupportedCredentialStore
         }
     }
 }

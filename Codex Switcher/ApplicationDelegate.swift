@@ -8,9 +8,10 @@
 import AppKit
 
 final class ApplicationDelegate: NSObject, NSApplicationDelegate {
-    /// This app is intentionally single-window. Closing the last window should
-    /// terminate the process instead of leaving a menu-bar-only app behind.
+    /// The app now owns a persistent MenuBarExtra. Closing the main window
+    /// should leave the process alive so widgets, controls, and the menu bar
+    /// surface keep working.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
     }
 }

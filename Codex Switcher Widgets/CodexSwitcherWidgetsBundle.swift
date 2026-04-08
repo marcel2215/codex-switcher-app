@@ -11,7 +11,9 @@ import SwiftUI
 @main
 struct CodexSwitcherWidgetsBundle: WidgetBundle {
     var body: some Widget {
-        CodexSwitcherWidgets()
-        CodexSwitcherWidgetsControl()
+        CurrentAccountWidget()
+        SavedAccountWidget()
+        QuickSwitchControl()
+        OpenCodexSwitcherControl()
     }
 }
