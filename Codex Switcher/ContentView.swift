@@ -59,60 +59,7 @@ struct ContentView: View {
             } else {
                 List(selection: $controller.selection) {
                     ForEach(displayedAccounts) { account in
-                        AccountRowView(
-                            account: account,
-                            isCurrentAccount: controller.activeIdentityKey == account.identityKey,
-                            isSelected: controller.selection.contains(account.id),
-                            isRenaming: controller.renameTargetID == account.id,
-                            canReorder: controller.canEditCustomOrder,
-                            onRemove: { controller.removeAccounts(withIDs: [account.id]) },
-                            onCommitRename: { newName in
-                                controller.commitRename(for: account.id, proposedName: newName)
-                            },
-                            onCancelRename: {
-                                controller.cancelRename(for: account.id)
-                            }
-                        )
-                        .contextMenu {
-                            let targetIDs = contextMenuTargetIDs(for: account.id)
-
-                            if targetIDs.count == 1 {
-                                Button {
-                                    controller.selection = [account.id]
-                                    controller.login(accountID: account.id)
-                                } label: {
-                                    menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
-                                }
-
-                                Button {
-                                    controller.beginRenaming(accountID: account.id)
-                                } label: {
-                                    menuActionLabel(title: "Rename", systemImage: "pencil")
-                                }
-
-                                Button {
-                                    controller.selection = [account.id]
-                                    iconPickerAccountID = account.id
-                                } label: {
-                                    menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
-                                }
-
-                                Divider()
-
-                                Button(role: .destructive) {
-                                    controller.removeAccounts(withIDs: targetIDs)
-                                } label: {
-                                    destructiveMenuLabel(title: "Remove", systemImage: "trash")
-                                }
-                            } else {
-                                Button(role: .destructive) {
-                                    controller.removeAccounts(withIDs: targetIDs)
-                                } label: {
-                                    destructiveMenuLabel(title: "Remove", systemImage: "trash")
-                                }
-                            }
-                        }
-                        .tag(account.id)
+                        accountListRow(for: account)
                     }
                     .dropDestination(for: String.self) { items, index in
                         controller.reorderDraggedAccounts(
@@ -191,6 +138,17 @@ struct ContentView: View {
             controller.beginRenamingSelectedAccount()
             return .handled
         }
+        .onKeyPress(.space, phases: [.down]) { _ in
+            guard Self.canSwitchSelectedAccountViaSpace(
+                selectionCount: controller.selection.count,
+                isRenaming: controller.renameTargetID != nil
+            ) else {
+                return .ignored
+            }
+
+            controller.switchSelectedAccount()
+            return .handled
+        }
         .task {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
             controller.refreshActiveAccountIndicator(promptIfNeeded: false)
@@ -236,11 +194,76 @@ struct ContentView: View {
         Self.supportsRemovalShortcut(modifiers: keyPress.modifiers)
     }
 
+    private func accountListRow(for account: StoredAccount) -> some View {
+        AccountRowView(
+            account: account,
+            isCurrentAccount: controller.activeIdentityKey == account.identityKey,
+            isSelected: controller.selection.contains(account.id),
+            isRenaming: controller.renameTargetID == account.id,
+            canReorder: controller.canEditCustomOrder,
+            onRemove: { controller.removeAccounts(withIDs: [account.id]) },
+            onCommitRename: { newName in
+                controller.commitRename(for: account.id, proposedName: newName)
+            },
+            onCancelRename: {
+                controller.cancelRename(for: account.id)
+            }
+        )
+        .contextMenu { accountContextMenu(for: account) }
+        .tag(account.id)
+    }
+
     private func contextMenuTargetIDs(for accountID: UUID) -> Set<UUID> {
         Self.contextMenuTargetIDs(
             clickedAccountID: accountID,
             currentSelection: controller.selection
         )
+    }
+
+    @ViewBuilder
+    private func accountContextMenu(for account: StoredAccount) -> some View {
+        let targetIDs = contextMenuTargetIDs(for: account.id)
+
+        if targetIDs.count == 1 {
+            singleAccountContextMenu(for: account, targetIDs: targetIDs)
+        } else {
+            removeAccountsButton(targetIDs: targetIDs)
+        }
+    }
+
+    @ViewBuilder
+    private func singleAccountContextMenu(for account: StoredAccount, targetIDs: Set<UUID>) -> some View {
+        Button {
+            controller.selection = [account.id]
+            controller.login(accountID: account.id)
+        } label: {
+            menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
+        }
+
+        Button {
+            controller.beginRenaming(accountID: account.id)
+        } label: {
+            menuActionLabel(title: "Rename", systemImage: "pencil")
+        }
+
+        Button {
+            controller.selection = [account.id]
+            iconPickerAccountID = account.id
+        } label: {
+            menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
+        }
+
+        Divider()
+
+        removeAccountsButton(targetIDs: targetIDs)
+    }
+
+    private func removeAccountsButton(targetIDs: Set<UUID>) -> some View {
+        Button(role: .destructive) {
+            controller.removeAccounts(withIDs: targetIDs)
+        } label: {
+            destructiveMenuLabel(title: "Remove", systemImage: "trash")
+        }
     }
 
     private func menuActionLabel(title: String, systemImage: String) -> some View {
@@ -281,6 +304,12 @@ extension ContentView {
         } else {
             [clickedAccountID]
         }
+    }
+
+    /// Space should behave like a lightweight "activate" action only when the
+    /// list has exactly one selected account and inline rename is not active.
+    static func canSwitchSelectedAccountViaSpace(selectionCount: Int, isRenaming: Bool) -> Bool {
+        selectionCount == 1 && !isRenaming
     }
 }
 

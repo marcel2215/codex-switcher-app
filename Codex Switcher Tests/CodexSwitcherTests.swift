@@ -116,6 +116,13 @@ struct CodexSwitcherTests {
         #expect(AccountIconOption.resolve(from: "not-a-real-symbol") == .key)
     }
 
+    @Test func spaceShortcutRequiresSingleSelectionAndNoRename() {
+        #expect(ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 1, isRenaming: false))
+        #expect(!ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 0, isRenaming: false))
+        #expect(!ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 2, isRenaming: false))
+        #expect(!ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 1, isRenaming: true))
+    }
+
     @Test func lastLoginDescriptionUsesNeverUsedForAccountsWithoutHistory() {
         #expect(AccountRowView.makeLastLoginDescription(from: nil) == "Last login: never")
     }
