@@ -120,13 +120,21 @@ final class AppController {
         authAccessState.showsInlineStatus
     }
 
+    var linkedFolderPath: String? {
+        authAccessState.linkedFolderURL?.path
+    }
+
+    var settingsLinkButtonTitle: String {
+        "Select"
+    }
+
     var linkButtonTitle: String {
         switch authAccessState {
         case .unlinked:
             "Link Codex Folder"
-        case .locationUnavailable, .accessDenied, .missingAuthFile, .corruptAuthFile, .unsupportedCredentialStore:
+        case .locationUnavailable, .accessDenied, .corruptAuthFile, .unsupportedCredentialStore:
             "Relink Codex Folder"
-        case .ready:
+        case .ready, .missingAuthFile:
             "Link Codex Folder"
         }
     }

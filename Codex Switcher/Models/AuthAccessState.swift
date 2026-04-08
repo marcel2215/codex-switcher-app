@@ -18,15 +18,28 @@ enum AuthAccessState: Equatable {
 
     var showsInlineStatus: Bool {
         switch self {
-        case .ready:
+        case .ready, .missingAuthFile:
             false
         case .unlinked,
-             .missingAuthFile,
              .locationUnavailable,
              .accessDenied,
              .corruptAuthFile,
              .unsupportedCredentialStore:
             true
+        }
+    }
+
+    var linkedFolderURL: URL? {
+        switch self {
+        case .unlinked:
+            nil
+        case let .ready(linkedFolder),
+             let .missingAuthFile(linkedFolder, _),
+             let .locationUnavailable(linkedFolder),
+             let .accessDenied(linkedFolder),
+             let .corruptAuthFile(linkedFolder),
+             let .unsupportedCredentialStore(linkedFolder, _):
+            linkedFolder
         }
     }
 

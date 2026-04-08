@@ -166,6 +166,16 @@ struct CodexSwitcherTests {
         #expect(controller.activeIdentityKey == nil)
     }
 
+    @Test func missingAuthFileIsTreatedAsLoggedOutWithoutInlineBanner() {
+        let state = AuthAccessState.missingAuthFile(
+            linkedFolder: URL(fileURLWithPath: "/tmp/.codex", isDirectory: true),
+            credentialStoreHint: .file
+        )
+
+        #expect(state.showsInlineStatus == false)
+        #expect(state.linkedFolderURL?.path == "/tmp/.codex")
+    }
+
     @Test func switchingAccountWritesStoredSnapshotAndRefreshesLastLogin() async throws {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))

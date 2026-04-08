@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 @main
 struct CodexSwitcherApp: App {
@@ -37,6 +38,11 @@ struct CodexSwitcherApp: App {
         .defaultSize(width: 620, height: 720)
         .commands {
             AccountsCommands(controller: controller)
+        }
+
+        Settings {
+            SettingsView(controller: controller)
+                .frame(width: 520, height: 220)
         }
     }
 }
@@ -177,5 +183,36 @@ private struct StorageRecoveryView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(24)
+    }
+}
+
+private struct SettingsView: View {
+    @Bindable var controller: AppController
+    @State private var isShowingLocationPicker = false
+
+    var body: some View {
+        Form {
+            Section("Codex Folder") {
+                Text(controller.linkedFolderPath ?? "Not selected")
+                    .font(.body.monospaced())
+                    .textSelection(.enabled)
+                    .foregroundStyle(controller.linkedFolderPath == nil ? .secondary : .primary)
+
+                Button(controller.settingsLinkButtonTitle) {
+                    isShowingLocationPicker = true
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding(20)
+        .fileImporter(
+            isPresented: $isShowingLocationPicker,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false,
+            onCompletion: controller.handleLocationImport
+        )
+        .fileDialogCustomizationID("codex-auth-location")
+        .fileDialogDefaultDirectory(FileManager.default.homeDirectoryForCurrentUser)
+        .fileDialogBrowserOptions([.includeHiddenFiles])
     }
 }

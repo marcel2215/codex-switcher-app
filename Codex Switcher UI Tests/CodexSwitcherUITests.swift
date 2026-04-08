@@ -26,14 +26,10 @@ final class CodexSwitcherUITests: XCTestCase {
     }
 
     @MainActor
-    func testMissingAuthFileStateShowsRelinkAndRefresh() throws {
+    func testMissingAuthFileStateDoesNotShowBanner() throws {
         let app = launchApp(for: "missing-auth-file")
 
-        XCTAssertTrue(app.otherElements["auth-status-banner"].waitForExistence(timeout: 2))
-        XCTAssertEqual(app.staticTexts["auth-status-title"].label, "No auth.json")
-        XCTAssertTrue(app.staticTexts["auth-status-message"].label.contains("Codex may be logged out."))
-        XCTAssertEqual(app.buttons["auth-link-button"].label, "Relink Codex Folder")
-        XCTAssertTrue(app.buttons["auth-refresh-button"].exists)
+        XCTAssertFalse(app.otherElements["auth-status-banner"].waitForExistence(timeout: 1))
     }
 
     @MainActor
