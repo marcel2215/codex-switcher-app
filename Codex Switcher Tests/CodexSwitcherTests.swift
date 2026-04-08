@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import SwiftData
+import SwiftUI
 import Testing
 @testable import Codex_Switcher
 
@@ -44,28 +44,33 @@ struct CodexSwitcherTests {
         #expect(snapshot.accountIdentifier == nil)
     }
 
-    @Test func capturePreventsDuplicatesAndKeepsSelectionOnExistingAccount() throws {
+    @Test func capturePreventsDuplicatesAndKeepsSelectionOnExistingAccount() async throws {
         let container = try makeInMemoryContainer()
-        let fakeFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
-        let controller = AppController(
-            authFileManager: fakeFileManager,
-            notificationManager: FakeNotificationManager()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
+        let secretStore = FakeSecretStore()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore
         )
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
-        controller.captureCurrentAccount()
-        controller.captureCurrentAccount()
+        await controller.captureCurrentAccountNow()
+        await controller.captureCurrentAccountNow()
 
         let accounts = try fetchAccounts(in: container.mainContext)
+        let account = try #require(accounts.first)
+
         #expect(accounts.count == 1)
-        #expect(controller.selection == [accounts[0].id])
-        #expect(accounts[0].name == "Account 1")
-        #expect(accounts[0].iconSystemName == AccountIconOption.defaultOption.systemName)
+        #expect(controller.selection == [account.id])
+        #expect(account.name == "Account 1")
+        #expect(account.iconSystemName == AccountIconOption.defaultOption.systemName)
+        #expect(account.authFileContents == makeChatGPTAuthJSON(accountID: "acct-123"))
+        #expect(await secretStore.secret(for: account.id) == makeChatGPTAuthJSON(accountID: "acct-123"))
     }
 
-    @Test func captureAddsDistinctAccountsWhenStableSubjectDiffers() throws {
+    @Test func captureAddsDistinctAccountsWhenStableSubjectDiffers() async throws {
         let container = try makeInMemoryContainer()
-        let fakeFileManager = FakeAuthFileManager(
+        let authFileManager = FakeAuthFileManager(
             contents: makeChatGPTAuthJSON(
                 accountID: "shared-account-id",
                 userID: "user-one",
@@ -73,120 +78,103 @@ struct CodexSwitcherTests {
                 email: "one@example.com"
             )
         )
-        let controller = AppController(
-            authFileManager: fakeFileManager,
-            notificationManager: FakeNotificationManager()
-        )
+        let controller = makeController(authFileManager: authFileManager)
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
-        controller.captureCurrentAccount()
+        await controller.captureCurrentAccountNow()
 
-        fakeFileManager.contents = makeChatGPTAuthJSON(
-            accountID: "shared-account-id",
-            userID: "user-two",
-            subject: "auth0|user-two",
-            email: "two@example.com"
+        await authFileManager.setContents(
+            makeChatGPTAuthJSON(
+                accountID: "shared-account-id",
+                userID: "user-two",
+                subject: "auth0|user-two",
+                email: "two@example.com"
+            )
         )
-        controller.captureCurrentAccount()
+
+        await controller.captureCurrentAccountNow()
 
         let accounts = try fetchAccounts(in: container.mainContext)
         #expect(accounts.count == 2)
         #expect(Set(accounts.map(\.emailHint)) == ["one@example.com", "two@example.com"])
     }
 
-    @Test func captureClearsActiveSearchFilter() throws {
+    @Test func captureClearsActiveSearchFilter() async throws {
         let container = try makeInMemoryContainer()
-        let fakeFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
-        let controller = AppController(
-            authFileManager: fakeFileManager,
-            notificationManager: FakeNotificationManager()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
         )
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
         controller.searchText = "something"
 
-        controller.captureCurrentAccount()
+        await controller.captureCurrentAccountNow()
 
         #expect(controller.searchText.isEmpty)
     }
 
-    @Test func iconCatalogOffersExpandedChoicesAndKeepsKeyDefault() {
-        #expect(AccountIconOption.allCases.count >= 30)
-        #expect(AccountIconOption.defaultOption == .key)
-        #expect(AccountIconOption.resolve(from: "not-a-real-symbol") == .key)
-    }
-
-    @Test func spaceShortcutRequiresSingleSelectionAndNoRename() {
-        #expect(ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 1, isRenaming: false))
-        #expect(!ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 0, isRenaming: false))
-        #expect(!ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 2, isRenaming: false))
-        #expect(!ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 1, isRenaming: true))
-    }
-
-    @Test func lastLoginDescriptionUsesNeverUsedForAccountsWithoutHistory() {
-        #expect(AccountRowView.makeLastLoginDescription(from: nil) == "Last login: never")
-    }
-
-    @Test func lastLoginDescriptionUsesThisHourForRecentLogins() {
-        let now = Date(timeIntervalSince1970: 1_000_000)
-        let lastLoginAt = now.addingTimeInterval(-(59 * 60))
-
-        #expect(AccountRowView.makeLastLoginDescription(from: lastLoginAt, relativeTo: now) == "Last login: this hour")
-    }
-
-    @Test func lastLoginDescriptionUsesHoursForSameDayLogins() {
-        let now = Date(timeIntervalSince1970: 1_000_000)
-
-        #expect(
-            AccountRowView.makeLastLoginDescription(
-                from: now.addingTimeInterval(-(1 * 60 * 60)),
-                relativeTo: now
-            ) == "Last login: 1 hour ago"
+    @Test func storedSnapshotsStaySyncedAndBackfillTheLocalKeychainCache() async throws {
+        let container = try makeInMemoryContainer()
+        let secretStore = FakeSecretStore()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-current")),
+            secretStore: secretStore
         )
-        #expect(
-            AccountRowView.makeLastLoginDescription(
-                from: now.addingTimeInterval(-(10 * 60 * 60)),
-                relativeTo: now
-            ) == "Last login: 10 hours ago"
+
+        let legacyContents = makeChatGPTAuthJSON(accountID: "acct-legacy")
+        let legacySnapshot = try CodexAuthFile.parse(contents: legacyContents)
+        container.mainContext.insert(
+            StoredAccount(
+                identityKey: legacySnapshot.identityKey,
+                name: "Legacy",
+                customOrder: 0,
+                authFileContents: legacyContents,
+                authModeRaw: legacySnapshot.authMode.rawValue,
+                emailHint: legacySnapshot.email,
+                accountIdentifier: legacySnapshot.accountIdentifier
+            )
         )
+        try container.mainContext.save()
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await Task.yield()
+        await controller.refreshAuthStateForTesting()
+
+        let migratedAccount = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(migratedAccount.authFileContents == legacyContents)
+        #expect(await secretStore.secret(for: migratedAccount.id) == legacyContents)
     }
 
-    @Test func lastLoginDescriptionUsesDaysForOlderLogins() {
-        let now = Date(timeIntervalSince1970: 1_000_000)
-
-        #expect(
-            AccountRowView.makeLastLoginDescription(
-                from: now.addingTimeInterval(-(24 * 60 * 60)),
-                relativeTo: now
-            ) == "Last login: 1 day ago"
+    @Test func refreshMarksUnsupportedCredentialStoresInline() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(
+            contents: makeChatGPTAuthJSON(accountID: "acct-123"),
+            linkedLocation: AuthLinkedLocation(
+                folderURL: URL(fileURLWithPath: "/tmp/custom-codex", isDirectory: true),
+                credentialStoreHint: .auto
+            )
         )
-        #expect(
-            AccountRowView.makeLastLoginDescription(
-                from: now.addingTimeInterval(-(7 * 24 * 60 * 60)),
-                relativeTo: now
-            ) == "Last login: 7 days ago"
-        )
-        #expect(
-            AccountRowView.makeLastLoginDescription(
-                from: now.addingTimeInterval(-(3_432 * 24 * 60 * 60)),
-                relativeTo: now
-            ) == "Last login: 3432 days ago"
-        )
-    }
+        let controller = makeController(authFileManager: authFileManager)
 
-    @Test func lastLoginDescriptionClampsFutureDatesToThisHour() {
-        let now = Date(timeIntervalSince1970: 1_000_000)
-        let lastLoginAt = now.addingTimeInterval(5 * 60)
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
 
-        #expect(AccountRowView.makeLastLoginDescription(from: lastLoginAt, relativeTo: now) == "Last login: this hour")
+        #expect(controller.authAccessState == .unsupportedCredentialStore(
+            linkedFolder: URL(fileURLWithPath: "/tmp/custom-codex", isDirectory: true),
+            mode: .auto
+        ))
+        #expect(controller.activeIdentityKey == nil)
     }
 
     @Test func switchingAccountWritesStoredSnapshotAndRefreshesLastLogin() async throws {
         let container = try makeInMemoryContainer()
-        let fakeFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))
-        let controller = AppController(
-            authFileManager: fakeFileManager,
-            notificationManager: FakeNotificationManager()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))
+        let secretStore = FakeSecretStore()
+        let notificationManager = FakeNotificationManager()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore,
+            notificationManager: notificationManager
         )
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
@@ -197,30 +185,36 @@ struct CodexSwitcherTests {
             identityKey: targetSnapshot.identityKey,
             name: "Account 1",
             customOrder: 0,
-            authFileContents: targetContents,
             authModeRaw: targetSnapshot.authMode.rawValue,
             emailHint: targetSnapshot.email,
             accountIdentifier: targetSnapshot.accountIdentifier
         )
         container.mainContext.insert(account)
         try container.mainContext.save()
+        try await secretStore.saveSecret(targetContents, for: account.id)
 
-        controller.login(accountID: account.id)
-        try await Task.sleep(for: .milliseconds(100))
+        await controller.switchToAccountNow(id: account.id)
 
         let refreshedAccount = try #require(fetchAccounts(in: container.mainContext).first)
-        #expect(fakeFileManager.contents == targetContents)
+        #expect(await authFileManager.currentContents == targetContents)
         #expect(refreshedAccount.lastLoginAt != nil)
         #expect(controller.selection == [account.id])
+        #expect(notificationManager.postedAccountNames == ["Account 1"])
     }
 
     @Test func switchingAccountRecreatesAuthFileWhenCodexIsLoggedOut() async throws {
         let container = try makeInMemoryContainer()
-        let fakeFileManager = FakeAuthFileManager(missingAuthFileURL: URL(fileURLWithPath: "/tmp/auth.json"))
-        let controller = AppController(
-            authFileManager: fakeFileManager,
-            notificationManager: FakeNotificationManager()
+        let authFileManager = FakeAuthFileManager(
+            contents: "",
+            linkedLocation: AuthLinkedLocation(
+                folderURL: URL(fileURLWithPath: "/tmp/.codex", isDirectory: true),
+                credentialStoreHint: .file
+            )
         )
+        await authFileManager.setMissingAuthFile(true)
+
+        let secretStore = FakeSecretStore()
+        let controller = makeController(authFileManager: authFileManager, secretStore: secretStore)
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
 
@@ -230,89 +224,49 @@ struct CodexSwitcherTests {
             identityKey: targetSnapshot.identityKey,
             name: "Account 1",
             customOrder: 0,
-            authFileContents: targetContents,
             authModeRaw: targetSnapshot.authMode.rawValue,
             emailHint: targetSnapshot.email,
             accountIdentifier: targetSnapshot.accountIdentifier
         )
         container.mainContext.insert(account)
         try container.mainContext.save()
+        try await secretStore.saveSecret(targetContents, for: account.id)
 
-        controller.login(accountID: account.id)
-        try await Task.sleep(for: .milliseconds(100))
+        await controller.switchToAccountNow(id: account.id)
 
-        let refreshedAccount = try #require(fetchAccounts(in: container.mainContext).first)
-        #expect(fakeFileManager.contents == targetContents)
-        #expect(refreshedAccount.lastLoginAt != nil)
-        #expect(controller.selection == [account.id])
+        #expect(await authFileManager.currentContents == targetContents)
+        #expect(controller.activeIdentityKey == targetSnapshot.identityKey)
+        #expect(try fetchAccounts(in: container.mainContext).first?.authFileContents == targetContents)
     }
 
-    @Test func captureDoesNotShowAlertWhenFolderSelectionIsCancelled() throws {
+    @Test func cancelledLocationPickerDoesNotShowAlert() async throws {
         let container = try makeInMemoryContainer()
-        let fakeFileManager = FakeAuthFileManager(
-            contents: makeChatGPTAuthJSON(accountID: "acct-123"),
-            readError: AuthFileAccessError.cancelled
-        )
-        let controller = AppController(
-            authFileManager: fakeFileManager,
-            notificationManager: FakeNotificationManager()
-        )
+        let controller = makeController(authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")))
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
-        controller.captureCurrentAccount()
+        controller.beginLinkingCodexLocation()
+
+        await controller.handleLocationImportForTesting(.failure(CocoaError(.userCancelled)))
 
         #expect(controller.presentedAlert == nil)
-        #expect(try fetchAccounts(in: container.mainContext).isEmpty)
-    }
-
-    @Test func loginDoesNotShowAlertWhenFolderSelectionIsCancelled() async throws {
-        let container = try makeInMemoryContainer()
-        let fakeFileManager = FakeAuthFileManager(
-            contents: makeChatGPTAuthJSON(accountID: "acct-original"),
-            writeError: AuthFileAccessError.cancelled
-        )
-        let controller = AppController(
-            authFileManager: fakeFileManager,
-            notificationManager: FakeNotificationManager()
-        )
-
-        controller.configure(modelContext: container.mainContext, undoManager: nil)
-
-        let targetContents = makeChatGPTAuthJSON(accountID: "acct-target")
-        let targetSnapshot = try CodexAuthFile.parse(contents: targetContents)
-        let account = StoredAccount(
-            identityKey: targetSnapshot.identityKey,
-            name: "Account 1",
-            customOrder: 0,
-            authFileContents: targetContents,
-            authModeRaw: targetSnapshot.authMode.rawValue,
-            emailHint: targetSnapshot.email,
-            accountIdentifier: targetSnapshot.accountIdentifier
-        )
-        container.mainContext.insert(account)
-        try container.mainContext.save()
-
-        controller.login(accountID: account.id)
-        try await Task.sleep(for: .milliseconds(100))
-
-        let refreshedAccount = try #require(fetchAccounts(in: container.mainContext).first)
-        #expect(controller.presentedAlert == nil)
-        #expect(refreshedAccount.lastLoginAt == nil)
     }
 
     @Test func selectedAccountIconCanBeChanged() throws {
         let container = try makeInMemoryContainer()
-        let fakeFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
-        let controller = AppController(
-            authFileManager: fakeFileManager,
-            notificationManager: FakeNotificationManager()
-        )
+        let controller = makeController(authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")))
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
-        controller.captureCurrentAccount()
-
-        let account = try #require(fetchAccounts(in: container.mainContext).first)
-        #expect(account.iconSystemName == AccountIconOption.defaultOption.systemName)
+        let snapshot = try CodexAuthFile.parse(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
+        let account = StoredAccount(
+            identityKey: snapshot.identityKey,
+            name: "Account 1",
+            customOrder: 0,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier
+        )
+        container.mainContext.insert(account)
+        try container.mainContext.save()
 
         controller.setIcon(.terminal, for: account.id)
 
@@ -320,12 +274,9 @@ struct CodexSwitcherTests {
         #expect(updatedAccount.iconSystemName == AccountIconOption.terminal.systemName)
     }
 
-    @Test func dragReorderMovesAccountToEndWithoutInvalidInsertIndex() async throws {
+    @Test func dragReorderMovesAccountToEndWithoutInvalidInsertIndex() throws {
         let container = try makeInMemoryContainer()
-        let controller = AppController(
-            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")),
-            notificationManager: FakeNotificationManager()
-        )
+        let controller = makeController(authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")))
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
         controller.sortCriterion = .custom
@@ -344,8 +295,6 @@ struct CodexSwitcherTests {
             to: 3,
             visibleAccounts: [first, second, third]
         )
-
-        try await Task.sleep(for: .milliseconds(50))
 
         let reordered = controller.displayedAccounts(from: try fetchAccounts(in: container.mainContext))
         #expect(reordered.map(\.name) == ["Second", "Third", "First"])
@@ -388,12 +337,102 @@ struct CodexSwitcherTests {
             ) == [first]
         )
     }
+
+    @Test func spaceShortcutRequiresSingleSelectionAndNoRename() {
+        #expect(ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 1, isRenaming: false))
+        #expect(!ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 0, isRenaming: false))
+        #expect(!ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 2, isRenaming: false))
+        #expect(!ContentView.canSwitchSelectedAccountViaSpace(selectionCount: 1, isRenaming: true))
+    }
+
+    @Test func lastLoginDescriptionUsesExpectedRelativeFormats() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+
+        #expect(AccountRowView.makeLastLoginDescription(from: nil, relativeTo: now) == "Last login: never")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(59 * 60)), relativeTo: now) == "Last login: this hour")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(1 * 60 * 60)), relativeTo: now) == "Last login: 1 hour ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(10 * 60 * 60)), relativeTo: now) == "Last login: 10 hours ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(24 * 60 * 60)), relativeTo: now) == "Last login: 1 day ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(7 * 24 * 60 * 60)), relativeTo: now) == "Last login: 7 days ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(3_432 * 24 * 60 * 60)), relativeTo: now) == "Last login: 3432 days ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(5 * 60), relativeTo: now) == "Last login: this hour")
+    }
+
+    @Test func iconCatalogOffersExpandedChoicesAndKeepsKeyDefault() {
+        #expect(AccountIconOption.allCases.count >= 30)
+        #expect(AccountIconOption.defaultOption == .key)
+        #expect(AccountIconOption.resolve(from: "not-a-real-symbol") == .key)
+    }
+
+    @Test func startupReconcilesDuplicateAccountsForTheSameIdentityKey() async throws {
+        let container = try makeInMemoryContainer()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-current"))
+        )
+
+        let duplicateContents = makeChatGPTAuthJSON(accountID: "acct-duplicate")
+        let snapshot = try CodexAuthFile.parse(contents: duplicateContents)
+
+        container.mainContext.insert(
+            StoredAccount(
+                identityKey: snapshot.identityKey,
+                name: "Account 7",
+                createdAt: .now,
+                customOrder: 7,
+                authFileContents: duplicateContents,
+                authModeRaw: snapshot.authMode.rawValue,
+                emailHint: snapshot.email,
+                accountIdentifier: snapshot.accountIdentifier
+            )
+        )
+        container.mainContext.insert(
+            StoredAccount(
+                identityKey: snapshot.identityKey,
+                name: "Work",
+                createdAt: .distantPast,
+                lastLoginAt: .now,
+                customOrder: 0,
+                authFileContents: duplicateContents,
+                authModeRaw: snapshot.authMode.rawValue,
+                emailHint: snapshot.email,
+                accountIdentifier: snapshot.accountIdentifier,
+                iconSystemName: AccountIconOption.briefcase.systemName
+            )
+        )
+        try container.mainContext.save()
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+
+        let accounts = try fetchAccounts(in: container.mainContext)
+        let reconciledAccount = try #require(accounts.first)
+
+        #expect(accounts.count == 1)
+        #expect(reconciledAccount.name == "Work")
+        #expect(reconciledAccount.lastLoginAt != nil)
+        #expect(reconciledAccount.customOrder == 0)
+        #expect(reconciledAccount.iconSystemName == AccountIconOption.briefcase.systemName)
+        #expect(reconciledAccount.authFileContents == duplicateContents)
+    }
+}
+
+@MainActor
+private func makeController(
+    authFileManager: FakeAuthFileManager,
+    secretStore: FakeSecretStore = FakeSecretStore(),
+    notificationManager: FakeNotificationManager = FakeNotificationManager()
+) -> AppController {
+    AppController(
+        authFileManager: authFileManager,
+        secretStore: secretStore,
+        notificationManager: notificationManager
+    )
 }
 
 private func makeInMemoryContainer() throws -> ModelContainer {
     let schema = Schema([StoredAccount.self])
     let configuration = ModelConfiguration(
-        "TestAccounts",
+        "TestAccounts-\(UUID().uuidString)",
         schema: schema,
         isStoredInMemoryOnly: true,
         cloudKitDatabase: .none
@@ -460,7 +499,6 @@ private func makeStoredAccount(name: String, customOrder: Double, accountID: Str
         identityKey: snapshot.identityKey,
         name: name,
         customOrder: customOrder,
-        authFileContents: contents,
         authModeRaw: snapshot.authMode.rawValue,
         emailHint: snapshot.email,
         accountIdentifier: snapshot.accountIdentifier
@@ -469,8 +507,8 @@ private func makeStoredAccount(name: String, customOrder: Double, accountID: Str
 
 private func makeJWT(_ payload: [String: Any]) -> String {
     let header = ["alg": "none", "typ": "JWT"]
-    let headerData = try! JSONSerialization.data(withJSONObject: header)
-    let payloadData = try! JSONSerialization.data(withJSONObject: payload)
+    let headerData = try! JSONSerialization.data(withJSONObject: header, options: [.sortedKeys])
+    let payloadData = try! JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
 
     func encode(_ data: Data) -> String {
         data
@@ -483,60 +521,149 @@ private func makeJWT(_ payload: [String: Any]) -> String {
     return "\(encode(headerData)).\(encode(payloadData)).c2ln"
 }
 
-@MainActor
-private final class FakeAuthFileManager: AuthFileManaging {
-    var contents: String
-    private let authFileURL: URL
-    private var isMissing = false
-    private let readError: Error?
-    private let writeError: Error?
+actor FakeAuthFileManager: AuthFileManaging {
+    private(set) var currentContents: String
+    private var linkedLocationValue: AuthLinkedLocation?
+    private var readError: Error?
+    private var writeError: Error?
+    private var linkError: Error?
+    private var isMissingAuthFile = false
+    private var onChange: (@Sendable () -> Void)?
 
     init(
         contents: String,
-        authFileURL: URL = URL(fileURLWithPath: "/tmp/auth.json"),
+        linkedLocation: AuthLinkedLocation = AuthLinkedLocation(
+            folderURL: URL(fileURLWithPath: "/tmp/.codex", isDirectory: true),
+            credentialStoreHint: .file
+        ),
         readError: Error? = nil,
-        writeError: Error? = nil
+        writeError: Error? = nil,
+        linkError: Error? = nil
     ) {
-        self.contents = contents
-        self.authFileURL = authFileURL
+        self.currentContents = contents
+        self.linkedLocationValue = linkedLocation
         self.readError = readError
         self.writeError = writeError
+        self.linkError = linkError
     }
 
-    init(missingAuthFileURL: URL) {
-        self.contents = ""
-        self.authFileURL = missingAuthFileURL
-        self.isMissing = true
-        self.readError = nil
-        self.writeError = nil
+    func linkedLocation() async -> AuthLinkedLocation? {
+        linkedLocationValue
     }
 
-    func readAuthFile(promptIfNeeded: Bool) throws -> AuthFileReadResult {
+    func linkLocation(_ selectedURL: URL) async throws -> AuthLinkedLocation {
+        if let linkError {
+            throw linkError
+        }
+
+        let folderURL = selectedURL.hasDirectoryPath
+            ? selectedURL
+            : selectedURL.deletingLastPathComponent()
+        let location = AuthLinkedLocation(folderURL: folderURL, credentialStoreHint: .file)
+        linkedLocationValue = location
+        return location
+    }
+
+    func clearLinkedLocation() async {
+        linkedLocationValue = nil
+    }
+
+    func readAuthFile() async throws -> AuthFileReadResult {
         if let readError {
             throw readError
         }
 
-        if isMissing {
-            throw AuthFileAccessError.missingAuthFile(authFileURL)
+        guard let linkedLocationValue else {
+            throw AuthFileAccessError.accessRequired
         }
 
-        return AuthFileReadResult(
-            url: authFileURL,
-            contents: contents
-        )
+        if isMissingAuthFile {
+            throw AuthFileAccessError.missingAuthFile(
+                linkedLocationValue.authFileURL,
+                credentialStoreHint: linkedLocationValue.credentialStoreHint
+            )
+        }
+
+        return AuthFileReadResult(url: linkedLocationValue.authFileURL, contents: currentContents)
     }
 
-    func writeAuthFile(_ contents: String, promptIfNeeded: Bool) throws {
+    func writeAuthFile(_ contents: String) async throws {
         if let writeError {
             throw writeError
         }
 
-        self.contents = contents
-        isMissing = false
+        guard linkedLocationValue != nil else {
+            throw AuthFileAccessError.accessRequired
+        }
+
+        currentContents = contents
+        isMissingAuthFile = false
+    }
+
+    func startMonitoring(_ onChange: @escaping @Sendable () -> Void) async {
+        self.onChange = onChange
+    }
+
+    func setContents(_ contents: String) async {
+        self.currentContents = contents
+        self.isMissingAuthFile = false
+    }
+
+    func setMissingAuthFile(_ isMissingAuthFile: Bool) async {
+        self.isMissingAuthFile = isMissingAuthFile
+    }
+
+    func simulateExternalChange(to contents: String) async {
+        currentContents = contents
+        isMissingAuthFile = false
+        onChange?()
+    }
+}
+
+actor FakeSecretStore: AccountSecretStoring {
+    private var secrets: [UUID: String] = [:]
+    private var saveError: Error?
+    private var loadError: Error?
+    private var deleteError: Error?
+
+    func saveSecret(_ contents: String, for accountID: UUID) async throws {
+        if let saveError {
+            throw saveError
+        }
+
+        secrets[accountID] = contents
+    }
+
+    func loadSecret(for accountID: UUID) async throws -> String {
+        if let loadError {
+            throw loadError
+        }
+
+        guard let secret = secrets[accountID] else {
+            throw AccountSecretStoreError.missingSecret
+        }
+
+        return secret
+    }
+
+    func deleteSecret(for accountID: UUID) async throws {
+        if let deleteError {
+            throw deleteError
+        }
+
+        secrets.removeValue(forKey: accountID)
+    }
+
+    func secret(for accountID: UUID) async -> String? {
+        secrets[accountID]
     }
 }
 
 @MainActor
-private final class FakeNotificationManager: AccountSwitchNotifying {
-    func postSwitchNotification(for accountName: String) async {}
+final class FakeNotificationManager: AccountSwitchNotifying {
+    private(set) var postedAccountNames: [String] = []
+
+    func postSwitchNotification(for accountName: String) async {
+        postedAccountNames.append(accountName)
+    }
 }

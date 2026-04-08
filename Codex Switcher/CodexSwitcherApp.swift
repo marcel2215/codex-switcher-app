@@ -11,40 +11,171 @@ import SwiftData
 @main
 struct CodexSwitcherApp: App {
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
-    @StateObject private var controller = AppController(
-        authFileManager: SecurityScopedAuthFileManager(),
-        notificationManager: AccountSwitchNotificationManager()
-    )
+    @State private var controller: AppController
 
-    private let sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            StoredAccount.self,
-        ])
+    private let sharedModelContainer: ModelContainer?
+    private let storageRecoveryMessage: String?
 
-        // SwiftData will automatically back this store with CloudKit whenever the
-        // matching iCloud capability is available in the app's signed entitlements.
-        let configuration = ModelConfiguration(
-            "Accounts",
-            schema: schema,
-            isStoredInMemoryOnly: false,
-            cloudKitDatabase: .automatic
-        )
-
-        do {
-            return try ModelContainer(for: schema, configurations: [configuration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    init() {
+        let bootstrap = AppBootstrap.make()
+        self.sharedModelContainer = bootstrap.modelContainer
+        self.storageRecoveryMessage = bootstrap.storageRecoveryMessage
+        _controller = State(initialValue: bootstrap.controller)
+    }
 
     var body: some Scene {
         Window("Codex Switcher", id: "main") {
-            ContentView(controller: controller)
+            Group {
+                if let sharedModelContainer {
+                    ContentView(controller: controller)
+                        .modelContainer(sharedModelContainer)
+                } else {
+                    StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
+                }
+            }
         }
         .defaultSize(width: 620, height: 720)
-        .modelContainer(sharedModelContainer)
         .commands {
             AccountsCommands(controller: controller)
         }
+    }
+}
+
+private struct AppBootstrap {
+    let controller: AppController
+    let modelContainer: ModelContainer?
+    let storageRecoveryMessage: String?
+
+    static func make() -> AppBootstrap {
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "CodexSwitcher"
+        let schema = Schema([StoredAccount.self])
+
+        if let uiTestScenario = UITestScenario.current {
+            return makeUITestBootstrap(
+                schema: schema,
+                bundleIdentifier: bundleIdentifier,
+                scenario: uiTestScenario
+            )
+        }
+
+        let authFileManager = SecurityScopedAuthFileManager()
+        let secretStore = KeychainAccountSecretStore(bundleIdentifier: bundleIdentifier)
+        let notificationManager = AccountSwitchNotificationManager()
+
+        do {
+            let modelContainer = try makeModelContainer(
+                schema: schema,
+                isStoredInMemoryOnly: false
+            )
+            let controller = AppController(
+                authFileManager: authFileManager,
+                secretStore: secretStore,
+                notificationManager: notificationManager
+            )
+            return AppBootstrap(controller: controller, modelContainer: modelContainer, storageRecoveryMessage: nil)
+        } catch {
+            do {
+                let fallbackContainer = try makeModelContainer(
+                    schema: schema,
+                    isStoredInMemoryOnly: true
+                )
+                let controller = AppController(
+                    authFileManager: authFileManager,
+                    secretStore: secretStore,
+                    notificationManager: notificationManager,
+                    startupAlert: UserFacingAlert(
+                        title: "Using Temporary Storage",
+                        message: "Codex Switcher couldn't open its local database and started with temporary in-memory storage instead. \(error.localizedDescription)"
+                    )
+                )
+                return AppBootstrap(
+                    controller: controller,
+                    modelContainer: fallbackContainer,
+                    storageRecoveryMessage: nil
+                )
+            } catch {
+                let controller = AppController(
+                    authFileManager: authFileManager,
+                    secretStore: secretStore,
+                    notificationManager: notificationManager,
+                    startupAlert: UserFacingAlert(
+                        title: "Storage Unavailable",
+                        message: "Codex Switcher couldn't start its local database. \(error.localizedDescription)"
+                    )
+                )
+                return AppBootstrap(
+                    controller: controller,
+                    modelContainer: nil,
+                    storageRecoveryMessage: error.localizedDescription
+                )
+            }
+        }
+    }
+
+    private static func makeModelContainer(schema: Schema, isStoredInMemoryOnly: Bool) throws -> ModelContainer {
+        // Preview and test containers stay local-only. The real app store
+        // build uses CloudKit-backed SwiftData so saved accounts sync over
+        // iCloud across the user's Macs.
+        let configuration = ModelConfiguration(
+            "Accounts",
+            schema: schema,
+            isStoredInMemoryOnly: isStoredInMemoryOnly,
+            cloudKitDatabase: isStoredInMemoryOnly ? .none : .automatic
+        )
+
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    private static func makeUITestBootstrap(
+        schema: Schema,
+        bundleIdentifier: String,
+        scenario: UITestScenario
+    ) -> AppBootstrap {
+        do {
+            let modelContainer = try makeModelContainer(schema: schema, isStoredInMemoryOnly: true)
+            let controller = AppController(
+                authFileManager: UITestAuthFileManager(scenario: scenario),
+                secretStore: UITestSecretStore(),
+                notificationManager: UITestNotificationManager(),
+                bundleIdentifier: bundleIdentifier
+            )
+
+            return AppBootstrap(
+                controller: controller,
+                modelContainer: modelContainer,
+                storageRecoveryMessage: nil
+            )
+        } catch {
+            let controller = AppController(
+                authFileManager: UITestAuthFileManager(scenario: scenario),
+                secretStore: UITestSecretStore(),
+                notificationManager: UITestNotificationManager(),
+                startupAlert: UserFacingAlert(
+                    title: "UI Test Storage Unavailable",
+                    message: error.localizedDescription
+                ),
+                bundleIdentifier: bundleIdentifier
+            )
+
+            return AppBootstrap(
+                controller: controller,
+                modelContainer: nil,
+                storageRecoveryMessage: error.localizedDescription
+            )
+        }
+    }
+}
+
+private struct StorageRecoveryView: View {
+    let message: String
+
+    var body: some View {
+        ContentUnavailableView(
+            "Storage Unavailable",
+            systemImage: "externaldrive.badge.exclamationmark",
+            description: Text(message)
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
     }
 }

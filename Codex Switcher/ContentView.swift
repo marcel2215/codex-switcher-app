@@ -7,9 +7,10 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @ObservedObject var controller: AppController
+    @Bindable var controller: AppController
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.undoManager) private var undoManager
@@ -44,37 +45,46 @@ struct ContentView: View {
     }
 
     var body: some View {
-        Group {
-            if displayedAccounts.isEmpty {
-                ContentUnavailableView(
-                    controller.searchText.isEmpty ? "No Accounts" : "No Results",
-                    systemImage: controller.searchText.isEmpty ? "person.crop.rectangle.stack" : "magnifyingglass",
-                    description: Text(
-                        controller.searchText.isEmpty
-                            ? "Click the plus button to add the currently used account."
-                            : "Try a different search term."
-                    )
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(selection: $controller.selection) {
-                    ForEach(displayedAccounts) { account in
-                        accountListRow(for: account)
-                    }
-                    .dropDestination(for: String.self) { items, index in
-                        controller.reorderDraggedAccounts(
-                            items,
-                            to: index,
-                            visibleAccounts: displayedAccounts
+        VStack(spacing: 0) {
+            if controller.shouldShowAuthStatusBanner {
+                authStatusBanner
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 8)
+            }
+
+            Group {
+                if displayedAccounts.isEmpty {
+                    ContentUnavailableView(
+                        controller.searchText.isEmpty ? "No Accounts" : "No Results",
+                        systemImage: controller.searchText.isEmpty ? "person.crop.rectangle.stack" : "magnifyingglass",
+                        description: Text(
+                            controller.searchText.isEmpty
+                                ? "Click the plus button to add the currently used account."
+                                : "Try a different search term."
                         )
-                    }
-                }
-                .background(
-                    ListDoubleClickBridge(
-                        rowIDs: displayedAccounts.map(\.id),
-                        onDoubleClick: controller.login(accountID:)
                     )
-                )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(selection: $controller.selection) {
+                        ForEach(displayedAccounts) { account in
+                            accountListRow(for: account)
+                        }
+                        .dropDestination(for: String.self) { items, index in
+                            controller.reorderDraggedAccounts(
+                                items,
+                                to: index,
+                                visibleAccounts: displayedAccounts
+                            )
+                        }
+                    }
+                    .background(
+                        ListDoubleClickBridge(
+                            rowIDs: displayedAccounts.map(\.id),
+                            onDoubleClick: controller.login(accountID:)
+                        )
+                    )
+                }
             }
         }
         .navigationTitle("Codex Switcher")
@@ -116,6 +126,15 @@ struct ContentView: View {
             }
         }
         .searchable(text: $controller.searchText)
+        .fileImporter(
+            isPresented: $controller.isShowingLocationPicker,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false,
+            onCompletion: controller.handleLocationImport
+        )
+        .fileDialogCustomizationID("codex-auth-location")
+        .fileDialogDefaultDirectory(FileManager.default.homeDirectoryForCurrentUser)
+        .fileDialogBrowserOptions([.includeHiddenFiles])
         .onMoveCommand { direction in
             controller.moveSelection(direction: direction, visibleAccounts: displayedAccounts)
         }
@@ -151,7 +170,6 @@ struct ContentView: View {
         }
         .task {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
-            controller.refreshActiveAccountIndicator(promptIfNeeded: false)
         }
         .task(id: undoManagerTaskID) {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
@@ -177,6 +195,37 @@ struct ContentView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+    }
+
+    private var authStatusBanner: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(controller.authAccessState.title, systemImage: controller.authAccessState.systemImage)
+                .font(.headline)
+                .accessibilityIdentifier("auth-status-title")
+
+            Text(controller.authAccessState.message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("auth-status-message")
+
+            HStack(spacing: 12) {
+                Button(controller.linkButtonTitle) {
+                    controller.beginLinkingCodexLocation()
+                }
+                .accessibilityIdentifier("auth-link-button")
+
+                if controller.authAccessState != .unlinked {
+                    Button("Refresh") {
+                        controller.refresh()
+                    }
+                    .accessibilityIdentifier("auth-refresh-button")
+                }
+            }
+        }
+        .accessibilityIdentifier("auth-status-banner")
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     @ViewBuilder
@@ -316,6 +365,7 @@ extension ContentView {
 #Preview {
     let controller = AppController(
         authFileManager: PreviewAuthFileManager(),
+        secretStore: PreviewSecretStore(),
         notificationManager: PreviewNotificationManager()
     )
 

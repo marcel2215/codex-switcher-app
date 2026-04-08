@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AccountsCommands: Commands {
-    @ObservedObject var controller: AppController
+    let controller: AppController
 
     var body: some Commands {
         // Keep standard macOS categories intact, and only use a custom top-level
@@ -93,7 +93,7 @@ struct AccountsCommands: Commands {
             Divider()
 
             Button("Refresh") {
-                controller.refreshActiveAccountIndicator(promptIfNeeded: false)
+                controller.refresh()
             }
             .keyboardShortcut("r", modifiers: [.command])
         }

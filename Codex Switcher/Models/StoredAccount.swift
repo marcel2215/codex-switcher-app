@@ -17,9 +17,10 @@ final class StoredAccount {
     var lastLoginAt: Date?
     var customOrder: Double = 0
 
-    // Preserve the entire auth.json snapshot verbatim so switching accounts
-    // doesn't silently discard fields Codex may add in future releases.
-    var authFileContents: String = ""
+    // Stores the full auth.json snapshot so SwiftData + CloudKit can sync
+    // saved accounts across devices. The controller also mirrors the same
+    // value into the local Keychain as a best-effort device-local cache.
+    var authFileContents: String?
     var authModeRaw: String = "chatgpt"
     var emailHint: String?
     var accountIdentifier: String?
@@ -32,7 +33,7 @@ final class StoredAccount {
         createdAt: Date = .now,
         lastLoginAt: Date? = nil,
         customOrder: Double,
-        authFileContents: String,
+        authFileContents: String? = nil,
         authModeRaw: String,
         emailHint: String? = nil,
         accountIdentifier: String? = nil,
