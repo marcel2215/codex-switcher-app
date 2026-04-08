@@ -94,6 +94,22 @@ struct CodexSwitcherTests {
         #expect(Set(accounts.map(\.emailHint)) == ["one@example.com", "two@example.com"])
     }
 
+    @Test func captureClearsActiveSearchFilter() throws {
+        let container = try makeInMemoryContainer()
+        let fakeFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
+        let controller = AppController(
+            authFileManager: fakeFileManager,
+            notificationManager: FakeNotificationManager()
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.searchText = "something"
+
+        controller.captureCurrentAccount()
+
+        #expect(controller.searchText.isEmpty)
+    }
+
     @Test func switchingAccountWritesStoredSnapshotAndRefreshesLastLogin() async throws {
         let container = try makeInMemoryContainer()
         let fakeFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))

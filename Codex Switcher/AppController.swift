@@ -118,6 +118,7 @@ final class AppController: ObservableObject {
             }
 
             try modelContext.save()
+            searchText = ""
             activeIdentityKey = snapshot.identityKey
         } catch {
             present(error, title: "Couldn't Save Account")
