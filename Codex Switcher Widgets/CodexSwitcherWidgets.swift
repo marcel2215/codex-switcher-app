@@ -1,5 +1,5 @@
 //
-//  Codex_Switcher_Widgets.swift
+//  CodexSwitcherWidgets.swift
 //  Codex Switcher Widgets
 //
 //  Created by Marcel Kwiatkowski on 2026-04-08.
@@ -59,8 +59,8 @@ struct Codex_Switcher_WidgetsEntryView : View {
     }
 }
 
-struct Codex_Switcher_Widgets: Widget {
-    let kind: String = "Codex_Switcher_Widgets"
+struct CodexSwitcherWidgets: Widget {
+    let kind: String = "CodexSwitcherWidgets"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in

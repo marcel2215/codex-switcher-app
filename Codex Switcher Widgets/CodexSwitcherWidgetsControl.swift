@@ -1,5 +1,5 @@
 //
-//  Codex_Switcher_WidgetsControl.swift
+//  CodexSwitcherWidgetsControl.swift
 //  Codex Switcher Widgets
 //
 //  Created by Marcel Kwiatkowski on 2026-04-08.
@@ -9,10 +9,10 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-struct Codex_Switcher_WidgetsControl: ControlWidget {
+struct CodexSwitcherWidgetsControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(
-            kind: "com.marcel2215.codexswitcher.Codex Switcher Widgets",
+            kind: "com.marcel2215.codexswitcher.widgets",
             provider: Provider()
         ) { value in
             ControlWidgetToggle(
@@ -28,7 +28,7 @@ struct Codex_Switcher_WidgetsControl: ControlWidget {
     }
 }
 
-extension Codex_Switcher_WidgetsControl {
+extension CodexSwitcherWidgetsControl {
     struct Provider: ControlValueProvider {
         var previewValue: Bool {
             false
