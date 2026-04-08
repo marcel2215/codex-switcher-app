@@ -110,6 +110,12 @@ struct CodexSwitcherTests {
         #expect(controller.searchText.isEmpty)
     }
 
+    @Test func iconCatalogOffersExpandedChoicesAndKeepsKeyDefault() {
+        #expect(AccountIconOption.allCases.count >= 30)
+        #expect(AccountIconOption.defaultOption == .key)
+        #expect(AccountIconOption.resolve(from: "not-a-real-symbol") == .key)
+    }
+
     @Test func lastLoginDescriptionUsesNeverUsedForAccountsWithoutHistory() {
         #expect(AccountRowView.makeLastLoginDescription(from: nil) == "Last login: never")
     }

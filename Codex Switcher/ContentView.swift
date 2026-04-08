@@ -205,6 +205,9 @@ struct ContentView: View {
                     onSelect: { icon in
                         controller.setIcon(icon, for: iconPickerAccount.id)
                         iconPickerAccountID = nil
+                    },
+                    onCancel: {
+                        iconPickerAccountID = nil
                     }
                 )
             }
