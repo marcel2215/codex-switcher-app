@@ -102,6 +102,7 @@ struct AccountsCommands: Commands {
             Button("Log In") {
                 controller.switchSelectedAccount()
             }
+            .keyboardShortcut("l", modifiers: [.command])
             .disabled(controller.selection.count != 1)
         }
     }
