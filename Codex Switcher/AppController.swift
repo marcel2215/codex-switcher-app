@@ -1755,9 +1755,9 @@ final class AppController {
         }
     }
 
-    // "Rate Limit" sorts by min(5h, 7d) first, then by max(5h, 7d). Any row
-    // missing either bucket is considered incomplete and always sorts after
-    // fully known rows regardless of direction.
+    // "Rate Limit" sorts by min(5h, 7d) first, then by max(5h, 7d). Rows with
+    // a missing bucket are always pushed to the end regardless of direction so
+    // partial telemetry never outranks a verified pair of limits.
     private static func rateLimitSortComesBefore(
         _ lhs: StoredAccount,
         _ rhs: StoredAccount,
@@ -1766,30 +1766,20 @@ final class AppController {
         let lhsMetrics = rateLimitSortMetrics(for: lhs)
         let rhsMetrics = rateLimitSortMetrics(for: rhs)
 
-        switch (lhsMetrics.primary, rhsMetrics.primary) {
-        case let (lhsPrimary?, rhsPrimary?):
-            if lhsPrimary != rhsPrimary {
-                return direction == .ascending ? lhsPrimary < rhsPrimary : lhsPrimary > rhsPrimary
-            }
-        case (_?, nil):
-            return true
-        case (nil, _?):
-            return false
-        case (nil, nil):
-            return lhs.createdAt < rhs.createdAt
+        if lhsMetrics.isComplete != rhsMetrics.isComplete {
+            return lhsMetrics.isComplete
         }
 
-        switch (lhsMetrics.secondary, rhsMetrics.secondary) {
-        case let (lhsSecondary?, rhsSecondary?):
-            if lhsSecondary != rhsSecondary {
-                return direction == .ascending ? lhsSecondary < rhsSecondary : lhsSecondary > rhsSecondary
-            }
-        case (_?, nil):
-            return true
-        case (nil, _?):
-            return false
-        case (nil, nil):
-            break
+        if lhsMetrics.primary != rhsMetrics.primary {
+            return direction == .ascending
+                ? lhsMetrics.primary < rhsMetrics.primary
+                : lhsMetrics.primary > rhsMetrics.primary
+        }
+
+        if lhsMetrics.secondary != rhsMetrics.secondary {
+            return direction == .ascending
+                ? lhsMetrics.secondary < rhsMetrics.secondary
+                : lhsMetrics.secondary > rhsMetrics.secondary
         }
 
         return lhs.createdAt < rhs.createdAt
@@ -1802,30 +1792,35 @@ final class AppController {
     ) -> Bool {
         let lhsMetrics = rateLimitSortMetrics(for: lhs)
         let rhsMetrics = rateLimitSortMetrics(for: rhs)
-        return lhsMetrics.primary == rhsMetrics.primary
+        return lhsMetrics.isComplete == rhsMetrics.isComplete
+            && lhsMetrics.primary == rhsMetrics.primary
             && lhsMetrics.secondary == rhsMetrics.secondary
     }
 
     private static func rateLimitSortMetrics(
         for account: StoredAccount
-    ) -> (primary: Int?, secondary: Int?) {
-        guard let normalizedValues = normalizedCompleteRateLimitValues(for: account),
-              let primary = normalizedValues.min(),
-              let secondary = normalizedValues.max() else {
-            return (nil, nil)
-        }
-
-        return (primary, secondary)
+    ) -> (isComplete: Bool, primary: Int, secondary: Int) {
+        let normalizedValues = normalizedRateLimitSortValues(for: account)
+        return (
+            normalizedValues.isComplete,
+            normalizedValues.values.min() ?? 0,
+            normalizedValues.values.max() ?? 0
+        )
     }
 
-    private static func normalizedCompleteRateLimitValues(for account: StoredAccount) -> [Int]? {
+    private static func normalizedRateLimitSortValues(
+        for account: StoredAccount
+    ) -> (isComplete: Bool, values: [Int]) {
         guard let fiveHourRemainingPercent = account.fiveHourLimitUsedPercent,
               let sevenDayRemainingPercent = account.sevenDayLimitUsedPercent else {
-            return nil
+            return (false, [0, 0])
         }
 
-        return [fiveHourRemainingPercent, sevenDayRemainingPercent]
-            .map { min(max($0, 0), 100) }
+        return (
+            true,
+            [fiveHourRemainingPercent, sevenDayRemainingPercent]
+                .map { min(max($0, 0), 100) }
+        )
     }
 
     private static func isGeneratedAccountName(_ name: String) -> Bool {

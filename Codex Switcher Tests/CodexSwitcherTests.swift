@@ -581,7 +581,7 @@ struct CodexSwitcherTests {
         #expect(controller.presentedAlert == nil)
     }
 
-    @Test func rateLimitSortUsesMinimumWindowThenMaximumAndKeepsUnknownBucketsLast() throws {
+    @Test func rateLimitSortUsesMinimumWindowThenMaximumAndKeepsIncompletePairsLast() throws {
         let container = try makeInMemoryContainer()
         let controller = makeController(authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")))
 
