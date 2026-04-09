@@ -70,7 +70,7 @@ struct CodexSwitcherApp: App {
         // show a recovery surface instead of removing the system entry point.
         MenuBarExtra(
             "Codex Switcher",
-            systemImage: "arrow.left.arrow.right.circle",
+            systemImage: "key.card.fill",
             isInserted: showMenuBarExtraBinding
         ) {
             if let sharedModelContainer {
@@ -89,6 +89,8 @@ struct CodexSwitcherApp: App {
             }
         }
         .menuBarExtraStyle(.window)
+        .defaultSize(width: 360, height: 820)
+        .windowResizability(.contentSize)
     }
 
     private var showMenuBarExtraBinding: Binding<Bool> {

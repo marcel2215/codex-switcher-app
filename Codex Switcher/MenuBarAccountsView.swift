@@ -14,7 +14,6 @@ struct MenuBarAccountsView: View {
     @Bindable var controller: AppController
 
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.openSettings) private var openSettings
     @Environment(\.dismiss) private var dismiss
     @Query private var accounts: [StoredAccount]
 
@@ -24,8 +23,27 @@ struct MenuBarAccountsView: View {
 
     private var accountListHeight: CGFloat {
         let rowHeight: CGFloat = 46
-        let visibleRows = min(max(displayedAccounts.count, 1), 6)
+        let visibleRows = min(max(displayedAccounts.count, 1), 14)
         return CGFloat(visibleRows) * rowHeight
+    }
+
+    private var accountSectionHeight: CGFloat {
+        displayedAccounts.isEmpty ? 180 : min(accountListHeight, 640)
+    }
+
+    private var panelHeight: CGFloat {
+        // MenuBarExtra window sizing is driven by the top-level content size,
+        // not just the size of nested scroll views. Keep an explicit panel
+        // height so the window can grow enough to show more accounts before it
+        // needs to scroll.
+        var height: CGFloat = 96
+
+        if controller.shouldShowAuthStatusBanner {
+            height += 104
+        }
+
+        height += accountSectionHeight
+        return min(height, 820)
     }
 
     var body: some View {
@@ -37,13 +55,9 @@ struct MenuBarAccountsView: View {
             }
 
             accountSection
-
-            Divider()
-
-            footer
         }
         .padding(14)
-        .frame(width: 360)
+        .frame(width: 360, height: panelHeight, alignment: .top)
         .fileImporter(
             isPresented: $controller.isShowingLocationPicker,
             allowedContentTypes: [.folder],
@@ -56,7 +70,7 @@ struct MenuBarAccountsView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Codex Switcher")
                     .font(.headline)
@@ -74,13 +88,16 @@ struct MenuBarAccountsView: View {
 
             Spacer()
 
-            Button {
-                openMainWindow()
-            } label: {
-                Image(systemName: "rectangle.on.rectangle")
+            HStack(spacing: 10) {
+                chromeButton(
+                    systemImage: "plus",
+                    helpText: "Add Account",
+                    isDisabled: controller.isSwitching,
+                    action: controller.captureCurrentAccount
+                )
+                chromeButton(systemImage: "rectangle.on.rectangle", helpText: "Open App", action: openMainWindow)
+                chromeButton(systemImage: "rectangle.portrait.and.arrow.right", helpText: "Quit", action: quitApp)
             }
-            .buttonStyle(.plain)
-            .help("Open the main window")
         }
     }
 
@@ -109,7 +126,7 @@ struct MenuBarAccountsView: View {
                 systemImage: "person.crop.rectangle.stack",
                 description: Text("Add the currently used account from the menu bar or the main window.")
             )
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: accountSectionHeight)
         } else {
             ScrollView {
                 // MenuBarExtra window scenes can reserve space for lazy stacks
@@ -164,37 +181,8 @@ struct MenuBarAccountsView: View {
                 }
             }
             .scrollIndicators(.hidden)
-            .frame(height: min(accountListHeight, 300))
-        }
-    }
-
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Button("Add Account") {
-                    controller.captureCurrentAccount()
-                }
-                .disabled(controller.isSwitching)
-
-                Button("Refresh") {
-                    controller.refresh()
-                }
-            }
-
-            HStack {
-                Button {
-                    openSettingsWindow()
-                } label: {
-                    Label("Settings", systemImage: "gearshape")
-                }
-
-                Spacer()
-
-                Button("Quit") {
-                    NSApp.terminate(nil)
-                }
-            }
-            .font(.subheadline)
+            .frame(height: accountSectionHeight)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -205,10 +193,24 @@ struct MenuBarAccountsView: View {
         dismiss()
     }
 
-    private func openSettingsWindow() {
-        NSApp.setActivationPolicy(.regular)
-        openSettings()
-        NSApp.activate(ignoringOtherApps: true)
-        dismiss()
+    private func quitApp() {
+        NSApp.terminate(nil)
+    }
+
+    @ViewBuilder
+    private func chromeButton(
+        systemImage: String,
+        helpText: String,
+        isDisabled: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .frame(width: 18, height: 18)
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .help(helpText)
+        .accessibilityLabel(helpText)
     }
 }
