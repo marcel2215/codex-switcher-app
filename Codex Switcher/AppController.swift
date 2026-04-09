@@ -34,6 +34,7 @@ final class AppController {
     @ObservationIgnored private let authFileManager: AuthFileManaging
     @ObservationIgnored private let secretStore: AccountSecretStoring
     @ObservationIgnored private let notificationManager: AccountSwitchNotifying
+    @ObservationIgnored private let rateLimitReader: CodexSessionRateLimitReader
     @ObservationIgnored private let logger: Logger
     @ObservationIgnored private let startupAlert: UserFacingAlert?
 
@@ -45,17 +46,20 @@ final class AppController {
     @ObservationIgnored private var switchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSwitchOperationID: UUID?
     @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
+    @ObservationIgnored private var rateLimitRefreshTask: Task<Void, Never>?
 
     init(
         authFileManager: AuthFileManaging,
         secretStore: AccountSecretStoring,
         notificationManager: AccountSwitchNotifying,
+        rateLimitReader: CodexSessionRateLimitReader = CodexSessionRateLimitReader(),
         startupAlert: UserFacingAlert? = nil,
         bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "CodexSwitcher"
     ) {
         self.authFileManager = authFileManager
         self.secretStore = secretStore
         self.notificationManager = notificationManager
+        self.rateLimitReader = rateLimitReader
         self.startupAlert = startupAlert
         self.logger = Logger(subsystem: bundleIdentifier, category: "AppController")
     }
@@ -64,6 +68,7 @@ final class AppController {
         initializationTask?.cancel()
         switchTask?.cancel()
         sharedStatePublishTask?.cancel()
+        rateLimitRefreshTask?.cancel()
     }
 
     func configure(modelContext: ModelContext, undoManager: UndoManager?) {
@@ -368,7 +373,7 @@ final class AppController {
                 let nextCustomOrder = (accounts.map(\.customOrder).max() ?? -1) + 1
                 let account = StoredAccount(
                     identityKey: snapshot.identityKey,
-                    name: "Account \(accounts.count + 1)",
+                    name: defaultName(for: snapshot, existingAccounts: accounts),
                     customOrder: nextCustomOrder,
                     authFileContents: snapshot.rawContents,
                     authModeRaw: snapshot.authMode.rawValue,
@@ -387,6 +392,7 @@ final class AppController {
             activeIdentityKey = snapshot.identityKey
             authAccessState = .ready(linkedFolder: readResult.url.deletingLastPathComponent())
             publishSharedState()
+            scheduleRateLimitRefresh(for: snapshot.identityKey, authFileURL: readResult.url)
         } catch {
             await handleExpectedAuthOperationError(
                 error,
@@ -594,6 +600,12 @@ final class AppController {
                 do {
                     let snapshot = try await parseSnapshot(from: storedContents)
                     didChange = await storeSnapshot(snapshot, on: account) || didChange
+                    if let syncedContents = account.authFileContents, !syncedContents.isEmpty {
+                        // Backfill the local keychain cache once during startup
+                        // reconciliation so older synced records still work
+                        // offline, without paying this cost on every switch.
+                        await cacheSecretLocallyIfPossible(syncedContents, for: account.id)
+                    }
                 } catch {
                     logger.error("Stored snapshot reconciliation failed for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)")
                 }
@@ -648,10 +660,11 @@ final class AppController {
             return
         }
 
+        let liveReadResult: AuthFileReadResult
         let liveSnapshot: CodexAuthSnapshot
         do {
-            let readResult = try await authFileManager.readAuthFile()
-            liveSnapshot = try await parseSnapshot(from: readResult.contents)
+            liveReadResult = try await authFileManager.readAuthFile()
+            liveSnapshot = try await parseSnapshot(from: liveReadResult.contents)
         } catch let error as AuthFileAccessError {
             activeIdentityKey = nil
             applyAuthAccessState(error, linkedLocation: linkedLocation)
@@ -681,17 +694,20 @@ final class AppController {
         authAccessState = .ready(linkedFolder: linkedLocation.folderURL)
 
         do {
-            try await refreshStoredAccountIfKnown(from: liveSnapshot)
+            try await refreshStoredAccountIfKnown(from: liveSnapshot, authFileURL: liveReadResult.url)
         } catch {
             logger.error("Live snapshot cache refresh failed: \(String(describing: error), privacy: .private)")
         }
+
+        scheduleRateLimitRefresh(for: liveSnapshot.identityKey, authFileURL: liveReadResult.url)
     }
 
     private func preserveCurrentLiveSnapshotIfKnown() async {
         do {
             let readResult = try await authFileManager.readAuthFile()
             let snapshot = try await parseSnapshot(from: readResult.contents)
-            try await refreshStoredAccountIfKnown(from: snapshot)
+            try await refreshStoredAccountIfKnown(from: snapshot, authFileURL: readResult.url)
+            scheduleRateLimitRefresh(for: snapshot.identityKey, authFileURL: readResult.url)
         } catch let error as AuthFileAccessError {
             switch error {
             case .missingAuthFile, .accessRequired, .locationUnavailable, .accessDenied, .unsupportedCredentialStore:
@@ -704,7 +720,7 @@ final class AppController {
         }
     }
 
-    private func refreshStoredAccountIfKnown(from snapshot: CodexAuthSnapshot) async throws {
+    private func refreshStoredAccountIfKnown(from snapshot: CodexAuthSnapshot, authFileURL: URL) async throws {
         guard let modelContext else {
             return
         }
@@ -721,7 +737,6 @@ final class AppController {
 
     private func loadStoredSnapshot(for account: StoredAccount) async throws -> String {
         if let storedContents = account.authFileContents, !storedContents.isEmpty {
-            await cacheSecretLocallyIfPossible(storedContents, for: account.id)
             return storedContents
         }
 
@@ -839,16 +854,71 @@ final class AppController {
         }
     }
 
-    private func storeSnapshot(_ snapshot: CodexAuthSnapshot, on account: StoredAccount) async -> Bool {
+    private func scheduleRateLimitRefresh(for identityKey: String, authFileURL: URL) {
+        rateLimitRefreshTask?.cancel()
+        rateLimitRefreshTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            let observation = await rateLimitReader.readLatestObservation(
+                in: authFileURL.deletingLastPathComponent(),
+                authFileURL: authFileURL
+            )
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await MainActor.run { [weak self] in
+                guard let self else {
+                    return
+                }
+
+                self.applyRateLimitObservation(observation, toAccountWithIdentityKey: identityKey)
+            }
+        }
+    }
+
+    private func applyRateLimitObservation(_ observation: CodexRateLimitObservation?, toAccountWithIdentityKey identityKey: String) {
+        guard let observation, let modelContext else {
+            return
+        }
+
+        do {
+            guard let account = try fetchAccounts().first(where: { $0.identityKey == identityKey }) else {
+                return
+            }
+
+            guard update(account: account, from: observation) else {
+                return
+            }
+
+            try modelContext.save()
+            publishSharedState()
+        } catch {
+            logger.error("Rate-limit refresh failed for account \(identityKey, privacy: .private): \(String(describing: error), privacy: .private)")
+        }
+    }
+
+    private func storeSnapshot(
+        _ snapshot: CodexAuthSnapshot,
+        rateLimitObservation: CodexRateLimitObservation? = nil,
+        on account: StoredAccount
+    ) async -> Bool {
         let metadataChanged = update(account: account, from: snapshot)
         let contentsChanged = account.authFileContents != snapshot.rawContents
+        let rateLimitsChanged = update(account: account, from: rateLimitObservation)
 
         if contentsChanged {
             account.authFileContents = snapshot.rawContents
+            // Avoid rewriting the local keychain cache on every refresh or
+            // switch. Keychain writes are relatively expensive, and the synced
+            // snapshot already remains available in SwiftData for normal reads.
+            await cacheSecretLocallyIfPossible(snapshot.rawContents, for: account.id)
         }
 
-        await cacheSecretLocallyIfPossible(snapshot.rawContents, for: account.id)
-        return metadataChanged || contentsChanged
+        return metadataChanged || contentsChanged || rateLimitsChanged
     }
 
     // CloudKit-backed SwiftData cannot enforce unique constraints, so the app
@@ -920,6 +990,13 @@ final class AppController {
 
         if (duplicate.lastLoginAt ?? .distantPast) > (survivor.lastLoginAt ?? .distantPast) {
             survivor.lastLoginAt = duplicate.lastLoginAt
+            didChange = true
+        }
+
+        if (duplicate.rateLimitsObservedAt ?? .distantPast) > (survivor.rateLimitsObservedAt ?? .distantPast) {
+            survivor.rateLimitsObservedAt = duplicate.rateLimitsObservedAt
+            survivor.sevenDayLimitUsedPercent = duplicate.sevenDayLimitUsedPercent
+            survivor.fiveHourLimitUsedPercent = duplicate.fiveHourLimitUsedPercent
             didChange = true
         }
 
@@ -1039,6 +1116,9 @@ final class AppController {
                     accountIdentifier: account.accountIdentifier,
                     authModeRaw: account.authModeRaw,
                     lastLoginAt: account.lastLoginAt,
+                    sevenDayLimitUsedPercent: account.sevenDayLimitUsedPercent,
+                    fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
+                    rateLimitsObservedAt: account.rateLimitsObservedAt,
                     sortOrder: account.customOrder,
                     authFileContents: account.authFileContents
                 )
@@ -1163,11 +1243,65 @@ final class AppController {
     }
 
     private static func isGeneratedAccountName(_ name: String) -> Bool {
+        generatedAccountIndex(from: name) != nil
+    }
+
+    private static func generatedAccountIndex(from name: String) -> Int? {
         guard name.hasPrefix("Account ") else {
+            return nil
+        }
+
+        return Int(name.dropFirst("Account ".count))
+    }
+
+    private func defaultName(for snapshot: CodexAuthSnapshot, existingAccounts: [StoredAccount]) -> String {
+        if let preferredEmail = snapshot.email?.trimmingCharacters(in: .whitespacesAndNewlines), !preferredEmail.isEmpty {
+            return preferredEmail
+        }
+
+        return nextGeneratedAccountName(existingAccounts: existingAccounts)
+    }
+
+    private func nextGeneratedAccountName(existingAccounts: [StoredAccount]) -> String {
+        let usedIndices = Set(existingAccounts.compactMap { Self.generatedAccountIndex(from: $0.name) })
+
+        var candidateIndex = 1
+        while usedIndices.contains(candidateIndex) {
+            candidateIndex += 1
+        }
+
+        return "Account \(candidateIndex)"
+    }
+
+    @discardableResult
+    private func update(account: StoredAccount, from rateLimitObservation: CodexRateLimitObservation?) -> Bool {
+        guard let rateLimitObservation else {
             return false
         }
 
-        return Int(name.dropFirst("Account ".count)) != nil
+        let existingObservedAt = account.rateLimitsObservedAt ?? .distantPast
+        guard rateLimitObservation.observedAt >= existingObservedAt else {
+            return false
+        }
+
+        var didChange = false
+
+        if account.rateLimitsObservedAt != rateLimitObservation.observedAt {
+            account.rateLimitsObservedAt = rateLimitObservation.observedAt
+            didChange = true
+        }
+
+        if account.sevenDayLimitUsedPercent != rateLimitObservation.sevenDayUsedPercent {
+            account.sevenDayLimitUsedPercent = rateLimitObservation.sevenDayUsedPercent
+            didChange = true
+        }
+
+        if account.fiveHourLimitUsedPercent != rateLimitObservation.fiveHourUsedPercent {
+            account.fiveHourLimitUsedPercent = rateLimitObservation.fiveHourUsedPercent
+            didChange = true
+        }
+
+        return didChange
     }
 }
 

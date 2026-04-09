@@ -63,9 +63,12 @@ struct AccountRowView: View {
                         .foregroundStyle(.primary)
                 }
 
-                Text(lastLoginDescription)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                AccountMetadataText(
+                    lastLoginAt: account.lastLoginAt,
+                    sevenDayLimitUsedPercent: account.sevenDayLimitUsedPercent,
+                    fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
+                    font: .subheadline
+                )
             }
 
             Spacer(minLength: 0)
@@ -80,12 +83,16 @@ struct AccountRowView: View {
         .contentShape(Rectangle())
     }
 
-    /// Formats the account's last-login timestamp using the app's constrained wording.
-    /// Keep this in sync with the row-copy requirements: only "this hour",
-    /// "X hour(s) ago", and "X day(s) ago" are valid outputs.
+    /// Formats the last-login segment using the compact copy required by the
+    /// account list row. Keep this intentionally constrained so the row stays
+    /// short enough even with both limit percentages appended after it.
     static func makeLastLoginDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
+        "Last login: \(makeLastLoginValueDescription(from: lastLoginAt, relativeTo: now))"
+    }
+
+    static func makeLastLoginValueDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
         guard let lastLoginAt else {
-            return "Last login: never"
+            return "never"
         }
 
         // Clock skew or manual system time changes should not produce "in the future".
@@ -94,22 +101,36 @@ struct AccountRowView: View {
         let dayInSeconds: TimeInterval = 24 * hourInSeconds
 
         if elapsedSeconds < hourInSeconds {
-            return "Last login: this hour"
+            return "this hour"
         }
 
         if elapsedSeconds < dayInSeconds {
             let hoursAgo = Int(elapsedSeconds / hourInSeconds)
-            let hourLabel = hoursAgo == 1 ? "hour" : "hours"
-            return "Last login: \(hoursAgo) \(hourLabel) ago"
+            return "\(hoursAgo)h ago"
         }
 
         let daysAgo = max(Int(elapsedSeconds / dayInSeconds), 1)
-        let dayLabel = daysAgo == 1 ? "day" : "days"
-        return "Last login: \(daysAgo) \(dayLabel) ago"
+        return "\(daysAgo)d ago"
     }
 
-    private var lastLoginDescription: String {
-        Self.makeLastLoginDescription(from: account.lastLoginAt)
+    static func makeMetadataDescription(
+        lastLoginAt: Date?,
+        sevenDayLimitUsedPercent: Int?,
+        fiveHourLimitUsedPercent: Int?,
+        relativeTo now: Date = .now
+    ) -> String {
+        [
+            makeLastLoginDescription(from: lastLoginAt, relativeTo: now),
+            "7d: \(formattedPercent(sevenDayLimitUsedPercent))",
+            "5h: \(formattedPercent(fiveHourLimitUsedPercent))",
+        ].joined(separator: " • ")
+    }
+    private static func formattedPercent(_ value: Int?) -> String {
+        guard let value else {
+            return "?"
+        }
+
+        return "\(min(max(value, 0), 100))%"
     }
 
     private func commitRename() {

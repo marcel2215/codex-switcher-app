@@ -78,11 +78,6 @@
 			path = "Codex Switcher Widgets";
 			sourceTree = "<group>";
 		};
-		7A1B2C3D4E5F60718293A4B5 /* Shared */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Shared;
-			sourceTree = "<group>";
-		};
 		1F87C9492F8406C7007DED25 /* Codex Switcher */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Codex Switcher";
@@ -96,6 +91,11 @@
 		1F87C9632F8406C9007DED25 /* Codex Switcher UI Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Codex Switcher UI Tests";
+			sourceTree = "<group>";
+		};
+		7A1B2C3D4E5F60718293A4B5 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */

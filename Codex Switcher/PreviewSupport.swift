@@ -31,7 +31,10 @@ enum PreviewData {
                 customOrder: 0,
                 authModeRaw: CodexAuthMode.chatgpt.rawValue,
                 emailHint: "preview-one@example.com",
-                accountIdentifier: "preview-one"
+                accountIdentifier: "preview-one",
+                sevenDayLimitUsedPercent: 93,
+                fiveHourLimitUsedPercent: 34,
+                rateLimitsObservedAt: .now
             )
         )
 
@@ -44,7 +47,10 @@ enum PreviewData {
                 customOrder: 1,
                 authModeRaw: CodexAuthMode.chatgpt.rawValue,
                 emailHint: "preview-two@example.com",
-                accountIdentifier: "preview-two"
+                accountIdentifier: "preview-two",
+                sevenDayLimitUsedPercent: nil,
+                fiveHourLimitUsedPercent: nil,
+                rateLimitsObservedAt: nil
             )
         )
 

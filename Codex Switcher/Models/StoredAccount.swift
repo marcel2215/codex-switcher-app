@@ -24,6 +24,12 @@ final class StoredAccount {
     var authModeRaw: String = "chatgpt"
     var emailHint: String?
     var accountIdentifier: String?
+    // These percentages are the last known Codex session limits observed while
+    // this account was active on the current Mac. They are best-effort and may
+    // remain nil when Codex has not emitted recent rate-limit telemetry yet.
+    var sevenDayLimitUsedPercent: Int?
+    var fiveHourLimitUsedPercent: Int?
+    var rateLimitsObservedAt: Date?
     var iconSystemName: String = "key.fill"
 
     init(
@@ -37,6 +43,9 @@ final class StoredAccount {
         authModeRaw: String,
         emailHint: String? = nil,
         accountIdentifier: String? = nil,
+        sevenDayLimitUsedPercent: Int? = nil,
+        fiveHourLimitUsedPercent: Int? = nil,
+        rateLimitsObservedAt: Date? = nil,
         iconSystemName: String = "key.fill"
     ) {
         self.id = id
@@ -49,6 +58,9 @@ final class StoredAccount {
         self.authModeRaw = authModeRaw
         self.emailHint = emailHint
         self.accountIdentifier = accountIdentifier
+        self.sevenDayLimitUsedPercent = sevenDayLimitUsedPercent
+        self.fiveHourLimitUsedPercent = fiveHourLimitUsedPercent
+        self.rateLimitsObservedAt = rateLimitsObservedAt
         self.iconSystemName = iconSystemName
     }
 }

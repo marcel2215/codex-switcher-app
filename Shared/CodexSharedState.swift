@@ -37,6 +37,9 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
     var accountIdentifier: String?
     var authModeRaw: String
     var lastLoginAt: Date?
+    var sevenDayLimitUsedPercent: Int?
+    var fiveHourLimitUsedPercent: Int?
+    var rateLimitsObservedAt: Date?
     var sortOrder: Double
     var authFileContents: String?
 }

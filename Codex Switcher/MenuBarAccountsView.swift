@@ -147,12 +147,12 @@ struct MenuBarAccountsView: View {
                                     Text(account.name)
                                         .lineLimit(1)
 
-                                    if let subtitle = account.emailHint ?? account.accountIdentifier {
-                                        Text(subtitle)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
-                                    }
+                                    AccountMetadataText(
+                                        lastLoginAt: account.lastLoginAt,
+                                        sevenDayLimitUsedPercent: account.sevenDayLimitUsedPercent,
+                                        fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
+                                        font: .caption
+                                    )
                                 }
 
                                 Spacer(minLength: 12)

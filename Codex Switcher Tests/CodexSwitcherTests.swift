@@ -62,10 +62,30 @@ struct CodexSwitcherTests {
 
         #expect(accounts.count == 1)
         #expect(controller.selection == [account.id])
-        #expect(account.name == "Account 1")
+        #expect(account.name == "acct-123@example.com")
         #expect(account.iconSystemName == AccountIconOption.defaultOption.systemName)
         #expect(account.authFileContents == makeChatGPTAuthJSON(accountID: "acct-123"))
         #expect(await secretStore.secret(for: account.id) == makeChatGPTAuthJSON(accountID: "acct-123"))
+    }
+
+    @Test func captureFallsBackToGeneratedNameWhenEmailUnknown() async throws {
+        let container = try makeInMemoryContainer()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(
+                contents: """
+                {
+                  "auth_mode": "apiKey",
+                  "OPENAI_API_KEY": "sk-test-123"
+                }
+                """
+            )
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.captureCurrentAccountNow()
+
+        let account = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(account.name == "Account 1")
     }
 
     @Test func captureAddsDistinctAccountsWhenStableSubjectDiffers() async throws {
@@ -210,6 +230,35 @@ struct CodexSwitcherTests {
         #expect(refreshedAccount.lastLoginAt != nil)
         #expect(controller.selection == [account.id])
         #expect(notificationManager.postedAccountNames == ["Account 1"])
+    }
+
+    @Test func switchingAccountDoesNotRewriteLocalSecretCacheWhenSyncedSnapshotExists() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))
+        let secretStore = FakeSecretStore()
+        let controller = makeController(authFileManager: authFileManager, secretStore: secretStore)
+
+        let targetContents = makeChatGPTAuthJSON(accountID: "acct-target")
+        let targetSnapshot = try CodexAuthFile.parse(contents: targetContents)
+        let account = StoredAccount(
+            identityKey: targetSnapshot.identityKey,
+            name: "Target",
+            customOrder: 0,
+            authFileContents: targetContents,
+            authModeRaw: targetSnapshot.authMode.rawValue,
+            emailHint: targetSnapshot.email,
+            accountIdentifier: targetSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(account)
+        try container.mainContext.save()
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+        await secretStore.resetSaveCallCount()
+        await controller.switchToAccountNow(id: account.id)
+
+        #expect(await secretStore.saveCallCount == 0)
+        #expect(await authFileManager.currentContents == targetContents)
     }
 
     @Test func switchingAccountRecreatesAuthFileWhenCodexIsLoggedOut() async throws {
@@ -360,12 +409,96 @@ struct CodexSwitcherTests {
 
         #expect(AccountRowView.makeLastLoginDescription(from: nil, relativeTo: now) == "Last login: never")
         #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(59 * 60)), relativeTo: now) == "Last login: this hour")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(1 * 60 * 60)), relativeTo: now) == "Last login: 1 hour ago")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(10 * 60 * 60)), relativeTo: now) == "Last login: 10 hours ago")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(24 * 60 * 60)), relativeTo: now) == "Last login: 1 day ago")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(7 * 24 * 60 * 60)), relativeTo: now) == "Last login: 7 days ago")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(3_432 * 24 * 60 * 60)), relativeTo: now) == "Last login: 3432 days ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(1 * 60 * 60)), relativeTo: now) == "Last login: 1h ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(10 * 60 * 60)), relativeTo: now) == "Last login: 10h ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(24 * 60 * 60)), relativeTo: now) == "Last login: 1d ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(7 * 24 * 60 * 60)), relativeTo: now) == "Last login: 7d ago")
+        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(3_432 * 24 * 60 * 60)), relativeTo: now) == "Last login: 3432d ago")
         #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(5 * 60), relativeTo: now) == "Last login: this hour")
+    }
+
+    @Test func accountMetadataDescriptionShowsKnownAndUnknownLimits() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+
+        #expect(
+            AccountRowView.makeMetadataDescription(
+                lastLoginAt: now.addingTimeInterval(-(3 * 60 * 60)),
+                sevenDayLimitUsedPercent: 93,
+                fiveHourLimitUsedPercent: 34,
+                relativeTo: now
+            ) == "Last login: 3h ago • 7d: 93% • 5h: 34%"
+        )
+
+        #expect(
+            AccountRowView.makeMetadataDescription(
+                lastLoginAt: nil,
+                sevenDayLimitUsedPercent: nil,
+                fiveHourLimitUsedPercent: nil,
+                relativeTo: now
+            ) == "Last login: never • 7d: ? • 5h: ?"
+        )
+    }
+
+    @Test func usageLimitColorInterpolationMatchesRequestedScale() {
+        let red = AccountMetadataText.usageColorComponents(forUsedPercent: 0)
+        #expect(red.red == 1)
+        #expect(red.green == 0)
+        #expect(red.blue == 0)
+
+        let orange = AccountMetadataText.usageColorComponents(forUsedPercent: 25)
+        #expect(orange.red == 1)
+        #expect(orange.green == 0.5)
+        #expect(orange.blue == 0)
+
+        let yellow = AccountMetadataText.usageColorComponents(forUsedPercent: 50)
+        #expect(yellow.red == 1)
+        #expect(yellow.green == 1)
+        #expect(yellow.blue == 0)
+
+        let yellowGreen = AccountMetadataText.usageColorComponents(forUsedPercent: 75)
+        #expect(yellowGreen.red == 0.5)
+        #expect(yellowGreen.green == 1)
+        #expect(yellowGreen.blue == 0)
+
+        let green = AccountMetadataText.usageColorComponents(forUsedPercent: 100)
+        #expect(green.red == 0)
+        #expect(green.green == 1)
+        #expect(green.blue == 0)
+    }
+
+    @Test func sessionRateLimitReaderUsesNewestObservationFromRealCodexTokenCountEvents() async throws {
+        let fileManager = FileManager.default
+        let rootURL = fileManager.temporaryDirectory.appending(path: "codex-switcher-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? fileManager.removeItem(at: rootURL) }
+        let sessionsDirectoryURL = rootURL
+            .appending(path: "sessions", directoryHint: .isDirectory)
+            .appending(path: "2026", directoryHint: .isDirectory)
+            .appending(path: "04", directoryHint: .isDirectory)
+            .appending(path: "09", directoryHint: .isDirectory)
+        let authFileURL = rootURL.appending(path: "auth.json", directoryHint: .notDirectory)
+
+        try fileManager.createDirectory(at: sessionsDirectoryURL, withIntermediateDirectories: true)
+        try "{}".write(to: authFileURL, atomically: true, encoding: .utf8)
+
+        let authModifiedAt = Date(timeIntervalSince1970: 2_000)
+        try fileManager.setAttributes(
+            [.modificationDate: authModifiedAt],
+            ofItemAtPath: authFileURL.path
+        )
+
+        let sessionFileURL = sessionsDirectoryURL.appending(path: "rollout-test.jsonl", directoryHint: .notDirectory)
+        try makeSessionRateLimitJSONL([
+            (timestamp: "1970-01-01T00:32:00.000Z", fiveHourPercent: 12, sevenDayPercent: 88),
+            (timestamp: "1970-01-01T00:34:00.000Z", fiveHourPercent: 34, sevenDayPercent: 93),
+        ], shape: .payloadRateLimits).write(to: sessionFileURL, atomically: true, encoding: .utf8)
+
+        let observation = await CodexSessionRateLimitReader().readLatestObservation(
+            in: rootURL,
+            authFileURL: authFileURL
+        )
+
+        #expect(observation?.fiveHourUsedPercent == 34)
+        #expect(observation?.sevenDayUsedPercent == 93)
     }
 
     @Test func iconCatalogOffersExpandedChoicesAndKeepsKeyDefault() {
@@ -531,6 +664,29 @@ private func makeJWT(_ payload: [String: Any]) -> String {
     return "\(encode(headerData)).\(encode(payloadData)).c2ln"
 }
 
+private enum SessionRateLimitPayloadShape {
+    case infoRateLimits
+    case payloadRateLimits
+}
+
+private func makeSessionRateLimitJSONL(
+    _ events: [(timestamp: String, fiveHourPercent: Int, sevenDayPercent: Int)],
+    shape: SessionRateLimitPayloadShape = .infoRateLimits
+) -> String {
+    events.map { event in
+        switch shape {
+        case .infoRateLimits:
+            """
+            {"timestamp":"\(event.timestamp)","type":"event_msg","payload":{"type":"token_count","info":{"rate_limits":{"primary":{"used_percent":\(event.fiveHourPercent),"window_minutes":300},"secondary":{"used_percent":\(event.sevenDayPercent),"window_minutes":10080}}}}}
+            """
+        case .payloadRateLimits:
+            """
+            {"timestamp":"\(event.timestamp)","type":"event_msg","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":\(event.fiveHourPercent),"window_minutes":300},"secondary":{"used_percent":\(event.sevenDayPercent),"window_minutes":10080}}}}
+            """
+        }
+    }.joined(separator: "\n")
+}
+
 actor FakeAuthFileManager: AuthFileManaging {
     private(set) var currentContents: String
     private var linkedLocationValue: AuthLinkedLocation?
@@ -635,12 +791,14 @@ actor FakeSecretStore: AccountSecretStoring {
     private var saveError: Error?
     private var loadError: Error?
     private var deleteError: Error?
+    private(set) var saveCallCount = 0
 
     func saveSecret(_ contents: String, for accountID: UUID) async throws {
         if let saveError {
             throw saveError
         }
 
+        saveCallCount += 1
         secrets[accountID] = contents
     }
 
@@ -666,6 +824,10 @@ actor FakeSecretStore: AccountSecretStoring {
 
     func secret(for accountID: UUID) async -> String? {
         secrets[accountID]
+    }
+
+    func resetSaveCallCount() {
+        saveCallCount = 0
     }
 }
 
