@@ -597,6 +597,11 @@ struct CodexSwitcherTests {
         #expect(controller.sortDirection == .ascending)
     }
 
+    @Test func menuBarIconOptionResolvesUnknownStoredValueToDefault() {
+        #expect(MenuBarIconOption.resolve(from: "key.card.fill") == .keyCard)
+        #expect(MenuBarIconOption.resolve(from: "not-a-real-symbol") == .defaultOption)
+    }
+
     @Test func removeAllAccountsDeletesSavedAccountsAndSecrets() async throws {
         let container = try makeInMemoryContainer()
         let secretStore = FakeSecretStore()

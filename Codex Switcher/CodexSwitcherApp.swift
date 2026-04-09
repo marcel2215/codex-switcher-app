@@ -12,6 +12,7 @@ import UniformTypeIdentifiers
 @main
 struct CodexSwitcherApp: App {
     @AppStorage(AppPreferenceKey.showMenuBarExtra) private var showMenuBarExtra = AppPreferenceDefaults.showMenuBarExtra
+    @AppStorage(AppPreferenceKey.menuBarIconSystemName) private var persistedMenuBarIconSystemName = AppPreferenceDefaults.menuBarIconSystemName
     @AppStorage(AppPreferenceKey.sortCriterion) private var persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
     @AppStorage(AppPreferenceKey.sortDirection) private var persistedSortDirectionRawValue = AppPreferenceDefaults.sortDirectionRawValue
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
@@ -57,7 +58,8 @@ struct CodexSwitcherApp: App {
             SettingsView(
                 controller: controller,
                 showMenuBarExtra: showMenuBarExtraBinding,
-                isResetSettingsEnabled: !areStoredSettingsAtDefaults,
+                menuBarIcon: menuBarIconBinding,
+                areAppPreferencesAtDefaults: areAppPreferencesAtDefaults,
                 onResetSettings: resetStoredSettingsToDefaults
             )
             .frame(width: 520, height: 470)
@@ -74,7 +76,7 @@ struct CodexSwitcherApp: App {
         // show a recovery surface instead of removing the system entry point.
         MenuBarExtra(
             "Codex Switcher",
-            systemImage: "key.card.fill",
+            systemImage: menuBarIconBinding.wrappedValue.systemName,
             isInserted: showMenuBarExtraBinding
         ) {
             if let sharedModelContainer {
@@ -115,8 +117,20 @@ struct CodexSwitcherApp: App {
         )
     }
 
+    private var menuBarIconBinding: Binding<MenuBarIconOption> {
+        Binding(
+            get: {
+                MenuBarIconOption.resolve(from: persistedMenuBarIconSystemName)
+            },
+            set: { newValue in
+                persistedMenuBarIconSystemName = newValue.systemName
+            }
+        )
+    }
+
     private func resetStoredSettingsToDefaults() {
         showMenuBarExtraBinding.wrappedValue = AppPreferenceDefaults.showMenuBarExtra
+        menuBarIconBinding.wrappedValue = MenuBarIconOption.defaultOption
         persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
         persistedSortDirectionRawValue = AppPreferenceDefaults.sortDirectionRawValue
         controller.restoreSortPreferences(
@@ -125,8 +139,9 @@ struct CodexSwitcherApp: App {
         )
     }
 
-    private var areStoredSettingsAtDefaults: Bool {
+    private var areAppPreferencesAtDefaults: Bool {
         showMenuBarExtra == AppPreferenceDefaults.showMenuBarExtra
+            && persistedMenuBarIconSystemName == AppPreferenceDefaults.menuBarIconSystemName
             && persistedSortCriterionRawValue == AppPreferenceDefaults.sortCriterionRawValue
             && persistedSortDirectionRawValue == AppPreferenceDefaults.sortDirectionRawValue
     }
@@ -372,15 +387,35 @@ private struct MenuBarStorageRecoveryView: View {
 private struct SettingsView: View {
     @Bindable var controller: AppController
     @Binding var showMenuBarExtra: Bool
-    let isResetSettingsEnabled: Bool
+    @Binding var menuBarIcon: MenuBarIconOption
+    let areAppPreferencesAtDefaults: Bool
     let onResetSettings: () -> Void
     @State private var isShowingLocationPicker = false
-    @State private var pendingConfirmation: SettingsConfirmationAction?
+    @State private var launchAtLoginState = LaunchAtLoginState.disabled
+    @State private var presentedSettingsAlert: SettingsAlert?
 
     var body: some View {
         Form {
+            Section("General") {
+                Toggle("Launch at Login", isOn: launchAtLoginBinding)
+
+                if launchAtLoginState.requiresApproval {
+                    Text("Requires approval in System Settings > General > Login Items.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("Menu Bar") {
                 Toggle("Show in Menu Bar", isOn: $showMenuBarExtra)
+
+                Picker("Icon", selection: $menuBarIcon) {
+                    ForEach(MenuBarIconOption.allCases) { option in
+                        Label(option.title, systemImage: option.systemName)
+                            .tag(option)
+                    }
+                }
+                .disabled(!showMenuBarExtra)
             }
 
             Section("Codex Folder") {
@@ -422,7 +457,7 @@ private struct SettingsView: View {
 
             Section("Danger Zone") {
                 Button(role: .destructive) {
-                    pendingConfirmation = .resetSettings
+                    presentedSettingsAlert = .confirmation(.resetSettings)
                 } label: {
                     settingsActionLabel(
                         "Reset Settings",
@@ -435,7 +470,7 @@ private struct SettingsView: View {
                 .disabled(!isResetSettingsEnabled)
 
                 Button(role: .destructive) {
-                    pendingConfirmation = .removeAllAccounts
+                    presentedSettingsAlert = .confirmation(.removeAllAccounts)
                 } label: {
                     settingsActionLabel(
                         "Remove All Accounts",
@@ -450,20 +485,35 @@ private struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding(20)
-        .alert(item: $pendingConfirmation) { action in
-            Alert(
-                title: Text(action.title),
-                message: Text(action.message),
-                primaryButton: .destructive(Text(action.confirmationTitle)) {
-                    switch action {
-                    case .removeAllAccounts:
-                        controller.removeAllAccounts()
-                    case .resetSettings:
-                        onResetSettings()
-                    }
-                },
-                secondaryButton: .cancel()
-            )
+        .task {
+            launchAtLoginState = LaunchAtLoginService.currentState()
+        }
+        .alert(item: $presentedSettingsAlert) { alert in
+            switch alert {
+            case let .confirmation(action):
+                Alert(
+                    title: Text(action.title),
+                    message: Text(action.message),
+                    primaryButton: .destructive(Text(action.confirmationTitle)) {
+                        switch action {
+                        case .removeAllAccounts:
+                            controller.removeAllAccounts()
+                        case .resetSettings:
+                            onResetSettings()
+                            if launchAtLoginState.isEnabled {
+                                updateLaunchAtLogin(isEnabled: false)
+                            }
+                        }
+                    },
+                    secondaryButton: .cancel()
+                )
+            case let .error(title, message):
+                Alert(
+                    title: Text(title),
+                    message: Text(message),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
         }
         .fileImporter(
             isPresented: $isShowingLocationPicker,
@@ -476,6 +526,21 @@ private struct SettingsView: View {
         .fileDialogBrowserOptions([.includeHiddenFiles])
     }
 
+    private var isResetSettingsEnabled: Bool {
+        !areAppPreferencesAtDefaults || launchAtLoginState.isEnabled
+    }
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: {
+                launchAtLoginState.isEnabled
+            },
+            set: { newValue in
+                updateLaunchAtLogin(isEnabled: newValue)
+            }
+        )
+    }
+
     private func settingsActionLabel(
         _ title: String,
         systemImage: String,
@@ -486,6 +551,18 @@ private struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(isEnabled ? foregroundStyle : AnyShapeStyle(.secondary))
             .contentShape(Rectangle())
+    }
+
+    private func updateLaunchAtLogin(isEnabled: Bool) {
+        do {
+            launchAtLoginState = try LaunchAtLoginService.setEnabled(isEnabled)
+        } catch {
+            launchAtLoginState = LaunchAtLoginService.currentState()
+            presentedSettingsAlert = .error(
+                title: "Couldn't Update Launch at Login",
+                message: LaunchAtLoginService.userFacingMessage(for: error)
+            )
+        }
     }
 }
 
@@ -543,6 +620,20 @@ private enum SettingsConfirmationAction: String, Identifiable {
     }
 }
 
+private enum SettingsAlert: Identifiable {
+    case confirmation(SettingsConfirmationAction)
+    case error(title: String, message: String)
+
+    var id: String {
+        switch self {
+        case let .confirmation(action):
+            "confirmation-\(action.rawValue)"
+        case let .error(title, message):
+            "error-\(title)-\(message)"
+        }
+    }
+}
+
 private struct SortPreferencePersistenceView<Content: View>: View {
     @Bindable var controller: AppController
     @Binding var persistedSortCriterionRawValue: String
@@ -580,12 +671,14 @@ private struct SortPreferencePersistenceView<Content: View>: View {
 
 private enum AppPreferenceKey {
     static let showMenuBarExtra = "showMenuBarExtra"
+    static let menuBarIconSystemName = "menuBarIconSystemName"
     static let sortCriterion = "sortCriterion"
     static let sortDirection = "sortDirection"
 }
 
 private enum AppPreferenceDefaults {
     static let showMenuBarExtra = true
+    static let menuBarIconSystemName = MenuBarIconOption.defaultOption.systemName
     static let sortCriterionRawValue = AccountSortCriterion.dateAdded.rawValue
     static let sortDirectionRawValue = SortDirection.ascending.rawValue
 }
