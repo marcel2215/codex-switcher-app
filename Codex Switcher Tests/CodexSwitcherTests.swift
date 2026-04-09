@@ -598,6 +598,7 @@ struct CodexSwitcherTests {
     }
 
     @Test func menuBarIconOptionResolvesUnknownStoredValueToDefault() {
+        #expect(MenuBarIconOption.resolve(from: "arrow.left.arrow.right") == .switcher)
         #expect(MenuBarIconOption.resolve(from: "key.card.fill") == .keyCard)
         #expect(MenuBarIconOption.resolve(from: "not-a-real-symbol") == .defaultOption)
     }

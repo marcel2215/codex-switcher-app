@@ -8,6 +8,7 @@
 import Foundation
 
 enum MenuBarIconOption: String, CaseIterable, Identifiable, Sendable {
+    case switcher = "arrow.left.arrow.right"
     case keyCard = "key.card.fill"
     case key = "key.fill"
     case personBadgeKey = "person.badge.key.fill"
@@ -30,10 +31,15 @@ enum MenuBarIconOption: String, CaseIterable, Identifiable, Sendable {
     var systemName: String { rawValue }
 
     var title: String {
-        AccountIconOption.resolve(from: rawValue).title
+        switch self {
+        case .switcher:
+            "Switch"
+        default:
+            AccountIconOption.resolve(from: rawValue).title
+        }
     }
 
-    static let defaultOption: Self = .keyCard
+    static let defaultOption: Self = .switcher
 
     static func resolve(from storedSystemName: String) -> Self {
         Self(rawValue: storedSystemName) ?? defaultOption
