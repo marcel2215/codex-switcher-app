@@ -21,6 +21,12 @@ struct MenuBarAccountsView: View {
         controller.displayedAccounts(from: accounts)
     }
 
+    private var accountListHeight: CGFloat {
+        let rowHeight: CGFloat = 46
+        let visibleRows = min(max(displayedAccounts.count, 1), 6)
+        return CGFloat(visibleRows) * rowHeight
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
@@ -105,7 +111,11 @@ struct MenuBarAccountsView: View {
             .frame(maxWidth: .infinity)
         } else {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 4) {
+                // MenuBarExtra window scenes can reserve space for lazy stacks
+                // before they materialize children, which leaves a blank region
+                // instead of visible rows. Use an eager stack plus an explicit
+                // scroll height so the account list renders reliably here.
+                VStack(alignment: .leading, spacing: 4) {
                     ForEach(displayedAccounts) { account in
                         Button {
                             controller.login(accountID: account.id)
@@ -152,7 +162,8 @@ struct MenuBarAccountsView: View {
                     }
                 }
             }
-            .frame(maxHeight: 300)
+            .scrollIndicators(.hidden)
+            .frame(height: min(accountListHeight, 300))
         }
     }
 
