@@ -12,6 +12,8 @@ import UniformTypeIdentifiers
 @main
 struct CodexSwitcherApp: App {
     @AppStorage(AppPreferenceKey.showMenuBarExtra) private var showMenuBarExtra = true
+    @AppStorage(AppPreferenceKey.sortCriterion) private var persistedSortCriterionRawValue = AccountSortCriterion.dateAdded.rawValue
+    @AppStorage(AppPreferenceKey.sortDirection) private var persistedSortDirectionRawValue = SortDirection.ascending.rawValue
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
     @State private var controller: AppController
 
@@ -74,8 +76,14 @@ struct CodexSwitcherApp: App {
             isInserted: showMenuBarExtraBinding
         ) {
             if let sharedModelContainer {
-                MenuBarAccountsView(controller: controller)
-                    .modelContainer(sharedModelContainer)
+                SortPreferencePersistenceView(
+                    controller: controller,
+                    persistedSortCriterionRawValue: $persistedSortCriterionRawValue,
+                    persistedSortDirectionRawValue: $persistedSortDirectionRawValue
+                ) {
+                    MenuBarAccountsView(controller: controller)
+                        .modelContainer(sharedModelContainer)
+                }
                     .task {
                         applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
                     }
@@ -108,8 +116,14 @@ struct CodexSwitcherApp: App {
     @ViewBuilder
     private var rootContentView: some View {
         if let sharedModelContainer {
-            ContentView(controller: controller)
-                .modelContainer(sharedModelContainer)
+            SortPreferencePersistenceView(
+                controller: controller,
+                persistedSortCriterionRawValue: $persistedSortCriterionRawValue,
+                persistedSortDirectionRawValue: $persistedSortDirectionRawValue
+            ) {
+                ContentView(controller: controller)
+                    .modelContainer(sharedModelContainer)
+            }
         } else {
             StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
         }
@@ -379,8 +393,45 @@ private struct SettingsView: View {
     }
 }
 
+private struct SortPreferencePersistenceView<Content: View>: View {
+    @Bindable var controller: AppController
+    @Binding var persistedSortCriterionRawValue: String
+    @Binding var persistedSortDirectionRawValue: String
+    let content: Content
+
+    init(
+        controller: AppController,
+        persistedSortCriterionRawValue: Binding<String>,
+        persistedSortDirectionRawValue: Binding<String>,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.controller = controller
+        self._persistedSortCriterionRawValue = persistedSortCriterionRawValue
+        self._persistedSortDirectionRawValue = persistedSortDirectionRawValue
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .task {
+                controller.restoreSortPreferences(
+                    sortCriterionRawValue: persistedSortCriterionRawValue,
+                    sortDirectionRawValue: persistedSortDirectionRawValue
+                )
+            }
+            .onChange(of: controller.sortCriterion) { _, newValue in
+                persistedSortCriterionRawValue = newValue.rawValue
+            }
+            .onChange(of: controller.sortDirection) { _, newValue in
+                persistedSortDirectionRawValue = newValue.rawValue
+            }
+    }
+}
+
 private enum AppPreferenceKey {
     static let showMenuBarExtra = "showMenuBarExtra"
+    static let sortCriterion = "sortCriterion"
+    static let sortDirection = "sortDirection"
 }
 
 private enum AppRuntimeEnvironment {

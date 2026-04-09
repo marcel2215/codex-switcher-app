@@ -163,6 +163,25 @@ final class AppController {
         "Select"
     }
 
+    // Sort preferences are persisted by the SwiftUI app layer with AppStorage.
+    // Restore them here so unknown raw values degrade to safe defaults instead
+    // of leaving the controller in an invalid state.
+    func restoreSortPreferences(
+        sortCriterionRawValue: String,
+        sortDirectionRawValue: String
+    ) {
+        let resolvedCriterion = AccountSortCriterion(rawValue: sortCriterionRawValue) ?? .dateAdded
+        let resolvedDirection = SortDirection(rawValue: sortDirectionRawValue) ?? .ascending
+
+        if sortCriterion != resolvedCriterion {
+            sortCriterion = resolvedCriterion
+        }
+
+        if sortDirection != resolvedDirection {
+            sortDirection = resolvedDirection
+        }
+    }
+
     var linkButtonTitle: String {
         switch authAccessState {
         case .unlinked:

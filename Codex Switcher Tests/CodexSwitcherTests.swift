@@ -577,6 +577,26 @@ struct CodexSwitcherTests {
         )
     }
 
+    @Test func restoreSortPreferencesUsesStoredValuesAndFallsBackSafely() {
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
+        )
+
+        controller.restoreSortPreferences(
+            sortCriterionRawValue: AccountSortCriterion.rateLimit.rawValue,
+            sortDirectionRawValue: SortDirection.descending.rawValue
+        )
+        #expect(controller.sortCriterion == .rateLimit)
+        #expect(controller.sortDirection == .descending)
+
+        controller.restoreSortPreferences(
+            sortCriterionRawValue: "not-a-real-criterion",
+            sortDirectionRawValue: "not-a-real-direction"
+        )
+        #expect(controller.sortCriterion == .dateAdded)
+        #expect(controller.sortDirection == .ascending)
+    }
+
     @Test func removalShortcutSupportsDeleteWithExpectedModifiersOnly() {
         #expect(ContentView.supportsRemovalShortcut(modifiers: []) == true)
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.command]) == true)
@@ -821,11 +841,12 @@ struct CodexSwitcherTests {
         #expect(AccountIconOption.displayOrder.count == AccountIconOption.allCases.count)
         #expect(Set(AccountIconOption.displayOrder).count == AccountIconOption.allCases.count)
         #expect(
-            Array(AccountIconOption.displayOrder.prefix(6))
+            Array(AccountIconOption.displayOrder.prefix(7))
                 == [
                     .key,
                     .star,
                     .heart,
+                    .house,
                     .briefcase,
                     .graduationCap,
                     .hammer,
@@ -833,8 +854,8 @@ struct CodexSwitcherTests {
         )
         let hammerIndex = try #require(AccountIconOption.displayOrder.firstIndex(of: .hammer))
         #expect(
-            Array(AccountIconOption.displayOrder[(hammerIndex + 1)...(hammerIndex + 8)])
-                == [.house, .building, .columns, .person, .personSquare, .personBadgeKey, .people, .profile]
+            Array(AccountIconOption.displayOrder[(hammerIndex + 1)...(hammerIndex + 7)])
+                == [.building, .columns, .person, .personSquare, .personBadgeKey, .people, .profile]
         )
     }
 
