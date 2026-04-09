@@ -32,21 +32,6 @@ struct MenuBarAccountsView: View {
         displayedAccounts.isEmpty ? 180 : min(accountListHeight, 640)
     }
 
-    private var panelHeight: CGFloat {
-        // MenuBarExtra window sizing is driven by the top-level content size,
-        // not just the size of nested scroll views. Keep an explicit panel
-        // height so the window can grow enough to show more accounts before it
-        // needs to scroll.
-        var height: CGFloat = 96
-
-        if controller.shouldShowAuthStatusBanner {
-            height += 104
-        }
-
-        height += accountSectionHeight
-        return min(height, 820)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
@@ -58,7 +43,9 @@ struct MenuBarAccountsView: View {
             accountSection
         }
         .padding(14)
-        .frame(width: 360, height: panelHeight, alignment: .top)
+        // Let the row list determine the natural content height so short menus
+        // don't keep a stale fixed panel size with empty space at the bottom.
+        .frame(width: 360, alignment: .top)
         .fileImporter(
             isPresented: $controller.isShowingLocationPicker,
             allowedContentTypes: [.folder],
@@ -198,7 +185,6 @@ struct MenuBarAccountsView: View {
             }
             .scrollIndicators(.hidden)
             .frame(height: accountSectionHeight)
-            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
