@@ -1584,6 +1584,14 @@ final class AppController {
 
     private var sortComparator: (StoredAccount, StoredAccount) -> Bool {
         { [sortCriterion, sortDirection] lhs, rhs in
+            if sortCriterion == .rateLimit {
+                if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: sortDirection) {
+                    return lhs.createdAt < rhs.createdAt
+                }
+
+                return Self.rateLimitSortComesBefore(lhs, rhs, direction: sortDirection)
+            }
+
             let orderedAscending: Bool = switch sortCriterion {
             case .name:
                 lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
@@ -1591,6 +1599,8 @@ final class AppController {
                 lhs.createdAt < rhs.createdAt
             case .lastLogin:
                 (lhs.lastLoginAt ?? .distantPast) < (rhs.lastLoginAt ?? .distantPast)
+            case .rateLimit:
+                false
             case .custom:
                 lhs.customOrder < rhs.customOrder
             }
@@ -1602,6 +1612,8 @@ final class AppController {
                 lhs.createdAt > rhs.createdAt
             case .lastLogin:
                 (lhs.lastLoginAt ?? .distantPast) > (rhs.lastLoginAt ?? .distantPast)
+            case .rateLimit:
+                false
             case .custom:
                 lhs.customOrder > rhs.customOrder
             }
@@ -1622,9 +1634,80 @@ final class AppController {
             lhs.createdAt == rhs.createdAt
         case .lastLogin:
             lhs.lastLoginAt == rhs.lastLoginAt
+        case .rateLimit:
+            false
         case .custom:
             lhs.customOrder == rhs.customOrder
         }
+    }
+
+    // "Rate Limit" always sorts by the tighter remaining bucket, which is the
+    // minimum of the currently known 5h and 7d percentages. Unknown values
+    // always sort after known accounts so "?" rows don't jump ahead.
+    private static func rateLimitSortComesBefore(
+        _ lhs: StoredAccount,
+        _ rhs: StoredAccount,
+        direction: SortDirection
+    ) -> Bool {
+        let lhsMetrics = rateLimitSortMetrics(for: lhs, direction: direction)
+        let rhsMetrics = rateLimitSortMetrics(for: rhs, direction: direction)
+
+        switch (lhsMetrics.primary, rhsMetrics.primary) {
+        case let (lhsPrimary?, rhsPrimary?):
+            if lhsPrimary != rhsPrimary {
+                return direction == .ascending ? lhsPrimary < rhsPrimary : lhsPrimary > rhsPrimary
+            }
+        case (_?, nil):
+            return true
+        case (nil, _?):
+            return false
+        case (nil, nil):
+            return lhs.createdAt < rhs.createdAt
+        }
+
+        switch (lhsMetrics.secondary, rhsMetrics.secondary) {
+        case let (lhsSecondary?, rhsSecondary?):
+            if lhsSecondary != rhsSecondary {
+                return direction == .ascending ? lhsSecondary < rhsSecondary : lhsSecondary > rhsSecondary
+            }
+        case (_?, nil):
+            return true
+        case (nil, _?):
+            return false
+        case (nil, nil):
+            break
+        }
+
+        return lhs.createdAt < rhs.createdAt
+    }
+
+    private static func areEquivalentForRateLimitSort(
+        _ lhs: StoredAccount,
+        _ rhs: StoredAccount,
+        direction: SortDirection
+    ) -> Bool {
+        let lhsMetrics = rateLimitSortMetrics(for: lhs, direction: direction)
+        let rhsMetrics = rateLimitSortMetrics(for: rhs, direction: direction)
+        return lhsMetrics.primary == rhsMetrics.primary
+            && lhsMetrics.secondary == rhsMetrics.secondary
+    }
+
+    private static func rateLimitSortMetrics(
+        for account: StoredAccount,
+        direction: SortDirection
+    ) -> (primary: Int?, secondary: Int?) {
+        let primary = normalizedRateLimitValues(for: account).min()
+        guard let primary else {
+            return (nil, nil)
+        }
+
+        return (primary, nil)
+    }
+
+    private static func normalizedRateLimitValues(for account: StoredAccount) -> [Int] {
+        [account.fiveHourLimitUsedPercent, account.sevenDayLimitUsedPercent]
+            .compactMap { $0 }
+            .map { min(max($0, 0), 100) }
     }
 
     private static func isGeneratedAccountName(_ name: String) -> Bool {

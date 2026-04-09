@@ -11,6 +11,7 @@ enum AccountSortCriterion: String, CaseIterable, Identifiable, Codable, Sendable
     case name
     case dateAdded
     case lastLogin
+    case rateLimit
     case custom
 
     var id: String { rawValue }
@@ -23,6 +24,8 @@ enum AccountSortCriterion: String, CaseIterable, Identifiable, Codable, Sendable
             "Date Added"
         case .lastLogin:
             "Last Login"
+        case .rateLimit:
+            "Rate Limit"
         case .custom:
             "Custom"
         }
