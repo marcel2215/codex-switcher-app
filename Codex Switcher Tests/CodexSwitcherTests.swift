@@ -250,6 +250,52 @@ struct CodexSwitcherTests {
         #expect(notificationManager.postedAccountNames == ["Account 1"])
     }
 
+    @Test func remoteSwitchSignalRefreshesRunningControllerWithoutManualOpen() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))
+        let notificationManager = FakeNotificationManager()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            notificationManager: notificationManager
+        )
+
+        let targetContents = makeChatGPTAuthJSON(accountID: "acct-remote-target")
+        let targetSnapshot = try CodexAuthFile.parse(contents: targetContents)
+        let targetAccount = StoredAccount(
+            identityKey: targetSnapshot.identityKey,
+            name: "Remote Target",
+            customOrder: 0,
+            authModeRaw: targetSnapshot.authMode.rawValue,
+            emailHint: targetSnapshot.email,
+            accountIdentifier: targetSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(targetAccount)
+        try container.mainContext.save()
+        let targetAccountID = targetAccount.id
+        let targetIdentityKey = targetSnapshot.identityKey
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+
+        await authFileManager.setContents(targetContents)
+        CodexSharedSwitchFeedback.postSwitchSignal(
+            identityKey: targetIdentityKey,
+            accountName: targetAccount.name
+        )
+
+        try await waitUntil {
+            await MainActor.run {
+                controller.activeIdentityKey == targetIdentityKey
+                    && controller.selection == [targetAccountID]
+            }
+        }
+
+        #expect(controller.authAccessState == .ready(
+            linkedFolder: URL(fileURLWithPath: "/tmp/.codex", isDirectory: true)
+        ))
+        #expect(notificationManager.postedAccountNames.isEmpty)
+    }
+
     @Test func focusingAppImmediatelyRefreshesVisibleAccountRateLimits() async throws {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-focus"))

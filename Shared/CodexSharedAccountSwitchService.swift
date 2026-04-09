@@ -90,6 +90,10 @@ struct CodexSharedAccountSwitchService: Sendable {
                 try performSwitch(identityKey: identityKey)
             }
             CodexSharedSurfaceReloader.reloadAll()
+            CodexSharedSwitchFeedback.postSwitchSignal(
+                identityKey: switchedAccount.id,
+                accountName: switchedAccount.name
+            )
             return switchedAccount
         } catch let error as CodexSharedSwitchError {
             try? persistFailureState(for: error)

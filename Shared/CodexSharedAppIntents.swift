@@ -6,6 +6,7 @@
 //
 
 import AppIntents
+import SwiftUI
 import WidgetKit
 
 struct CodexAccountEntity: AppEntity, Hashable, Sendable {
@@ -79,13 +80,19 @@ struct SwitchAccountIntent: AppIntent, ControlConfigurationIntent {
         Summary("Switch to \(\.$account)")
     }
 
-    nonisolated func perform() async throws -> some IntentResult {
+    nonisolated func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let account else {
             throw CodexSharedSwitchError.accountSelectionRequired
         }
 
-        _ = try CodexSharedAccountSwitchService().switchToAccount(identityKey: account.id)
-        return .result()
+        let switchedAccount = try CodexSharedAccountSwitchService().switchToAccount(identityKey: account.id)
+        await CodexSharedSwitchFeedback.postLocalSwitchNotificationIfAuthorized(
+            accountName: switchedAccount.name
+        )
+
+        return .result(
+            dialog: IntentDialog("Now using \"\(switchedAccount.name)\".")
+        )
     }
 }
 

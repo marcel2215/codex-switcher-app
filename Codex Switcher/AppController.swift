@@ -52,6 +52,7 @@ final class AppController {
     @ObservationIgnored private var initializationTask: Task<Void, Never>?
     @ObservationIgnored private var switchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSwitchOperationID: UUID?
+    @ObservationIgnored private var remoteSwitchObserver: NSObjectProtocol?
     @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitPollingTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitSnapshotsByIdentityKey: [String: CodexRateLimitSnapshot] = [:]
@@ -107,6 +108,7 @@ final class AppController {
         }
 
         hasConfiguredInitialState = true
+        startObservingRemoteSwitchesIfNeeded()
 
         if let startupAlert {
             presentedAlert = startupAlert
@@ -680,6 +682,53 @@ final class AppController {
                 }
             }
         }
+    }
+
+    private func startObservingRemoteSwitchesIfNeeded() {
+        guard remoteSwitchObserver == nil else {
+            return
+        }
+
+        remoteSwitchObserver = DistributedNotificationCenter.default().addObserver(
+            forName: CodexSharedSwitchFeedback.didSwitchAccountNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard
+                let self,
+                let signal = CodexSharedSwitchFeedback.signal(from: notification)
+            else {
+                return
+            }
+
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    return
+                }
+
+                await self.handleRemoteSwitchSignal(signal)
+            }
+        }
+    }
+
+    private func handleRemoteSwitchSignal(_ signal: CodexSharedSwitchSignal) async {
+        await waitForInitializationIfNeeded()
+        await refreshAuthState(showUnexpectedErrors: false)
+
+        do {
+            if let switchedAccount = try fetchAccounts().first(where: { $0.identityKey == signal.identityKey }) {
+                selection = [switchedAccount.id]
+                renameTargetID = nil
+            }
+        } catch {
+            logger.error(
+                "Couldn't apply remote account switch selection for \(signal.identityKey, privacy: .public): \(String(describing: error), privacy: .private)"
+            )
+        }
+
+        // The intent path already delivers its own confirmation. Refresh the
+        // app state here without posting a second banner from the app process.
+        requestImmediateRateLimitRefresh(for: signal.identityKey)
     }
 
     private func finishLocationImport(_ result: Result<[URL], any Error>) async {
