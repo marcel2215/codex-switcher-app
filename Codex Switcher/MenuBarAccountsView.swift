@@ -23,9 +23,16 @@ struct MenuBarAccountsView: View {
     }
 
     private var accountListHeight: CGFloat {
-        let rowHeight: CGFloat = 46
+        // Menu bar rows are two-line cells with icon padding, subtitle text,
+        // and inter-row spacing. Budget enough height per row so the panel
+        // can show the full visible account set before it needs to scroll.
+        let rowHeight: CGFloat = 58
+        let rowSpacing: CGFloat = 4
+        let bottomInset: CGFloat = 10
         let visibleRows = min(max(displayedAccounts.count, 1), 14)
-        return CGFloat(visibleRows) * rowHeight
+        let totalRowHeight = CGFloat(visibleRows) * rowHeight
+        let totalSpacing = CGFloat(max(visibleRows - 1, 0)) * rowSpacing
+        return totalRowHeight + totalSpacing + bottomInset
     }
 
     private var accountSectionHeight: CGFloat {
