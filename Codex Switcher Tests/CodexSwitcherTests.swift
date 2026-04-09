@@ -5,6 +5,7 @@
 //  Created by Marcel Kwiatkowski on 2026-04-06.
 //
 
+import AppKit
 import Foundation
 import SwiftData
 import SwiftUI
@@ -813,10 +814,38 @@ struct CodexSwitcherTests {
         #expect(snapshot?.sevenDayResetsAt == Date(timeIntervalSince1970: TimeInterval(sevenDayReset)))
     }
 
-    @Test func iconCatalogOffersExpandedChoicesAndKeepsKeyDefault() {
-        #expect(AccountIconOption.allCases.count >= 30)
+    @Test func iconCatalogOffersExpandedChoicesAndKeepsKeyDefault() throws {
+        #expect(AccountIconOption.allCases.count >= 70)
         #expect(AccountIconOption.defaultOption == .key)
         #expect(AccountIconOption.resolve(from: "not-a-real-symbol") == .key)
+        #expect(AccountIconOption.displayOrder.count == AccountIconOption.allCases.count)
+        #expect(Set(AccountIconOption.displayOrder).count == AccountIconOption.allCases.count)
+        #expect(
+            Array(AccountIconOption.displayOrder.prefix(6))
+                == [
+                    .key,
+                    .star,
+                    .heart,
+                    .briefcase,
+                    .graduationCap,
+                    .hammer,
+                ]
+        )
+        let hammerIndex = try #require(AccountIconOption.displayOrder.firstIndex(of: .hammer))
+        #expect(
+            Array(AccountIconOption.displayOrder[(hammerIndex + 1)...(hammerIndex + 8)])
+                == [.house, .building, .columns, .person, .personSquare, .personBadgeKey, .people, .profile]
+        )
+    }
+
+    @Test func iconCatalogUsesOnlySymbolsAvailableOnMacOS() {
+        let unavailableSymbols = AccountIconOption.allCases.compactMap { option in
+            NSImage(systemSymbolName: option.systemName, accessibilityDescription: nil) == nil
+                ? option.systemName
+                : nil
+        }
+
+        #expect(unavailableSymbols.isEmpty)
     }
 
     @Test func startupReconcilesDuplicateAccountsForTheSameIdentityKey() async throws {

@@ -34,7 +34,7 @@ struct AccountIconPickerView: View {
 
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(AccountIconOption.allCases) { icon in
+                    ForEach(AccountIconOption.displayOrder) { icon in
                         Button {
                             onSelect(icon)
                         } label: {

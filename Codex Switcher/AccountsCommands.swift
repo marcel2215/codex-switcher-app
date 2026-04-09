@@ -35,7 +35,7 @@ struct AccountsCommands: Commands {
             .disabled(controller.selection.count != 1)
 
             Menu("Choose Icon") {
-                ForEach(AccountIconOption.allCases) { icon in
+                ForEach(AccountIconOption.displayOrder) { icon in
                     Button {
                         controller.setSelectedAccountIcon(icon)
                     } label: {
