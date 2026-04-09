@@ -67,6 +67,13 @@
 			);
 			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */;
 		};
+		1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -80,6 +87,9 @@
 		};
 		1F87C9492F8406C7007DED25 /* Codex Switcher */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */,
+			);
 			path = "Codex Switcher";
 			sourceTree = "<group>";
 		};
