@@ -581,7 +581,7 @@ struct CodexSwitcherTests {
         #expect(controller.presentedAlert == nil)
     }
 
-    @Test func rateLimitSortUsesMinimumWindowAndKeepsUnknownValuesLast() throws {
+    @Test func rateLimitSortUsesMinimumWindowThenMaximumAndKeepsUnknownBucketsLast() throws {
         let container = try makeInMemoryContainer()
         let controller = makeController(authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")))
 
@@ -592,17 +592,17 @@ struct CodexSwitcherTests {
         first.fiveHourLimitUsedPercent = 20
         first.sevenDayLimitUsedPercent = 80
 
-        let second = makeStoredAccount(name: "Min 40 Max 50", customOrder: 1, accountID: "acct-rate-2")
-        second.fiveHourLimitUsedPercent = 40
-        second.sevenDayLimitUsedPercent = 50
+        let second = makeStoredAccount(name: "Min 20 Max 60", customOrder: 1, accountID: "acct-rate-2")
+        second.fiveHourLimitUsedPercent = 20
+        second.sevenDayLimitUsedPercent = 60
 
         let third = makeStoredAccount(name: "Min 30 Max 90", customOrder: 2, accountID: "acct-rate-3")
         third.fiveHourLimitUsedPercent = 30
         third.sevenDayLimitUsedPercent = 90
 
-        let unknown = makeStoredAccount(name: "Unknown", customOrder: 3, accountID: "acct-rate-4")
+        let unknown = makeStoredAccount(name: "Unknown 5h", customOrder: 3, accountID: "acct-rate-4")
         unknown.fiveHourLimitUsedPercent = nil
-        unknown.sevenDayLimitUsedPercent = nil
+        unknown.sevenDayLimitUsedPercent = 70
 
         container.mainContext.insert(first)
         container.mainContext.insert(second)
@@ -613,13 +613,13 @@ struct CodexSwitcherTests {
         controller.sortDirection = .ascending
         #expect(
             controller.displayedAccounts(from: try fetchAccounts(in: container.mainContext)).map(\.name)
-                == ["Min 20 Max 80", "Min 30 Max 90", "Min 40 Max 50", "Unknown"]
+                == ["Min 20 Max 60", "Min 20 Max 80", "Min 30 Max 90", "Unknown 5h"]
         )
 
         controller.sortDirection = .descending
         #expect(
             controller.displayedAccounts(from: try fetchAccounts(in: container.mainContext)).map(\.name)
-                == ["Min 40 Max 50", "Min 30 Max 90", "Min 20 Max 80", "Unknown"]
+                == ["Min 30 Max 90", "Min 20 Max 80", "Min 20 Max 60", "Unknown 5h"]
         )
     }
 

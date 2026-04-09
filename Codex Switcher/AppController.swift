@@ -1748,16 +1748,16 @@ final class AppController {
         }
     }
 
-    // "Rate Limit" always sorts by the tighter remaining bucket, which is the
-    // minimum of the currently known 5h and 7d percentages. Unknown values
-    // always sort after known accounts so "?" rows don't jump ahead.
+    // "Rate Limit" sorts by min(5h, 7d) first, then by max(5h, 7d). Any row
+    // missing either bucket is considered incomplete and always sorts after
+    // fully known rows regardless of direction.
     private static func rateLimitSortComesBefore(
         _ lhs: StoredAccount,
         _ rhs: StoredAccount,
         direction: SortDirection
     ) -> Bool {
-        let lhsMetrics = rateLimitSortMetrics(for: lhs, direction: direction)
-        let rhsMetrics = rateLimitSortMetrics(for: rhs, direction: direction)
+        let lhsMetrics = rateLimitSortMetrics(for: lhs)
+        let rhsMetrics = rateLimitSortMetrics(for: rhs)
 
         switch (lhsMetrics.primary, rhsMetrics.primary) {
         case let (lhsPrimary?, rhsPrimary?):
@@ -1793,27 +1793,31 @@ final class AppController {
         _ rhs: StoredAccount,
         direction: SortDirection
     ) -> Bool {
-        let lhsMetrics = rateLimitSortMetrics(for: lhs, direction: direction)
-        let rhsMetrics = rateLimitSortMetrics(for: rhs, direction: direction)
+        let lhsMetrics = rateLimitSortMetrics(for: lhs)
+        let rhsMetrics = rateLimitSortMetrics(for: rhs)
         return lhsMetrics.primary == rhsMetrics.primary
             && lhsMetrics.secondary == rhsMetrics.secondary
     }
 
     private static func rateLimitSortMetrics(
-        for account: StoredAccount,
-        direction: SortDirection
+        for account: StoredAccount
     ) -> (primary: Int?, secondary: Int?) {
-        let primary = normalizedRateLimitValues(for: account).min()
-        guard let primary else {
+        guard let normalizedValues = normalizedCompleteRateLimitValues(for: account),
+              let primary = normalizedValues.min(),
+              let secondary = normalizedValues.max() else {
             return (nil, nil)
         }
 
-        return (primary, nil)
+        return (primary, secondary)
     }
 
-    private static func normalizedRateLimitValues(for account: StoredAccount) -> [Int] {
-        [account.fiveHourLimitUsedPercent, account.sevenDayLimitUsedPercent]
-            .compactMap { $0 }
+    private static func normalizedCompleteRateLimitValues(for account: StoredAccount) -> [Int]? {
+        guard let fiveHourRemainingPercent = account.fiveHourLimitUsedPercent,
+              let sevenDayRemainingPercent = account.sevenDayLimitUsedPercent else {
+            return nil
+        }
+
+        return [fiveHourRemainingPercent, sevenDayRemainingPercent]
             .map { min(max($0, 0), 100) }
     }
 
