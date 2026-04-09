@@ -163,6 +163,10 @@ final class AppController {
         "Select"
     }
 
+    var hasSavedAccounts: Bool {
+        ((try? !fetchAccounts().isEmpty) == true)
+    }
+
     // Sort preferences are persisted by the SwiftUI app layer with AppStorage.
     // Restore them here so unknown raw values degrade to safe defaults instead
     // of leaving the controller in an invalid state.
@@ -403,6 +407,16 @@ final class AppController {
         }
     }
 
+    func removeAllAccounts() {
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.removeAllAccountsNow()
+        }
+    }
+
     func reorderDraggedAccounts(_ items: [String], to destinationIndex: Int, visibleAccounts: [StoredAccount]) {
         guard
             canEditCustomOrder,
@@ -564,6 +578,11 @@ final class AppController {
         do {
             let modelContext = try requireModelContext()
             let accountsToDelete = try fetchAccounts().filter { ids.contains($0.id) }
+            let deletedIdentityKeys = Set(
+                accountsToDelete
+                    .map(\.identityKey)
+                    .filter { !$0.isEmpty }
+            )
 
             for account in accountsToDelete {
                 try? await secretStore.deleteSecret(for: account.id)
@@ -575,10 +594,30 @@ final class AppController {
                 self.renameTargetID = nil
             }
 
+            for identityKey in deletedIdentityKeys {
+                rateLimitSnapshotsByIdentityKey.removeValue(forKey: identityKey)
+                visibleRateLimitIdentityCounts.removeValue(forKey: identityKey)
+                pendingForcedRateLimitRefreshes.remove(identityKey)
+                rateLimitRefreshesInFlight.remove(identityKey)
+                rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
+                rateLimitFailureBackoffDurations.removeValue(forKey: identityKey)
+            }
+
             try modelContext.save()
             publishSharedState()
         } catch {
             present(error, title: "Couldn't Remove Account")
+        }
+    }
+
+    func removeAllAccountsNow() async {
+        await waitForInitializationIfNeeded()
+
+        do {
+            let allAccountIDs = Set(try fetchAccounts().map(\.id))
+            await removeAccountsNow(withIDs: allAccountIDs)
+        } catch {
+            present(error, title: "Couldn't Remove Accounts")
         }
     }
 

@@ -11,9 +11,9 @@ import UniformTypeIdentifiers
 
 @main
 struct CodexSwitcherApp: App {
-    @AppStorage(AppPreferenceKey.showMenuBarExtra) private var showMenuBarExtra = true
-    @AppStorage(AppPreferenceKey.sortCriterion) private var persistedSortCriterionRawValue = AccountSortCriterion.dateAdded.rawValue
-    @AppStorage(AppPreferenceKey.sortDirection) private var persistedSortDirectionRawValue = SortDirection.ascending.rawValue
+    @AppStorage(AppPreferenceKey.showMenuBarExtra) private var showMenuBarExtra = AppPreferenceDefaults.showMenuBarExtra
+    @AppStorage(AppPreferenceKey.sortCriterion) private var persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
+    @AppStorage(AppPreferenceKey.sortDirection) private var persistedSortDirectionRawValue = AppPreferenceDefaults.sortDirectionRawValue
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
     @State private var controller: AppController
 
@@ -56,9 +56,11 @@ struct CodexSwitcherApp: App {
         Settings {
             SettingsView(
                 controller: controller,
-                showMenuBarExtra: showMenuBarExtraBinding
+                showMenuBarExtra: showMenuBarExtraBinding,
+                isResetSettingsEnabled: !areStoredSettingsAtDefaults,
+                onResetSettings: resetStoredSettingsToDefaults
             )
-            .frame(width: 520, height: 280)
+            .frame(width: 520, height: 470)
             .task {
                 applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
             }
@@ -111,6 +113,22 @@ struct CodexSwitcherApp: App {
                 applicationDelegate.applyMenuBarPreference(isEnabled: newValue)
             }
         )
+    }
+
+    private func resetStoredSettingsToDefaults() {
+        showMenuBarExtraBinding.wrappedValue = AppPreferenceDefaults.showMenuBarExtra
+        persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
+        persistedSortDirectionRawValue = AppPreferenceDefaults.sortDirectionRawValue
+        controller.restoreSortPreferences(
+            sortCriterionRawValue: persistedSortCriterionRawValue,
+            sortDirectionRawValue: persistedSortDirectionRawValue
+        )
+    }
+
+    private var areStoredSettingsAtDefaults: Bool {
+        showMenuBarExtra == AppPreferenceDefaults.showMenuBarExtra
+            && persistedSortCriterionRawValue == AppPreferenceDefaults.sortCriterionRawValue
+            && persistedSortDirectionRawValue == AppPreferenceDefaults.sortDirectionRawValue
     }
 
     @ViewBuilder
@@ -354,16 +372,15 @@ private struct MenuBarStorageRecoveryView: View {
 private struct SettingsView: View {
     @Bindable var controller: AppController
     @Binding var showMenuBarExtra: Bool
+    let isResetSettingsEnabled: Bool
+    let onResetSettings: () -> Void
     @State private var isShowingLocationPicker = false
+    @State private var pendingConfirmation: SettingsConfirmationAction?
 
     var body: some View {
         Form {
             Section("Menu Bar") {
                 Toggle("Show in Menu Bar", isOn: $showMenuBarExtra)
-
-                Text("When enabled, pressing Command-Q hides Codex Switcher to the menu bar instead of fully quitting.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             Section("Codex Folder") {
@@ -378,9 +395,76 @@ private struct SettingsView: View {
                     isShowingLocationPicker = true
                 }
             }
+
+            Section("About") {
+                LabeledContent("Version") {
+                    Text(AppAboutInfo.current.version)
+                }
+
+                LabeledContent("Build") {
+                    Text(AppAboutInfo.current.build)
+                }
+            }
+
+            Section("Actions") {
+                Link(destination: AppSupportLink.contactURL) {
+                    settingsActionLabel("Contact Us", systemImage: "envelope")
+                }
+
+                Link(destination: AppSupportLink.privacyPolicyURL) {
+                    settingsActionLabel("Privacy Policy", systemImage: "hand.raised")
+                }
+
+                Link(destination: AppSupportLink.sourceCodeURL) {
+                    settingsActionLabel("Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
+            }
+
+            Section("Danger Zone") {
+                Button(role: .destructive) {
+                    pendingConfirmation = .resetSettings
+                } label: {
+                    settingsActionLabel(
+                        "Reset Settings",
+                        systemImage: "arrow.counterclockwise",
+                        foregroundStyle: AnyShapeStyle(.red),
+                        isEnabled: isResetSettingsEnabled
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(!isResetSettingsEnabled)
+
+                Button(role: .destructive) {
+                    pendingConfirmation = .removeAllAccounts
+                } label: {
+                    settingsActionLabel(
+                        "Remove All Accounts",
+                        systemImage: "trash",
+                        foregroundStyle: AnyShapeStyle(.red),
+                        isEnabled: controller.hasSavedAccounts
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(!controller.hasSavedAccounts)
+            }
         }
         .formStyle(.grouped)
         .padding(20)
+        .alert(item: $pendingConfirmation) { action in
+            Alert(
+                title: Text(action.title),
+                message: Text(action.message),
+                primaryButton: .destructive(Text(action.confirmationTitle)) {
+                    switch action {
+                    case .removeAllAccounts:
+                        controller.removeAllAccounts()
+                    case .resetSettings:
+                        onResetSettings()
+                    }
+                },
+                secondaryButton: .cancel()
+            )
+        }
         .fileImporter(
             isPresented: $isShowingLocationPicker,
             allowedContentTypes: [.folder],
@@ -390,6 +474,72 @@ private struct SettingsView: View {
         .fileDialogCustomizationID("codex-auth-location")
         .fileDialogDefaultDirectory(FileManager.default.homeDirectoryForCurrentUser)
         .fileDialogBrowserOptions([.includeHiddenFiles])
+    }
+
+    private func settingsActionLabel(
+        _ title: String,
+        systemImage: String,
+        foregroundStyle: AnyShapeStyle = AnyShapeStyle(.tint),
+        isEnabled: Bool = true
+    ) -> some View {
+        Label(title, systemImage: systemImage)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(isEnabled ? foregroundStyle : AnyShapeStyle(.secondary))
+            .contentShape(Rectangle())
+    }
+}
+
+private struct AppAboutInfo {
+    let version: String
+    let build: String
+
+    static var current: AppAboutInfo {
+        let bundle = Bundle.main
+        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+        let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
+        return AppAboutInfo(version: version, build: build)
+    }
+}
+
+private enum AppSupportLink {
+    static let contactURL = URL(
+        string: "mailto:marcel2215@icloud.com?subject=Codex%20Switcher%20Support"
+    )!
+    static let sourceCodeURL = URL(string: "https://github.com/marcel2215/codex-switcher")!
+    static let privacyPolicyURL = URL(string: "https://example.com/privacy")!
+}
+
+private enum SettingsConfirmationAction: String, Identifiable {
+    case removeAllAccounts
+    case resetSettings
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .removeAllAccounts:
+            "Remove All Accounts"
+        case .resetSettings:
+            "Reset Settings"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .removeAllAccounts:
+            "This removes every saved account from Codex Switcher on this device and from iCloud sync."
+        case .resetSettings:
+            "This restores the menu bar and sorting preferences to their default values."
+        }
+    }
+
+    var confirmationTitle: String {
+        switch self {
+        case .removeAllAccounts:
+            "Remove All"
+        case .resetSettings:
+            "Reset"
+        }
     }
 }
 
@@ -432,6 +582,12 @@ private enum AppPreferenceKey {
     static let showMenuBarExtra = "showMenuBarExtra"
     static let sortCriterion = "sortCriterion"
     static let sortDirection = "sortDirection"
+}
+
+private enum AppPreferenceDefaults {
+    static let showMenuBarExtra = true
+    static let sortCriterionRawValue = AccountSortCriterion.dateAdded.rawValue
+    static let sortDirectionRawValue = SortDirection.ascending.rawValue
 }
 
 private enum AppRuntimeEnvironment {

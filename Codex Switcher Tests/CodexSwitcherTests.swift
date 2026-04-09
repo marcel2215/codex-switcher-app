@@ -597,6 +597,32 @@ struct CodexSwitcherTests {
         #expect(controller.sortDirection == .ascending)
     }
 
+    @Test func removeAllAccountsDeletesSavedAccountsAndSecrets() async throws {
+        let container = try makeInMemoryContainer()
+        let secretStore = FakeSecretStore()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")),
+            secretStore: secretStore
+        )
+
+        let firstAccount = makeStoredAccount(name: "Work", customOrder: 0, accountID: "acct-work")
+        let secondAccount = makeStoredAccount(name: "Personal", customOrder: 1, accountID: "acct-personal")
+
+        container.mainContext.insert(firstAccount)
+        container.mainContext.insert(secondAccount)
+        try container.mainContext.save()
+
+        try await secretStore.saveSecret("work-secret", for: firstAccount.id)
+        try await secretStore.saveSecret("personal-secret", for: secondAccount.id)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.removeAllAccountsNow()
+
+        #expect(try fetchAccounts(in: container.mainContext).isEmpty)
+        #expect(await secretStore.secret(for: firstAccount.id) == nil)
+        #expect(await secretStore.secret(for: secondAccount.id) == nil)
+    }
+
     @Test func removalShortcutSupportsDeleteWithExpectedModifiersOnly() {
         #expect(ContentView.supportsRemovalShortcut(modifiers: []) == true)
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.command]) == true)
