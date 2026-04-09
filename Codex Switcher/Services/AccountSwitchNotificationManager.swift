@@ -8,15 +8,21 @@
 import Foundation
 import UserNotifications
 
+enum NotificationAuthorizationRequestResult: Equatable {
+    case enabled
+    case denied
+    case failed(String)
+}
+
 @MainActor
 protocol AccountSwitchNotifying: AnyObject {
     func postSwitchNotification(for accountName: String) async
+    func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult
 }
 
 @MainActor
 final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
     private let center: UNUserNotificationCenter
-    private var hasRequestedAuthorization = false
 
     init(center: UNUserNotificationCenter = .current()) {
         self.center = center
@@ -25,7 +31,9 @@ final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
     }
 
     func postSwitchNotification(for accountName: String) async {
-        await requestAuthorizationIfNeeded()
+        guard CodexSharedPreferences.notificationsEnabled else {
+            return
+        }
 
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
@@ -52,17 +60,23 @@ final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
         }
     }
 
-    private func requestAuthorizationIfNeeded() async {
-        guard !hasRequestedAuthorization else {
-            return
-        }
+    func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult {
+        let settings = await center.notificationSettings()
 
-        hasRequestedAuthorization = true
-
-        do {
-            _ = try await center.requestAuthorization(options: [.alert])
-        } catch {
-            // The app will continue to function without notifications.
+        switch settings.authorizationStatus {
+        case .authorized, .provisional:
+            return .enabled
+        case .denied, .ephemeral:
+            return .denied
+        case .notDetermined:
+            do {
+                let isGranted = try await center.requestAuthorization(options: [.alert])
+                return isGranted ? .enabled : .denied
+            } catch {
+                return .failed(error.localizedDescription)
+            }
+        @unknown default:
+            return .failed("macOS returned an unknown notification authorization state.")
         }
     }
 

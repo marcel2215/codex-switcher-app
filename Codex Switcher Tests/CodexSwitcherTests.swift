@@ -643,6 +643,19 @@ struct CodexSwitcherTests {
         #expect(controller.sortDirection == .ascending)
     }
 
+    @Test func notificationAuthorizationRequestsAreForwardedThroughController() async {
+        let notificationManager = FakeNotificationManager()
+        notificationManager.authorizationRequestResult = .denied
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")),
+            notificationManager: notificationManager
+        )
+
+        let result = await controller.requestNotificationAuthorizationForSettings()
+
+        #expect(result == .denied)
+    }
+
     @Test func menuBarIconOptionResolvesUnknownStoredValueToDefault() {
         #expect(MenuBarIconOption.resolve(from: "arrow.left.arrow.right") == .switcher)
         #expect(MenuBarIconOption.resolve(from: "key.card.fill") == .keyCard)
@@ -1369,8 +1382,13 @@ actor FakeRateLimitProvider: CodexRateLimitProviding {
 @MainActor
 final class FakeNotificationManager: AccountSwitchNotifying {
     private(set) var postedAccountNames: [String] = []
+    var authorizationRequestResult: NotificationAuthorizationRequestResult = .enabled
 
     func postSwitchNotification(for accountName: String) async {
         postedAccountNames.append(accountName)
+    }
+
+    func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult {
+        authorizationRequestResult
     }
 }

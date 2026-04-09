@@ -102,6 +102,7 @@ actor PreviewAuthFileManager: AuthFileManaging {
 @MainActor
 final class PreviewNotificationManager: AccountSwitchNotifying {
     func postSwitchNotification(for accountName: String) async {}
+    func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult { .enabled }
 }
 
 actor PreviewSecretStore: AccountSecretStoring {
@@ -198,4 +199,5 @@ actor UITestSecretStore: AccountSecretStoring {
 @MainActor
 final class UITestNotificationManager: AccountSwitchNotifying {
     func postSwitchNotification(for accountName: String) async {}
+    func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult { .enabled }
 }

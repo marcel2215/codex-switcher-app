@@ -11,6 +11,10 @@ import UniformTypeIdentifiers
 
 @main
 struct CodexSwitcherApp: App {
+    @AppStorage(
+        CodexSharedPreferenceKey.notificationsEnabled,
+        store: CodexSharedPreferences.userDefaults
+    ) private var showNotifications = CodexSharedPreferenceDefaults.notificationsEnabled
     @AppStorage(AppPreferenceKey.showMenuBarExtra) private var showMenuBarExtra = AppPreferenceDefaults.showMenuBarExtra
     @AppStorage(AppPreferenceKey.menuBarIconSystemName) private var persistedMenuBarIconSystemName = AppPreferenceDefaults.menuBarIconSystemName
     @AppStorage(AppPreferenceKey.sortCriterion) private var persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
@@ -57,12 +61,13 @@ struct CodexSwitcherApp: App {
         Settings {
             SettingsView(
                 controller: controller,
+                showNotifications: $showNotifications,
                 showMenuBarExtra: showMenuBarExtraBinding,
                 menuBarIcon: menuBarIconBinding,
                 areAppPreferencesAtDefaults: areAppPreferencesAtDefaults,
                 onResetSettings: resetStoredSettingsToDefaults
             )
-            .frame(width: 520, height: 470)
+            .frame(width: 520, height: 510)
             .task {
                 applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
             }
@@ -129,6 +134,7 @@ struct CodexSwitcherApp: App {
     }
 
     private func resetStoredSettingsToDefaults() {
+        showNotifications = CodexSharedPreferenceDefaults.notificationsEnabled
         showMenuBarExtraBinding.wrappedValue = AppPreferenceDefaults.showMenuBarExtra
         menuBarIconBinding.wrappedValue = MenuBarIconOption.defaultOption
         persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
@@ -140,7 +146,8 @@ struct CodexSwitcherApp: App {
     }
 
     private var areAppPreferencesAtDefaults: Bool {
-        showMenuBarExtra == AppPreferenceDefaults.showMenuBarExtra
+        showNotifications == CodexSharedPreferenceDefaults.notificationsEnabled
+            && showMenuBarExtra == AppPreferenceDefaults.showMenuBarExtra
             && persistedMenuBarIconSystemName == AppPreferenceDefaults.menuBarIconSystemName
             && persistedSortCriterionRawValue == AppPreferenceDefaults.sortCriterionRawValue
             && persistedSortDirectionRawValue == AppPreferenceDefaults.sortDirectionRawValue
@@ -386,17 +393,22 @@ private struct MenuBarStorageRecoveryView: View {
 
 private struct SettingsView: View {
     @Bindable var controller: AppController
+    @Binding var showNotifications: Bool
     @Binding var showMenuBarExtra: Bool
     @Binding var menuBarIcon: MenuBarIconOption
     let areAppPreferencesAtDefaults: Bool
     let onResetSettings: () -> Void
     @State private var isShowingLocationPicker = false
+    @State private var isUpdatingNotificationsPreference = false
     @State private var launchAtLoginState = LaunchAtLoginState.disabled
     @State private var presentedSettingsAlert: SettingsAlert?
 
     var body: some View {
         Form {
             Section("General") {
+                Toggle("Show Notifications", isOn: notificationsBinding)
+                    .disabled(isUpdatingNotificationsPreference)
+
                 Toggle("Launch at Login", isOn: launchAtLoginBinding)
 
                 if launchAtLoginState.requiresApproval {
@@ -530,6 +542,17 @@ private struct SettingsView: View {
         !areAppPreferencesAtDefaults || launchAtLoginState.isEnabled
     }
 
+    private var notificationsBinding: Binding<Bool> {
+        Binding(
+            get: {
+                showNotifications
+            },
+            set: { newValue in
+                updateNotificationsPreference(isEnabled: newValue)
+            }
+        )
+    }
+
     private var launchAtLoginBinding: Binding<Bool> {
         Binding(
             get: {
@@ -551,6 +574,42 @@ private struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(isEnabled ? foregroundStyle : AnyShapeStyle(.secondary))
             .contentShape(Rectangle())
+    }
+
+    private func updateNotificationsPreference(isEnabled: Bool) {
+        guard !isUpdatingNotificationsPreference else {
+            return
+        }
+
+        guard isEnabled else {
+            showNotifications = false
+            return
+        }
+
+        showNotifications = true
+        isUpdatingNotificationsPreference = true
+
+        Task { @MainActor in
+            let authorizationResult = await controller.requestNotificationAuthorizationForSettings()
+            isUpdatingNotificationsPreference = false
+
+            switch authorizationResult {
+            case .enabled:
+                showNotifications = true
+            case .denied:
+                showNotifications = false
+                presentedSettingsAlert = .error(
+                    title: "Notifications Disabled",
+                    message: "Codex Switcher can only show account-switch notifications after you allow notifications in macOS. You can enable them later in System Settings > Notifications."
+                )
+            case let .failed(message):
+                showNotifications = false
+                presentedSettingsAlert = .error(
+                    title: "Couldn't Enable Notifications",
+                    message: message
+                )
+            }
+        }
     }
 
     private func updateLaunchAtLogin(isEnabled: Bool) {

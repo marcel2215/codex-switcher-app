@@ -188,6 +188,13 @@ final class AppController {
         }
     }
 
+    /// Settings owns the user preference, but the controller forwards the
+    /// explicit enable action to the notification service so the permission
+    /// prompt stays centralized and testable.
+    func requestNotificationAuthorizationForSettings() async -> NotificationAuthorizationRequestResult {
+        await notificationManager.requestAuthorizationForNotificationsPreference()
+    }
+
     var linkButtonTitle: String {
         switch authAccessState {
         case .unlinked:

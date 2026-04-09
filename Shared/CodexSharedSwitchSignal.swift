@@ -65,31 +65,16 @@ enum CodexSharedSwitchFeedback {
     /// App Intents can run when the main app is hidden or not running. Use a
     /// direct local notification here so the user still gets a confirmation
     /// banner even when the app's in-process notification delegate is not the
-    /// code path completing the switch.
+    /// code path completing the switch. Respect the shared notification
+    /// preference instead of prompting here, because the explicit settings
+    /// toggle is responsible for requesting permission.
     static func postLocalSwitchNotificationIfAuthorized(accountName: String) async {
         let trimmedAccountName = accountName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedAccountName.isEmpty else {
+        guard !trimmedAccountName.isEmpty, CodexSharedPreferences.notificationsEnabled else {
             return
         }
 
         let center = UNUserNotificationCenter.current()
-        let initialSettings = await center.notificationSettings()
-
-        switch initialSettings.authorizationStatus {
-        case .authorized, .provisional:
-            break
-        case .notDetermined:
-            do {
-                _ = try await center.requestAuthorization(options: [.alert])
-            } catch {
-                return
-            }
-        case .denied, .ephemeral:
-            return
-        @unknown default:
-            return
-        }
-
         let finalSettings = await center.notificationSettings()
         guard
             finalSettings.authorizationStatus == .authorized
