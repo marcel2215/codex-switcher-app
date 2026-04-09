@@ -466,6 +466,34 @@ struct CodexSwitcherTests {
         #expect(green.blue == 0)
     }
 
+    @Test func startupMigratesLegacyUsedPercentValuesToRemainingPercent() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-current"))
+        await authFileManager.clearLinkedLocation()
+        let controller = makeController(authFileManager: authFileManager)
+
+        container.mainContext.insert(
+            StoredAccount(
+                identityKey: "chatgpt:acct-legacy",
+                name: "Legacy",
+                customOrder: 0,
+                authModeRaw: "chatgpt",
+                sevenDayLimitUsedPercent: 93,
+                fiveHourLimitUsedPercent: 34,
+                rateLimitDisplayVersion: nil
+            )
+        )
+        try container.mainContext.save()
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+
+        let migratedAccount = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(migratedAccount.sevenDayLimitUsedPercent == 7)
+        #expect(migratedAccount.fiveHourLimitUsedPercent == 66)
+        #expect(migratedAccount.rateLimitDisplayVersion == 1)
+    }
+
     @Test func sessionRateLimitReaderUsesNewestObservationFromRealCodexTokenCountEvents() async throws {
         let fileManager = FileManager.default
         let rootURL = fileManager.temporaryDirectory.appending(path: "codex-switcher-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -497,8 +525,8 @@ struct CodexSwitcherTests {
             authFileURL: authFileURL
         )
 
-        #expect(observation?.fiveHourUsedPercent == 34)
-        #expect(observation?.sevenDayUsedPercent == 93)
+        #expect(observation?.fiveHourRemainingPercent == 66)
+        #expect(observation?.sevenDayRemainingPercent == 7)
     }
 
     @Test func iconCatalogOffersExpandedChoicesAndKeepsKeyDefault() {

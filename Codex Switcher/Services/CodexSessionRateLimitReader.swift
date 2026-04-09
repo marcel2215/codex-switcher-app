@@ -9,8 +9,8 @@ import Foundation
 
 nonisolated struct CodexRateLimitObservation: Sendable, Equatable {
     let observedAt: Date
-    let sevenDayUsedPercent: Int?
-    let fiveHourUsedPercent: Int?
+    let sevenDayRemainingPercent: Int?
+    let fiveHourRemainingPercent: Int?
 }
 
 struct CodexSessionRateLimitReader: Sendable {
@@ -45,7 +45,7 @@ struct CodexSessionRateLimitReader: Sendable {
                 continue
             }
 
-            guard observation.sevenDayUsedPercent != nil || observation.fiveHourUsedPercent != nil else {
+            guard observation.sevenDayRemainingPercent != nil || observation.fiveHourRemainingPercent != nil else {
                 continue
             }
 
@@ -124,36 +124,37 @@ struct CodexSessionRateLimitReader: Sendable {
         let rateLimits = event.payload.info?.rateLimits ?? event.payload.rateLimits
         let windows = [rateLimits?.primary, rateLimits?.secondary]
 
-        var sevenDayUsedPercent: Int?
-        var fiveHourUsedPercent: Int?
+        var sevenDayRemainingPercent: Int?
+        var fiveHourRemainingPercent: Int?
 
         for window in windows {
             guard
                 let window,
                 let windowMinutes = window.windowMinutes,
-                let usedPercent = clampedUsedPercent(from: window.usedPercent)
+                let usedPercent = clampedPercent(from: window.usedPercent)
             else {
                 continue
             }
 
+            let remainingPercent = 100 - usedPercent
             switch windowMinutes {
             case 300:
-                fiveHourUsedPercent = usedPercent
+                fiveHourRemainingPercent = remainingPercent
             case 10_080:
-                sevenDayUsedPercent = usedPercent
+                sevenDayRemainingPercent = remainingPercent
             default:
                 continue
             }
         }
 
-        guard sevenDayUsedPercent != nil || fiveHourUsedPercent != nil else {
+        guard sevenDayRemainingPercent != nil || fiveHourRemainingPercent != nil else {
             return nil
         }
 
         return CodexRateLimitObservation(
             observedAt: observedAt,
-            sevenDayUsedPercent: sevenDayUsedPercent,
-            fiveHourUsedPercent: fiveHourUsedPercent
+            sevenDayRemainingPercent: sevenDayRemainingPercent,
+            fiveHourRemainingPercent: fiveHourRemainingPercent
         )
     }
 
@@ -187,7 +188,7 @@ struct CodexSessionRateLimitReader: Sendable {
         }
     }
 
-    private nonisolated func clampedUsedPercent(from value: Double?) -> Int? {
+    private nonisolated func clampedPercent(from value: Double?) -> Int? {
         guard let value, value.isFinite else {
             return nil
         }

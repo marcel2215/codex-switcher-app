@@ -20,6 +20,8 @@ struct UserFacingAlert: Identifiable, Equatable {
 @Observable
 @MainActor
 final class AppController {
+    private nonisolated static let currentRateLimitDisplayVersion = 1
+
     var selection: Set<UUID> = []
     var searchText = ""
     var sortCriterion: AccountSortCriterion = .dateAdded
@@ -629,9 +631,26 @@ final class AppController {
         do {
             var didChange = false
 
-            for account in try fetchAccounts() where account.iconSystemName.isEmpty {
-                account.iconSystemName = AccountIconOption.defaultOption.systemName
-                didChange = true
+            for account in try fetchAccounts() {
+                if account.iconSystemName.isEmpty {
+                    account.iconSystemName = AccountIconOption.defaultOption.systemName
+                    didChange = true
+                }
+
+                if account.rateLimitDisplayVersion != Self.currentRateLimitDisplayVersion {
+                    if let sevenDayUsedPercent = account.sevenDayLimitUsedPercent {
+                        account.sevenDayLimitUsedPercent = 100 - min(max(sevenDayUsedPercent, 0), 100)
+                        didChange = true
+                    }
+
+                    if let fiveHourUsedPercent = account.fiveHourLimitUsedPercent {
+                        account.fiveHourLimitUsedPercent = 100 - min(max(fiveHourUsedPercent, 0), 100)
+                        didChange = true
+                    }
+
+                    account.rateLimitDisplayVersion = Self.currentRateLimitDisplayVersion
+                    didChange = true
+                }
             }
 
             if didChange {
@@ -997,6 +1016,12 @@ final class AppController {
             survivor.rateLimitsObservedAt = duplicate.rateLimitsObservedAt
             survivor.sevenDayLimitUsedPercent = duplicate.sevenDayLimitUsedPercent
             survivor.fiveHourLimitUsedPercent = duplicate.fiveHourLimitUsedPercent
+            survivor.rateLimitDisplayVersion = duplicate.rateLimitDisplayVersion
+            didChange = true
+        }
+
+        if survivor.rateLimitDisplayVersion == nil, duplicate.rateLimitDisplayVersion != nil {
+            survivor.rateLimitDisplayVersion = duplicate.rateLimitDisplayVersion
             didChange = true
         }
 
@@ -1291,13 +1316,18 @@ final class AppController {
             didChange = true
         }
 
-        if account.sevenDayLimitUsedPercent != rateLimitObservation.sevenDayUsedPercent {
-            account.sevenDayLimitUsedPercent = rateLimitObservation.sevenDayUsedPercent
+        if account.sevenDayLimitUsedPercent != rateLimitObservation.sevenDayRemainingPercent {
+            account.sevenDayLimitUsedPercent = rateLimitObservation.sevenDayRemainingPercent
             didChange = true
         }
 
-        if account.fiveHourLimitUsedPercent != rateLimitObservation.fiveHourUsedPercent {
-            account.fiveHourLimitUsedPercent = rateLimitObservation.fiveHourUsedPercent
+        if account.fiveHourLimitUsedPercent != rateLimitObservation.fiveHourRemainingPercent {
+            account.fiveHourLimitUsedPercent = rateLimitObservation.fiveHourRemainingPercent
+            didChange = true
+        }
+
+        if account.rateLimitDisplayVersion != Self.currentRateLimitDisplayVersion {
+            account.rateLimitDisplayVersion = Self.currentRateLimitDisplayVersion
             didChange = true
         }
 
