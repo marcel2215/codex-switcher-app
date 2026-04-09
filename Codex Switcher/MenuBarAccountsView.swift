@@ -14,6 +14,7 @@ struct MenuBarAccountsView: View {
     @Bindable var controller: AppController
 
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
     @Environment(\.dismiss) private var dismiss
     @Query private var accounts: [StoredAccount]
 
@@ -181,7 +182,9 @@ struct MenuBarAccountsView: View {
             }
 
             HStack {
-                SettingsLink {
+                Button {
+                    openSettingsWindow()
+                } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
 
@@ -196,7 +199,15 @@ struct MenuBarAccountsView: View {
     }
 
     private func openMainWindow() {
+        NSApp.setActivationPolicy(.regular)
         openWindow(id: "main")
+        NSApp.activate(ignoringOtherApps: true)
+        dismiss()
+    }
+
+    private func openSettingsWindow() {
+        NSApp.setActivationPolicy(.regular)
+        openSettings()
         NSApp.activate(ignoringOtherApps: true)
         dismiss()
     }

@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 
 @main
 struct CodexSwitcherApp: App {
+    @AppStorage(AppPreferenceKey.showMenuBarExtra) private var showMenuBarExtra = true
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
     @State private var controller: AppController
 
@@ -34,18 +35,31 @@ struct CodexSwitcherApp: App {
     private var mainWindowScene: some Scene {
         Window("Codex Switcher", id: "main") {
             rootContentView
+                .task {
+                    applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
+                }
         }
         .defaultSize(width: 620, height: 720)
         .commands {
-            AccountsCommands(controller: controller)
+            AccountsCommands(
+                controller: controller,
+                applicationDelegate: applicationDelegate,
+                showsMenuBarExtra: showMenuBarExtra
+            )
         }
     }
 
     @SceneBuilder
     private var settingsScene: some Scene {
         Settings {
-            SettingsView(controller: controller)
-                .frame(width: 520, height: 220)
+            SettingsView(
+                controller: controller,
+                showMenuBarExtra: showMenuBarExtraBinding
+            )
+            .frame(width: 520, height: 280)
+            .task {
+                applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
+            }
         }
     }
 
@@ -54,17 +68,39 @@ struct CodexSwitcherApp: App {
         // The menu bar extra remains available even when the main window is
         // closed. If SwiftData failed to initialize, keep the extra alive and
         // show a recovery surface instead of removing the system entry point.
-        MenuBarExtra("Codex Switcher", systemImage: "arrow.left.arrow.right.circle") {
+        MenuBarExtra(
+            "Codex Switcher",
+            systemImage: "arrow.left.arrow.right.circle",
+            isInserted: showMenuBarExtraBinding
+        ) {
             if let sharedModelContainer {
                 MenuBarAccountsView(controller: controller)
                     .modelContainer(sharedModelContainer)
+                    .task {
+                        applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
+                    }
             } else {
                 MenuBarStorageRecoveryView(
                     message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database."
                 )
+                .task {
+                    applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
+                }
             }
         }
         .menuBarExtraStyle(.window)
+    }
+
+    private var showMenuBarExtraBinding: Binding<Bool> {
+        Binding(
+            get: {
+                showMenuBarExtra
+            },
+            set: { newValue in
+                showMenuBarExtra = newValue
+                applicationDelegate.applyMenuBarPreference(isEnabled: newValue)
+            }
+        )
     }
 
     @ViewBuilder
@@ -220,6 +256,8 @@ private struct StorageRecoveryView: View {
 private struct MenuBarStorageRecoveryView: View {
     let message: String
 
+    @Environment(\.openSettings) private var openSettings
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Storage Unavailable", systemImage: "externaldrive.badge.exclamationmark")
@@ -231,7 +269,11 @@ private struct MenuBarStorageRecoveryView: View {
 
             Divider()
 
-            SettingsLink {
+            Button {
+                NSApp.setActivationPolicy(.regular)
+                openSettings()
+                NSApp.activate(ignoringOtherApps: true)
+            } label: {
                 Label("Settings", systemImage: "gearshape")
             }
         }
@@ -242,15 +284,26 @@ private struct MenuBarStorageRecoveryView: View {
 
 private struct SettingsView: View {
     @Bindable var controller: AppController
+    @Binding var showMenuBarExtra: Bool
     @State private var isShowingLocationPicker = false
 
     var body: some View {
         Form {
+            Section("Menu Bar") {
+                Toggle("Show in Menu Bar", isOn: $showMenuBarExtra)
+
+                Text("When enabled, pressing Command-Q hides Codex Switcher to the menu bar instead of fully quitting.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Codex Folder") {
-                Text(controller.linkedFolderPath ?? "Not selected")
-                    .font(.body.monospaced())
-                    .textSelection(.enabled)
-                    .foregroundStyle(controller.linkedFolderPath == nil ? .secondary : .primary)
+                LabeledContent("Path") {
+                    Text(controller.linkedFolderPath ?? "Not selected")
+                        .font(.body.monospaced())
+                        .textSelection(.enabled)
+                        .foregroundStyle(controller.linkedFolderPath == nil ? .secondary : .primary)
+                }
 
                 Button(controller.settingsLinkButtonTitle) {
                     isShowingLocationPicker = true
@@ -269,4 +322,8 @@ private struct SettingsView: View {
         .fileDialogDefaultDirectory(FileManager.default.homeDirectoryForCurrentUser)
         .fileDialogBrowserOptions([.includeHiddenFiles])
     }
+}
+
+private enum AppPreferenceKey {
+    static let showMenuBarExtra = "showMenuBarExtra"
 }

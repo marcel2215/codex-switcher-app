@@ -5,10 +5,13 @@
 //  Created by Codex on 2026-04-07.
 //
 
+import AppKit
 import SwiftUI
 
 struct AccountsCommands: Commands {
     let controller: AppController
+    let applicationDelegate: ApplicationDelegate
+    let showsMenuBarExtra: Bool
 
     var body: some Commands {
         // Keep standard macOS categories intact, and only use a custom top-level
@@ -104,6 +107,27 @@ struct AccountsCommands: Commands {
             }
             .keyboardShortcut("l", modifiers: [.command])
             .disabled(controller.selection.count != 1)
+        }
+
+        CommandGroup(replacing: .appTermination) {
+            if showsMenuBarExtra {
+                Button("Hide to Menu Bar") {
+                    applicationDelegate.handlePrimaryQuitCommand()
+                }
+                .keyboardShortcut("q", modifiers: [.command])
+
+                Divider()
+
+                Button("Quit Codex Switcher") {
+                    NSApp.terminate(nil)
+                }
+                .keyboardShortcut("q", modifiers: [.command, .option])
+            } else {
+                Button("Quit Codex Switcher") {
+                    NSApp.terminate(nil)
+                }
+                .keyboardShortcut("q", modifiers: [.command])
+            }
         }
     }
 
