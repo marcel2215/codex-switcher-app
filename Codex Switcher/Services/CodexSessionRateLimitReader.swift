@@ -11,6 +11,8 @@ nonisolated struct CodexRateLimitObservation: Sendable, Equatable {
     let observedAt: Date
     let sevenDayRemainingPercent: Int?
     let fiveHourRemainingPercent: Int?
+    let sevenDayResetsAt: Date?
+    let fiveHourResetsAt: Date?
 }
 
 struct CodexSessionRateLimitReader: Sendable {
@@ -126,6 +128,8 @@ struct CodexSessionRateLimitReader: Sendable {
 
         var sevenDayRemainingPercent: Int?
         var fiveHourRemainingPercent: Int?
+        var sevenDayResetsAt: Date?
+        var fiveHourResetsAt: Date?
 
         for window in windows {
             guard
@@ -136,13 +140,22 @@ struct CodexSessionRateLimitReader: Sendable {
                 continue
             }
 
-            let remainingPercent = 100 - usedPercent
-            switch windowMinutes {
-            case 300:
+            let resetsAt = window.resolvedResetDate(relativeTo: observedAt)
+            let remainingPercent: Int
+            if let resetsAt, observedAt >= resetsAt {
+                remainingPercent = 100
+            } else {
+                remainingPercent = 100 - usedPercent
+            }
+
+            switch Self.displayWindowKind(forMinutes: windowMinutes) {
+            case .fiveHour:
                 fiveHourRemainingPercent = remainingPercent
-            case 10_080:
+                fiveHourResetsAt = resetsAt
+            case .sevenDay:
                 sevenDayRemainingPercent = remainingPercent
-            default:
+                sevenDayResetsAt = resetsAt
+            case nil:
                 continue
             }
         }
@@ -154,7 +167,9 @@ struct CodexSessionRateLimitReader: Sendable {
         return CodexRateLimitObservation(
             observedAt: observedAt,
             sevenDayRemainingPercent: sevenDayRemainingPercent,
-            fiveHourRemainingPercent: fiveHourRemainingPercent
+            fiveHourRemainingPercent: fiveHourRemainingPercent,
+            sevenDayResetsAt: sevenDayResetsAt,
+            fiveHourResetsAt: fiveHourResetsAt
         )
     }
 
@@ -196,6 +211,17 @@ struct CodexSessionRateLimitReader: Sendable {
         return min(max(Int(value.rounded()), 0), 100)
     }
 
+    private nonisolated static func displayWindowKind(forMinutes minutes: Int) -> DisplayWindowKind? {
+        switch minutes {
+        case 295...305:
+            .fiveHour
+        case 10_070...10_090:
+            .sevenDay
+        default:
+            nil
+        }
+    }
+
     private nonisolated static func parseSessionTimestamp(_ value: String) -> Date {
         let fractionalSecondsFormatter = ISO8601DateFormatter()
         fractionalSecondsFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -212,6 +238,11 @@ struct CodexSessionRateLimitReader: Sendable {
         return .distantPast
     }
 
+}
+
+private nonisolated enum DisplayWindowKind {
+    case fiveHour
+    case sevenDay
 }
 
 private nonisolated struct CodexSessionEvent: Decodable {
@@ -248,9 +279,31 @@ private nonisolated struct CodexSessionRateLimits: Decodable {
 private nonisolated struct CodexSessionRateLimitWindow: Decodable {
     let usedPercent: Double?
     let windowMinutes: Int?
+    let resetsAt: Int?
+    let resetAt: Int?
+    let resetAfterSeconds: Int?
 
     enum CodingKeys: String, CodingKey {
         case usedPercent = "used_percent"
         case windowMinutes = "window_minutes"
+        case resetsAt = "resets_at"
+        case resetAt = "reset_at"
+        case resetAfterSeconds = "reset_after_seconds"
+    }
+
+    func resolvedResetDate(relativeTo referenceDate: Date) -> Date? {
+        if let resetsAt {
+            return Date(timeIntervalSince1970: TimeInterval(resetsAt))
+        }
+
+        if let resetAt {
+            return Date(timeIntervalSince1970: TimeInterval(resetAt))
+        }
+
+        if let resetAfterSeconds {
+            return referenceDate.addingTimeInterval(TimeInterval(resetAfterSeconds))
+        }
+
+        return nil
     }
 }

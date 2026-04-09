@@ -5,6 +5,7 @@
 //  Created by Marcel Kwiatkowski on 2026-04-06.
 //
 
+import AppKit
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -170,9 +171,16 @@ struct ContentView: View {
         }
         .task {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
+            controller.setApplicationActive(NSApplication.shared.isActive)
         }
         .task(id: undoManagerTaskID) {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            controller.setApplicationActive(true)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            controller.setApplicationActive(false)
         }
         .sheet(isPresented: isShowingIconPicker) {
             if let iconPickerAccount {
@@ -260,6 +268,12 @@ struct ContentView: View {
         )
         .contextMenu { accountContextMenu(for: account) }
         .tag(account.id)
+        .onAppear {
+            controller.setRateLimitVisibility(true, for: account.identityKey)
+        }
+        .onDisappear {
+            controller.setRateLimitVisibility(false, for: account.identityKey)
+        }
     }
 
     private func contextMenuTargetIDs(for accountID: UUID) -> Set<UUID> {

@@ -133,6 +133,13 @@ private struct AppBootstrap {
             )
         }
 
+        if AppRuntimeEnvironment.isRunningUnitTests {
+            return makeUnitTestBootstrap(
+                schema: schema,
+                bundleIdentifier: bundleIdentifier
+            )
+        }
+
         let authFileManager = SecurityScopedAuthFileManager()
         let secretStore = KeychainAccountSecretStore(bundleIdentifier: bundleIdentifier)
         let notificationManager = AccountSwitchNotificationManager()
@@ -145,7 +152,8 @@ private struct AppBootstrap {
             let controller = AppController(
                 authFileManager: authFileManager,
                 secretStore: secretStore,
-                notificationManager: notificationManager
+                notificationManager: notificationManager,
+                modelContainer: modelContainer
             )
             return AppBootstrap(controller: controller, modelContainer: modelContainer, storageRecoveryMessage: nil)
         } catch {
@@ -161,7 +169,8 @@ private struct AppBootstrap {
                     startupAlert: UserFacingAlert(
                         title: "Using Temporary Storage",
                         message: "Codex Switcher couldn't open its local database and started with temporary in-memory storage instead. \(error.localizedDescription)"
-                    )
+                    ),
+                    modelContainer: fallbackContainer
                 )
                 return AppBootstrap(
                     controller: controller,
@@ -212,6 +221,7 @@ private struct AppBootstrap {
                 authFileManager: UITestAuthFileManager(scenario: scenario),
                 secretStore: UITestSecretStore(),
                 notificationManager: UITestNotificationManager(),
+                modelContainer: modelContainer,
                 bundleIdentifier: bundleIdentifier
             )
 
@@ -227,6 +237,49 @@ private struct AppBootstrap {
                 notificationManager: UITestNotificationManager(),
                 startupAlert: UserFacingAlert(
                     title: "UI Test Storage Unavailable",
+                    message: error.localizedDescription
+                ),
+                bundleIdentifier: bundleIdentifier
+            )
+
+            return AppBootstrap(
+                controller: controller,
+                modelContainer: nil,
+                storageRecoveryMessage: error.localizedDescription
+            )
+        }
+    }
+
+    private static func makeUnitTestBootstrap(
+        schema: Schema,
+        bundleIdentifier: String
+    ) -> AppBootstrap {
+        // Unit tests instantiate their own controllers and containers directly.
+        // Keep the host app lightweight and local-only so the test runner
+        // doesn't also boot CloudKit sync, file monitoring, and menu-bar
+        // background behavior in parallel.
+        do {
+            let modelContainer = try makeModelContainer(schema: schema, isStoredInMemoryOnly: true)
+            let controller = AppController(
+                authFileManager: UITestAuthFileManager(scenario: .unlinked),
+                secretStore: UITestSecretStore(),
+                notificationManager: UITestNotificationManager(),
+                modelContainer: modelContainer,
+                bundleIdentifier: bundleIdentifier
+            )
+
+            return AppBootstrap(
+                controller: controller,
+                modelContainer: modelContainer,
+                storageRecoveryMessage: nil
+            )
+        } catch {
+            let controller = AppController(
+                authFileManager: UITestAuthFileManager(scenario: .unlinked),
+                secretStore: UITestSecretStore(),
+                notificationManager: UITestNotificationManager(),
+                startupAlert: UserFacingAlert(
+                    title: "Unit Test Storage Unavailable",
                     message: error.localizedDescription
                 ),
                 bundleIdentifier: bundleIdentifier
@@ -328,4 +381,15 @@ private struct SettingsView: View {
 
 private enum AppPreferenceKey {
     static let showMenuBarExtra = "showMenuBarExtra"
+}
+
+private enum AppRuntimeEnvironment {
+    static var isRunningUnitTests: Bool {
+        // XCTest injects its framework into the host app for unit tests. Use
+        // that host-only signal so normal launches keep the real CloudKit and
+        // menu-bar behavior, while unit-test runs stay quiet and deterministic.
+        NSClassFromString("XCTestCase") != nil
+            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            && UITestScenario.current == nil
+    }
 }

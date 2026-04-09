@@ -21,6 +21,11 @@ struct UserFacingAlert: Identifiable, Equatable {
 @MainActor
 final class AppController {
     private nonisolated static let currentRateLimitDisplayVersion = 1
+    private nonisolated static let currentAccountRateLimitRefreshInterval: TimeInterval = 60
+    private nonisolated static let visibleAccountRateLimitRefreshInterval: TimeInterval = 5 * 60
+    private nonisolated static let rateLimitPollingCadence: Duration = .seconds(5)
+    private nonisolated static let initialRateLimitFailureBackoff: TimeInterval = 60
+    private nonisolated static let maximumRateLimitFailureBackoff: TimeInterval = 15 * 60
 
     var selection: Set<UUID> = []
     var searchText = ""
@@ -36,11 +41,11 @@ final class AppController {
     @ObservationIgnored private let authFileManager: AuthFileManaging
     @ObservationIgnored private let secretStore: AccountSecretStoring
     @ObservationIgnored private let notificationManager: AccountSwitchNotifying
-    @ObservationIgnored private let rateLimitReader: CodexSessionRateLimitReader
+    @ObservationIgnored private let rateLimitProvider: CodexRateLimitProviding
     @ObservationIgnored private let logger: Logger
     @ObservationIgnored private let startupAlert: UserFacingAlert?
 
-    @ObservationIgnored private var modelContext: ModelContext?
+    @ObservationIgnored private var modelContainer: ModelContainer?
     @ObservationIgnored private var hasConfiguredInitialState = false
     @ObservationIgnored private var hasStartedMonitoring = false
     @ObservationIgnored private var pendingLocationAction: PendingLocationAction?
@@ -48,21 +53,31 @@ final class AppController {
     @ObservationIgnored private var switchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSwitchOperationID: UUID?
     @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
-    @ObservationIgnored private var rateLimitRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var rateLimitPollingTask: Task<Void, Never>?
+    @ObservationIgnored private var rateLimitSnapshotsByIdentityKey: [String: CodexRateLimitSnapshot] = [:]
+    @ObservationIgnored private var visibleRateLimitIdentityCounts: [String: Int] = [:]
+    @ObservationIgnored private var pendingForcedRateLimitRefreshes: Set<String> = []
+    @ObservationIgnored private var rateLimitRefreshesInFlight: Set<String> = []
+    @ObservationIgnored private var rateLimitFailureBackoffUntil: [String: Date] = [:]
+    @ObservationIgnored private var rateLimitFailureBackoffDurations: [String: TimeInterval] = [:]
+    @ObservationIgnored private var isApplicationActive = false
+    @ObservationIgnored private var isMenuBarPresented = false
 
     init(
         authFileManager: AuthFileManaging,
         secretStore: AccountSecretStoring,
         notificationManager: AccountSwitchNotifying,
-        rateLimitReader: CodexSessionRateLimitReader = CodexSessionRateLimitReader(),
+        rateLimitProvider: CodexRateLimitProviding = CodexRateLimitProvider(),
         startupAlert: UserFacingAlert? = nil,
+        modelContainer: ModelContainer? = nil,
         bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "CodexSwitcher"
     ) {
         self.authFileManager = authFileManager
         self.secretStore = secretStore
         self.notificationManager = notificationManager
-        self.rateLimitReader = rateLimitReader
+        self.rateLimitProvider = rateLimitProvider
         self.startupAlert = startupAlert
+        self.modelContainer = modelContainer
         self.logger = Logger(subsystem: bundleIdentifier, category: "AppController")
     }
 
@@ -70,12 +85,22 @@ final class AppController {
         initializationTask?.cancel()
         switchTask?.cancel()
         sharedStatePublishTask?.cancel()
-        rateLimitRefreshTask?.cancel()
+        rateLimitPollingTask?.cancel()
     }
 
     func configure(modelContext: ModelContext, undoManager: UndoManager?) {
-        self.modelContext = modelContext
-        modelContext.undoManager = undoManager
+        // Scene environment contexts can be recreated as windows and menu-bar
+        // scenes appear or disappear. Persist the owning container instead of
+        // holding onto a scene-scoped ModelContext reference that may no longer
+        // be valid when an async refresh fires later.
+        if modelContainer == nil {
+            modelContainer = modelContext.container
+        }
+
+        let resolvedModelContext = modelContainer?.mainContext ?? modelContext
+        if let undoManager {
+            resolvedModelContext.undoManager = undoManager
+        }
 
         guard !hasConfiguredInitialState else {
             return
@@ -149,6 +174,53 @@ final class AppController {
         }
     }
 
+    func setApplicationActive(_ isActive: Bool) {
+        guard isApplicationActive != isActive else {
+            return
+        }
+
+        isApplicationActive = isActive
+        updateRateLimitPollingState()
+
+        if isRateLimitSurfaceActive {
+            requestImmediateRateLimitRefreshForVisibleAccounts()
+        }
+    }
+
+    func setMenuBarPresented(_ isPresented: Bool) {
+        guard isMenuBarPresented != isPresented else {
+            return
+        }
+
+        isMenuBarPresented = isPresented
+        updateRateLimitPollingState()
+
+        if isRateLimitSurfaceActive {
+            requestImmediateRateLimitRefreshForVisibleAccounts()
+        }
+    }
+
+    func setRateLimitVisibility(_ isVisible: Bool, for identityKey: String) {
+        guard !identityKey.isEmpty else {
+            return
+        }
+
+        let currentCount = visibleRateLimitIdentityCounts[identityKey] ?? 0
+        let updatedCount = isVisible ? currentCount + 1 : max(currentCount - 1, 0)
+
+        if updatedCount == 0 {
+            visibleRateLimitIdentityCounts.removeValue(forKey: identityKey)
+        } else {
+            visibleRateLimitIdentityCounts[identityKey] = updatedCount
+        }
+
+        updateRateLimitPollingState()
+
+        if isVisible, isRateLimitSurfaceActive {
+            requestImmediateRateLimitRefresh(for: identityKey)
+        }
+    }
+
     func displayedAccounts(from accounts: [StoredAccount]) -> [StoredAccount] {
         let filteredAccounts: [StoredAccount]
         let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -188,7 +260,7 @@ final class AppController {
                 return
             }
 
-            await self.refreshAuthState(showUnexpectedErrors: true)
+            await self.performRefresh(showUnexpectedErrors: true)
         }
     }
 
@@ -394,7 +466,7 @@ final class AppController {
             activeIdentityKey = snapshot.identityKey
             authAccessState = .ready(linkedFolder: readResult.url.deletingLastPathComponent())
             publishSharedState()
-            scheduleRateLimitRefresh(for: snapshot.identityKey, authFileURL: readResult.url)
+            requestImmediateRateLimitRefresh(for: snapshot.identityKey)
         } catch {
             await handleExpectedAuthOperationError(
                 error,
@@ -450,6 +522,7 @@ final class AppController {
             }
 
             publishSharedState()
+            requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
             await notificationManager.postSwitchNotification(for: targetAccount.name)
         } catch is CancellationError {
             return
@@ -495,6 +568,10 @@ final class AppController {
         await refreshAuthState(showUnexpectedErrors: false)
     }
 
+    func refreshForTesting() async {
+        await performRefresh(showUnexpectedErrors: true)
+    }
+
     func handleLocationImportForTesting(_ result: Result<[URL], any Error>) async {
         await waitForInitializationIfNeeded()
         await finishLocationImport(result)
@@ -511,6 +588,12 @@ final class AppController {
     private func waitForInitializationIfNeeded() async {
         let initializationTask = initializationTask
         await initializationTask?.value
+    }
+
+    private func performRefresh(showUnexpectedErrors: Bool) async {
+        await waitForInitializationIfNeeded()
+        await refreshAuthState(showUnexpectedErrors: showUnexpectedErrors)
+        await refreshVisibleRateLimitsImmediatelyIfPossible()
     }
 
     private func startMonitoringIfNeeded() {
@@ -581,15 +664,11 @@ final class AppController {
         case let .switchAccount(accountID):
             await switchToAccountNow(id: accountID)
         case .refresh:
-            await refreshAuthState(showUnexpectedErrors: true)
+            await performRefresh(showUnexpectedErrors: true)
         }
     }
 
     private func reconcileStoredSnapshotsIfNeeded() async {
-        guard let modelContext else {
-            return
-        }
-
         do {
             let accounts = try fetchAccounts()
             var didChange = false
@@ -616,7 +695,7 @@ final class AppController {
             didChange = await reconcileDuplicateAccountsIfNeeded() || didChange
 
             if didChange {
-                try modelContext.save()
+                try requireModelContext().save()
             }
         } catch {
             present(error, title: "Couldn't Upgrade Saved Accounts")
@@ -624,10 +703,6 @@ final class AppController {
     }
 
     private func reconcileDisplayOnlyFieldsIfNeeded() {
-        guard let modelContext else {
-            return
-        }
-
         do {
             var didChange = false
 
@@ -654,7 +729,7 @@ final class AppController {
             }
 
             if didChange {
-                try modelContext.save()
+                try requireModelContext().save()
             }
         } catch {
             present(error, title: "Couldn't Refresh Saved Accounts")
@@ -718,7 +793,7 @@ final class AppController {
             logger.error("Live snapshot cache refresh failed: \(String(describing: error), privacy: .private)")
         }
 
-        scheduleRateLimitRefresh(for: liveSnapshot.identityKey, authFileURL: liveReadResult.url)
+        requestImmediateRateLimitRefresh(for: liveSnapshot.identityKey)
     }
 
     private func preserveCurrentLiveSnapshotIfKnown() async {
@@ -726,7 +801,7 @@ final class AppController {
             let readResult = try await authFileManager.readAuthFile()
             let snapshot = try await parseSnapshot(from: readResult.contents)
             try await refreshStoredAccountIfKnown(from: snapshot, authFileURL: readResult.url)
-            scheduleRateLimitRefresh(for: snapshot.identityKey, authFileURL: readResult.url)
+            requestImmediateRateLimitRefresh(for: snapshot.identityKey)
         } catch let error as AuthFileAccessError {
             switch error {
             case .missingAuthFile, .accessRequired, .locationUnavailable, .accessDenied, .unsupportedCredentialStore:
@@ -740,17 +815,13 @@ final class AppController {
     }
 
     private func refreshStoredAccountIfKnown(from snapshot: CodexAuthSnapshot, authFileURL: URL) async throws {
-        guard let modelContext else {
-            return
-        }
-
         guard let existingAccount = try fetchAccounts().first(where: { $0.identityKey == snapshot.identityKey }) else {
             return
         }
 
         let didChange = await storeSnapshot(snapshot, on: existingAccount)
         if didChange {
-            try modelContext.save()
+            try requireModelContext().save()
         }
     }
 
@@ -873,51 +944,340 @@ final class AppController {
         }
     }
 
-    private func scheduleRateLimitRefresh(for identityKey: String, authFileURL: URL) {
-        rateLimitRefreshTask?.cancel()
-        rateLimitRefreshTask = Task { [weak self] in
+    private var isRateLimitSurfaceActive: Bool {
+        isApplicationActive || isMenuBarPresented
+    }
+
+    private func requestImmediateRateLimitRefresh(for identityKey: String) {
+        requestImmediateRateLimitRefresh(for: [identityKey])
+    }
+
+    private func requestImmediateRateLimitRefreshForVisibleAccounts() {
+        requestImmediateRateLimitRefresh(for: visibleRateLimitRefreshIdentityKeys())
+    }
+
+    // Manual and user-driven refresh triggers should bypass the normal polling
+    // window and any temporary failure backoff, but still coalesce per-account
+    // work so repeated focus/open events do not fan out into duplicate requests.
+    private func requestImmediateRateLimitRefresh(for identityKeys: [String]) {
+        let identities = normalizedRateLimitIdentityKeys(identityKeys)
+        guard !identities.isEmpty else {
+            return
+        }
+
+        for identityKey in identities {
+            pendingForcedRateLimitRefreshes.insert(identityKey)
+            rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
+        }
+
+        updateRateLimitPollingState()
+
+        guard isRateLimitSurfaceActive else {
+            return
+        }
+
+        Task { @MainActor [weak self] in
             guard let self else {
                 return
             }
 
-            let observation = await rateLimitReader.readLatestObservation(
-                in: authFileURL.deletingLastPathComponent(),
-                authFileURL: authFileURL
-            )
-
-            guard !Task.isCancelled else {
-                return
-            }
-
-            await MainActor.run { [weak self] in
-                guard let self else {
-                    return
-                }
-
-                self.applyRateLimitObservation(observation, toAccountWithIdentityKey: identityKey)
-            }
+            await self.refreshRateLimitsImmediately(for: identities)
         }
     }
 
-    private func applyRateLimitObservation(_ observation: CodexRateLimitObservation?, toAccountWithIdentityKey identityKey: String) {
-        guard let observation, let modelContext else {
+    private func normalizedRateLimitIdentityKeys(_ identityKeys: [String]) -> [String] {
+        var normalized: [String] = []
+        var seen = Set<String>()
+
+        for identityKey in identityKeys {
+            let trimmedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedIdentityKey.isEmpty, !seen.contains(trimmedIdentityKey) else {
+                continue
+            }
+
+            normalized.append(trimmedIdentityKey)
+            seen.insert(trimmedIdentityKey)
+        }
+
+        return normalized
+    }
+
+    private func refreshRateLimitsImmediately(for identityKeys: [String]) async {
+        for identityKey in normalizedRateLimitIdentityKeys(identityKeys) {
+            await refreshRateLimitsNow(for: identityKey)
+        }
+    }
+
+    private func visibleRateLimitRefreshIdentityKeys() -> [String] {
+        var identities: [String] = []
+        var seen = Set<String>()
+
+        if let activeIdentityKey, !activeIdentityKey.isEmpty {
+            identities.append(activeIdentityKey)
+            seen.insert(activeIdentityKey)
+        }
+
+        for identityKey in visibleRateLimitIdentityCounts.keys.sorted() where !identityKey.isEmpty && !seen.contains(identityKey) {
+            identities.append(identityKey)
+            seen.insert(identityKey)
+        }
+
+        return identities
+    }
+
+    private func refreshVisibleRateLimitsImmediatelyIfPossible() async {
+        let identities = visibleRateLimitRefreshIdentityKeys()
+        guard !identities.isEmpty else {
             return
         }
+
+        for identityKey in identities {
+            pendingForcedRateLimitRefreshes.insert(identityKey)
+            rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
+        }
+
+        updateRateLimitPollingState()
+
+        guard isRateLimitSurfaceActive else {
+            return
+        }
+
+        await refreshRateLimitsImmediately(for: identities)
+    }
+
+    private func updateRateLimitPollingState() {
+        guard isRateLimitSurfaceActive, !rateLimitCandidateIdentityKeys().isEmpty else {
+            rateLimitPollingTask?.cancel()
+            rateLimitPollingTask = nil
+            return
+        }
+
+        guard rateLimitPollingTask == nil else {
+            return
+        }
+
+        rateLimitPollingTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.runRateLimitPollingLoop()
+        }
+    }
+
+    // Poll only while the user can currently see the app or its menu bar
+    // window. The actual request spacing is enforced lower down by the rate-
+    // limit provider's request limiter.
+    private func runRateLimitPollingLoop() async {
+        defer {
+            rateLimitPollingTask = nil
+        }
+
+        while isRateLimitSurfaceActive, !Task.isCancelled {
+            await refreshDueRateLimitsIfNeeded()
+
+            if !isRateLimitSurfaceActive {
+                break
+            }
+
+            try? await Task.sleep(for: Self.rateLimitPollingCadence)
+        }
+    }
+
+    private func refreshDueRateLimitsIfNeeded() async {
+        guard isRateLimitSurfaceActive else {
+            return
+        }
+
+        let now = Date()
+        applyLocalRateLimitResetsIfNeeded(relativeTo: now)
+
+        let identities = rateLimitCandidateIdentityKeys()
+        guard !identities.isEmpty else {
+            return
+        }
+
+        for identityKey in identities {
+            guard shouldRefreshRateLimits(for: identityKey, relativeTo: now) else {
+                continue
+            }
+
+            await refreshRateLimitsNow(for: identityKey)
+        }
+    }
+
+    private func refreshRateLimitsNow(for identityKey: String) async {
+        guard !rateLimitRefreshesInFlight.contains(identityKey) else {
+            return
+        }
+
+        rateLimitRefreshesInFlight.insert(identityKey)
+        defer {
+            rateLimitRefreshesInFlight.remove(identityKey)
+        }
+
+        guard let account = try? fetchAccounts().first(where: { $0.identityKey == identityKey }) else {
+            pendingForcedRateLimitRefreshes.remove(identityKey)
+            return
+        }
+
+        let linkedLocation = identityKey == activeIdentityKey ? await authFileManager.linkedLocation() : nil
+        let request = CodexRateLimitRequest(
+            identityKey: identityKey,
+            authFileContents: await bestAvailableSnapshotContents(for: account),
+            linkedLocation: linkedLocation,
+            isCurrentAccount: identityKey == activeIdentityKey
+        )
+
+        let snapshot = await rateLimitProvider.fetchSnapshot(for: request)
+        pendingForcedRateLimitRefreshes.remove(identityKey)
 
         do {
             guard let account = try fetchAccounts().first(where: { $0.identityKey == identityKey }) else {
                 return
             }
 
-            guard update(account: account, from: observation) else {
-                return
-            }
+            if let snapshot {
+                let adjustedSnapshot = snapshot.applyingResetBoundaries()
+                guard shouldReplaceExistingRateLimitSnapshot(adjustedSnapshot, for: identityKey) else {
+                    return
+                }
 
-            try modelContext.save()
-            publishSharedState()
+                rateLimitSnapshotsByIdentityKey[identityKey] = adjustedSnapshot
+                rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
+                rateLimitFailureBackoffDurations.removeValue(forKey: identityKey)
+
+                guard update(account: account, from: adjustedSnapshot) else {
+                    return
+                }
+
+                try requireModelContext().save()
+                publishSharedState()
+            } else {
+                let currentBackoff = rateLimitFailureBackoffDurations[identityKey] ?? Self.initialRateLimitFailureBackoff
+                rateLimitFailureBackoffUntil[identityKey] = Date().addingTimeInterval(currentBackoff)
+                rateLimitFailureBackoffDurations[identityKey] = min(
+                    currentBackoff * 2,
+                    Self.maximumRateLimitFailureBackoff
+                )
+            }
         } catch {
             logger.error("Rate-limit refresh failed for account \(identityKey, privacy: .private): \(String(describing: error), privacy: .private)")
         }
+    }
+
+    private func applyLocalRateLimitResetsIfNeeded(relativeTo now: Date) {
+        do {
+            // If the server already told us an exact reset timestamp, we can
+            // flip the UI back to 100% locally instead of waiting for the next
+            // network round-trip.
+            var didChange = false
+            let accountsByIdentityKey = Dictionary(
+                uniqueKeysWithValues: try fetchAccounts().map { ($0.identityKey, $0) }
+            )
+
+            for identityKey in rateLimitCandidateIdentityKeys() {
+                guard
+                    let existingSnapshot = rateLimitSnapshotsByIdentityKey[identityKey],
+                    let account = accountsByIdentityKey[identityKey]
+                else {
+                    continue
+                }
+
+                let adjustedSnapshot = existingSnapshot.applyingResetBoundaries(relativeTo: now)
+                guard adjustedSnapshot != existingSnapshot else {
+                    continue
+                }
+
+                rateLimitSnapshotsByIdentityKey[identityKey] = adjustedSnapshot
+                didChange = update(account: account, from: adjustedSnapshot) || didChange
+            }
+
+            if didChange {
+                try requireModelContext().save()
+                publishSharedState()
+            }
+        } catch {
+            logger.error("Local rate-limit reset handling failed: \(String(describing: error), privacy: .private)")
+        }
+    }
+
+    private func shouldRefreshRateLimits(for identityKey: String, relativeTo now: Date) -> Bool {
+        if pendingForcedRateLimitRefreshes.contains(identityKey) {
+            return true
+        }
+
+        if let backoffUntil = rateLimitFailureBackoffUntil[identityKey], backoffUntil > now {
+            return false
+        }
+
+        let refreshInterval = identityKey == activeIdentityKey
+            ? Self.currentAccountRateLimitRefreshInterval
+            : Self.visibleAccountRateLimitRefreshInterval
+
+        if let snapshot = rateLimitSnapshotsByIdentityKey[identityKey] {
+            if let nextResetAt = snapshot.nextResetAt, now >= nextResetAt {
+                return true
+            }
+
+            return now.timeIntervalSince(snapshot.fetchedAt) >= refreshInterval
+        }
+
+        do {
+            if let account = try fetchAccounts().first(where: { $0.identityKey == identityKey }) {
+                if let observedAt = account.rateLimitsObservedAt {
+                    return now.timeIntervalSince(observedAt) >= refreshInterval
+                }
+            }
+        } catch {
+            return true
+        }
+
+        return true
+    }
+
+    private func shouldReplaceExistingRateLimitSnapshot(
+        _ snapshot: CodexRateLimitSnapshot,
+        for identityKey: String
+    ) -> Bool {
+        guard let existingSnapshot = rateLimitSnapshotsByIdentityKey[identityKey] else {
+            return true
+        }
+
+        if snapshot.observedAt > existingSnapshot.observedAt {
+            return true
+        }
+
+        if snapshot.observedAt < existingSnapshot.observedAt {
+            return false
+        }
+
+        if snapshot.source.priority != existingSnapshot.source.priority {
+            return snapshot.source.priority > existingSnapshot.source.priority
+        }
+
+        return snapshot.fetchedAt >= existingSnapshot.fetchedAt
+    }
+
+    private func rateLimitCandidateIdentityKeys() -> [String] {
+        var identities: [String] = []
+        var seen = Set<String>()
+
+        if let activeIdentityKey, !activeIdentityKey.isEmpty {
+            identities.append(activeIdentityKey)
+            seen.insert(activeIdentityKey)
+        }
+
+        for identityKey in visibleRateLimitIdentityCounts.keys.sorted() where !identityKey.isEmpty && !seen.contains(identityKey) {
+            identities.append(identityKey)
+            seen.insert(identityKey)
+        }
+
+        for identityKey in pendingForcedRateLimitRefreshes.sorted() where !identityKey.isEmpty && !seen.contains(identityKey) {
+            identities.append(identityKey)
+        }
+
+        return identities
     }
 
     private func storeSnapshot(
@@ -1178,11 +1538,11 @@ final class AppController {
     }
 
     private func requireModelContext() throws -> ModelContext {
-        guard let modelContext else {
+        guard let modelContainer else {
             throw ControllerError.missingModelContext
         }
 
-        return modelContext
+        return modelContainer.mainContext
     }
 
     private func present(_ error: Error, title: String) {
@@ -1296,6 +1656,42 @@ final class AppController {
         }
 
         return "Account \(candidateIndex)"
+    }
+
+    @discardableResult
+    private func update(account: StoredAccount, from rateLimitSnapshot: CodexRateLimitSnapshot?) -> Bool {
+        guard let rateLimitSnapshot else {
+            return false
+        }
+
+        let existingObservedAt = account.rateLimitsObservedAt ?? .distantPast
+        guard rateLimitSnapshot.observedAt >= existingObservedAt else {
+            return false
+        }
+
+        var didChange = false
+
+        if account.rateLimitsObservedAt != rateLimitSnapshot.observedAt {
+            account.rateLimitsObservedAt = rateLimitSnapshot.observedAt
+            didChange = true
+        }
+
+        if account.sevenDayLimitUsedPercent != rateLimitSnapshot.sevenDayRemainingPercent {
+            account.sevenDayLimitUsedPercent = rateLimitSnapshot.sevenDayRemainingPercent
+            didChange = true
+        }
+
+        if account.fiveHourLimitUsedPercent != rateLimitSnapshot.fiveHourRemainingPercent {
+            account.fiveHourLimitUsedPercent = rateLimitSnapshot.fiveHourRemainingPercent
+            didChange = true
+        }
+
+        if account.rateLimitDisplayVersion != Self.currentRateLimitDisplayVersion {
+            account.rateLimitDisplayVersion = Self.currentRateLimitDisplayVersion
+            didChange = true
+        }
+
+        return didChange
     }
 
     @discardableResult

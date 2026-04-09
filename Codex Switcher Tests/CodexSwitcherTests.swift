@@ -11,6 +11,7 @@ import SwiftUI
 import Testing
 @testable import Codex_Switcher
 
+@Suite(.serialized)
 @MainActor
 struct CodexSwitcherTests {
     @Test func parsesChatGPTAuthFile() throws {
@@ -42,6 +43,22 @@ struct CodexSwitcherTests {
         #expect(snapshot.authMode == .apiKey)
         #expect(snapshot.identityKey.hasPrefix("api-key:"))
         #expect(snapshot.accountIdentifier == nil)
+    }
+
+    @Test func parsesRateLimitCredentialsFromChatGPTAuthFile() throws {
+        let rawContents = makeChatGPTAuthJSON(
+            accountID: "acct-credentials",
+            subject: "auth0|acct-credentials",
+            email: "limits@example.com"
+        )
+
+        let credentials = try CodexAuthFile.parseRateLimitCredentials(contents: rawContents)
+
+        #expect(credentials.authMode == .chatgpt)
+        #expect(credentials.identityKey.hasPrefix("chatgpt:"))
+        #expect(credentials.accountID == "acct-credentials")
+        #expect(credentials.accessToken != nil)
+        #expect(credentials.idToken != nil)
     }
 
     @Test func capturePreventsDuplicatesAndKeepsSelectionOnExistingAccount() async throws {
@@ -230,6 +247,163 @@ struct CodexSwitcherTests {
         #expect(refreshedAccount.lastLoginAt != nil)
         #expect(controller.selection == [account.id])
         #expect(notificationManager.postedAccountNames == ["Account 1"])
+    }
+
+    @Test func focusingAppImmediatelyRefreshesVisibleAccountRateLimits() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-focus"))
+        let rateLimitProvider = FakeRateLimitProvider()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            rateLimitProvider: rateLimitProvider
+        )
+
+        let contents = makeChatGPTAuthJSON(accountID: "acct-focus")
+        let snapshot = try CodexAuthFile.parse(contents: contents)
+        let account = StoredAccount(
+            identityKey: snapshot.identityKey,
+            name: "Focus",
+            customOrder: 0,
+            authFileContents: contents,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier
+        )
+        let identityKey = snapshot.identityKey
+        container.mainContext.insert(account)
+        try container.mainContext.save()
+        await rateLimitProvider.setSnapshot(makeRateLimitSnapshot(identityKey: identityKey), for: identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+        await rateLimitProvider.resetRequests()
+
+        controller.setRateLimitVisibility(true, for: identityKey)
+        controller.setApplicationActive(true)
+
+        try await waitUntil {
+            await rateLimitProvider.requestCount(for: identityKey) >= 1
+        }
+    }
+
+    @Test func captureImmediatelyRefreshesNewAccountRateLimits() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-capture"))
+        let rateLimitProvider = FakeRateLimitProvider()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            rateLimitProvider: rateLimitProvider
+        )
+        let snapshot = try CodexAuthFile.parse(contents: makeChatGPTAuthJSON(accountID: "acct-capture"))
+        let identityKey = snapshot.identityKey
+        await rateLimitProvider.setSnapshot(makeRateLimitSnapshot(identityKey: identityKey), for: identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.setApplicationActive(true)
+        await rateLimitProvider.resetRequests()
+
+        await controller.captureCurrentAccountNow()
+
+        try await waitUntil {
+            await rateLimitProvider.requestCount(for: identityKey) >= 1
+        }
+    }
+
+    @Test func switchingImmediatelyRefreshesTargetAccountRateLimits() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))
+        let secretStore = FakeSecretStore()
+        let rateLimitProvider = FakeRateLimitProvider()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore,
+            rateLimitProvider: rateLimitProvider
+        )
+
+        let targetContents = makeChatGPTAuthJSON(accountID: "acct-target-refresh")
+        let targetSnapshot = try CodexAuthFile.parse(contents: targetContents)
+        let targetAccount = StoredAccount(
+            identityKey: targetSnapshot.identityKey,
+            name: "Target",
+            customOrder: 0,
+            authFileContents: targetContents,
+            authModeRaw: targetSnapshot.authMode.rawValue,
+            emailHint: targetSnapshot.email,
+            accountIdentifier: targetSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(targetAccount)
+        try container.mainContext.save()
+        try await secretStore.saveSecret(targetContents, for: targetAccount.id)
+        let targetIdentityKey = targetSnapshot.identityKey
+        await rateLimitProvider.setSnapshot(makeRateLimitSnapshot(identityKey: targetIdentityKey), for: targetIdentityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.setApplicationActive(true)
+        await rateLimitProvider.resetRequests()
+
+        await controller.switchToAccountNow(id: targetAccount.id)
+
+        try await waitUntil {
+            await rateLimitProvider.requestCount(for: targetIdentityKey) >= 1
+        }
+    }
+
+    @Test func manualRefreshImmediatelyRefreshesCurrentAndVisibleAccounts() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-current"))
+        let rateLimitProvider = FakeRateLimitProvider()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            rateLimitProvider: rateLimitProvider
+        )
+
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-current")
+        let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
+        let otherContents = makeChatGPTAuthJSON(accountID: "acct-visible")
+        let otherSnapshot = try CodexAuthFile.parse(contents: otherContents)
+        let currentIdentityKey = currentSnapshot.identityKey
+        let otherIdentityKey = otherSnapshot.identityKey
+
+        container.mainContext.insert(
+            StoredAccount(
+                identityKey: currentIdentityKey,
+                name: "Current",
+                customOrder: 0,
+                authFileContents: currentContents,
+                authModeRaw: currentSnapshot.authMode.rawValue,
+                emailHint: currentSnapshot.email,
+                accountIdentifier: currentSnapshot.accountIdentifier
+            )
+        )
+        container.mainContext.insert(
+            StoredAccount(
+                identityKey: otherIdentityKey,
+                name: "Visible",
+                customOrder: 1,
+                authFileContents: otherContents,
+                authModeRaw: otherSnapshot.authMode.rawValue,
+                emailHint: otherSnapshot.email,
+                accountIdentifier: otherSnapshot.accountIdentifier
+            )
+        )
+        try container.mainContext.save()
+
+        await rateLimitProvider.setSnapshot(makeRateLimitSnapshot(identityKey: currentIdentityKey), for: currentIdentityKey)
+        await rateLimitProvider.setSnapshot(makeRateLimitSnapshot(identityKey: otherIdentityKey), for: otherIdentityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+        controller.setApplicationActive(true)
+        controller.setRateLimitVisibility(true, for: otherIdentityKey)
+        await rateLimitProvider.resetRequests()
+
+        await controller.refreshForTesting()
+
+        try await waitUntil {
+            let requestedIdentityKeys = Set(await rateLimitProvider.requestedIdentityKeys())
+            return requestedIdentityKeys.contains(currentIdentityKey)
+                && requestedIdentityKeys.contains(otherIdentityKey)
+        }
     }
 
     @Test func switchingAccountDoesNotRewriteLocalSecretCacheWhenSyncedSnapshotExists() async throws {
@@ -518,7 +692,8 @@ struct CodexSwitcherTests {
         try makeSessionRateLimitJSONL([
             (timestamp: "1970-01-01T00:32:00.000Z", fiveHourPercent: 12, sevenDayPercent: 88),
             (timestamp: "1970-01-01T00:34:00.000Z", fiveHourPercent: 34, sevenDayPercent: 93),
-        ], shape: .payloadRateLimits).write(to: sessionFileURL, atomically: true, encoding: .utf8)
+        ], shape: .payloadRateLimits, fiveHourWindowMinutes: 299, sevenDayWindowMinutes: 10_079)
+        .write(to: sessionFileURL, atomically: true, encoding: .utf8)
 
         let observation = await CodexSessionRateLimitReader().readLatestObservation(
             in: rootURL,
@@ -527,6 +702,73 @@ struct CodexSwitcherTests {
 
         #expect(observation?.fiveHourRemainingPercent == 66)
         #expect(observation?.sevenDayRemainingPercent == 7)
+    }
+
+    @Test func remoteRateLimitProviderUsesUsageAPIForSavedAccounts() async throws {
+        let rawContents = makeChatGPTAuthJSON(
+            accountID: "acct-remote",
+            subject: "auth0|acct-remote",
+            email: "remote@example.com"
+        )
+        let identityKey = try CodexAuthFile.parse(contents: rawContents).identityKey
+        let accessToken = try CodexAuthFile.parseRateLimitCredentials(contents: rawContents).accessToken ?? ""
+        let fiveHourReset = Int(Date().addingTimeInterval(3_600).timeIntervalSince1970)
+        let sevenDayReset = Int(Date().addingTimeInterval(86_400).timeIntervalSince1970)
+        MockURLProtocol.lastRequest = nil
+
+        MockURLProtocol.requestHandler = { request in
+            MockURLProtocol.lastRequest = request
+
+            let body = """
+            {
+              "rate_limit": {
+                "limit_id": "codex",
+                "primary_window": {
+                  "used_percent": 34,
+                  "limit_window_seconds": 17940,
+                  "reset_at": \(fiveHourReset)
+                },
+                "secondary_window": {
+                  "used_percent": 93,
+                  "limit_window_seconds": 604740,
+                  "reset_at": \(sevenDayReset)
+                }
+              }
+            }
+            """
+            let response = HTTPURLResponse(
+                url: try #require(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (response, Data(body.utf8))
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MockURLProtocol.self]
+        let urlSession = URLSession(configuration: configuration)
+        let provider = CodexRateLimitProvider(
+            requestLimiter: CodexRateLimitRequestLimiter(maxRequestsPerMinute: 60, minimumSpacing: 0),
+            urlSession: urlSession
+        )
+
+        let snapshot = await provider.fetchSnapshot(
+            for: CodexRateLimitRequest(
+                identityKey: identityKey,
+                authFileContents: rawContents,
+                linkedLocation: nil,
+                isCurrentAccount: false
+            )
+        )
+
+        #expect(MockURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer \(accessToken)")
+        #expect(MockURLProtocol.lastRequest?.value(forHTTPHeaderField: "ChatGPT-Account-Id") == "acct-remote")
+        #expect(snapshot?.source == .remoteUsageAPI)
+        #expect(snapshot?.fiveHourRemainingPercent == 66)
+        #expect(snapshot?.sevenDayRemainingPercent == 7)
+        #expect(snapshot?.fiveHourResetsAt == Date(timeIntervalSince1970: TimeInterval(fiveHourReset)))
+        #expect(snapshot?.sevenDayResetsAt == Date(timeIntervalSince1970: TimeInterval(sevenDayReset)))
     }
 
     @Test func iconCatalogOffersExpandedChoicesAndKeepsKeyDefault() {
@@ -591,12 +833,14 @@ struct CodexSwitcherTests {
 private func makeController(
     authFileManager: FakeAuthFileManager,
     secretStore: FakeSecretStore = FakeSecretStore(),
-    notificationManager: FakeNotificationManager = FakeNotificationManager()
+    notificationManager: FakeNotificationManager = FakeNotificationManager(),
+    rateLimitProvider: CodexRateLimitProviding = FakeRateLimitProvider()
 ) -> AppController {
     AppController(
         authFileManager: authFileManager,
         secretStore: secretStore,
-        notificationManager: notificationManager
+        notificationManager: notificationManager,
+        rateLimitProvider: rateLimitProvider
     )
 }
 
@@ -692,6 +936,42 @@ private func makeJWT(_ payload: [String: Any]) -> String {
     return "\(encode(headerData)).\(encode(payloadData)).c2ln"
 }
 
+private func makeRateLimitSnapshot(
+    identityKey: String,
+    observedAt: Date = .now,
+    fetchedAt: Date = .now,
+    sevenDayRemainingPercent: Int = 93,
+    fiveHourRemainingPercent: Int = 34
+) -> CodexRateLimitSnapshot {
+    CodexRateLimitSnapshot(
+        identityKey: identityKey,
+        observedAt: observedAt,
+        fetchedAt: fetchedAt,
+        source: .remoteUsageAPI,
+        sevenDayRemainingPercent: sevenDayRemainingPercent,
+        fiveHourRemainingPercent: fiveHourRemainingPercent,
+        sevenDayResetsAt: observedAt.addingTimeInterval(7 * 24 * 60 * 60),
+        fiveHourResetsAt: observedAt.addingTimeInterval(5 * 60 * 60)
+    )
+}
+
+private struct TestTimeoutError: Error {}
+
+private func waitUntil(
+    iterations: Int = 400,
+    condition: @escaping @Sendable () async -> Bool
+) async throws {
+    for _ in 0..<iterations {
+        if await condition() {
+            return
+        }
+
+        await Task.yield()
+    }
+
+    throw TestTimeoutError()
+}
+
 private enum SessionRateLimitPayloadShape {
     case infoRateLimits
     case payloadRateLimits
@@ -699,20 +979,50 @@ private enum SessionRateLimitPayloadShape {
 
 private func makeSessionRateLimitJSONL(
     _ events: [(timestamp: String, fiveHourPercent: Int, sevenDayPercent: Int)],
-    shape: SessionRateLimitPayloadShape = .infoRateLimits
+    shape: SessionRateLimitPayloadShape = .infoRateLimits,
+    fiveHourWindowMinutes: Int = 300,
+    sevenDayWindowMinutes: Int = 10_080
 ) -> String {
     events.map { event in
         switch shape {
         case .infoRateLimits:
             """
-            {"timestamp":"\(event.timestamp)","type":"event_msg","payload":{"type":"token_count","info":{"rate_limits":{"primary":{"used_percent":\(event.fiveHourPercent),"window_minutes":300},"secondary":{"used_percent":\(event.sevenDayPercent),"window_minutes":10080}}}}}
+            {"timestamp":"\(event.timestamp)","type":"event_msg","payload":{"type":"token_count","info":{"rate_limits":{"primary":{"used_percent":\(event.fiveHourPercent),"window_minutes":\(fiveHourWindowMinutes)},"secondary":{"used_percent":\(event.sevenDayPercent),"window_minutes":\(sevenDayWindowMinutes)}}}}}
             """
         case .payloadRateLimits:
             """
-            {"timestamp":"\(event.timestamp)","type":"event_msg","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":\(event.fiveHourPercent),"window_minutes":300},"secondary":{"used_percent":\(event.sevenDayPercent),"window_minutes":10080}}}}
+            {"timestamp":"\(event.timestamp)","type":"event_msg","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":\(event.fiveHourPercent),"window_minutes":\(fiveHourWindowMinutes)},"secondary":{"used_percent":\(event.sevenDayPercent),"window_minutes":\(sevenDayWindowMinutes)}}}}
             """
         }
     }.joined(separator: "\n")
+}
+
+private final class MockURLProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var requestHandler: @Sendable (URLRequest) throws -> (HTTPURLResponse, Data) = { _ in
+        throw URLError(.badServerResponse)
+    }
+    nonisolated(unsafe) static var lastRequest: URLRequest?
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        do {
+            let (response, data) = try Self.requestHandler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
 }
 
 actor FakeAuthFileManager: AuthFileManaging {
@@ -856,6 +1166,33 @@ actor FakeSecretStore: AccountSecretStoring {
 
     func resetSaveCallCount() {
         saveCallCount = 0
+    }
+}
+
+actor FakeRateLimitProvider: CodexRateLimitProviding {
+    private var snapshots: [String: CodexRateLimitSnapshot] = [:]
+    private var capturedIdentityKeys: [String] = []
+
+    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitSnapshot? {
+        let identityKey = await MainActor.run { request.identityKey }
+        capturedIdentityKeys.append(identityKey)
+        return snapshots[identityKey]
+    }
+
+    func setSnapshot(_ snapshot: CodexRateLimitSnapshot, for identityKey: String) {
+        snapshots[identityKey] = snapshot
+    }
+
+    func requestCount(for identityKey: String) -> Int {
+        capturedIdentityKeys.filter { $0 == identityKey }.count
+    }
+
+    func requestedIdentityKeys() -> [String] {
+        capturedIdentityKeys
+    }
+
+    func resetRequests() {
+        capturedIdentityKeys.removeAll()
     }
 }
 

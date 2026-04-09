@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
 struct MenuBarAccountsView: View {
     @Bindable var controller: AppController
 
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
     @Query private var accounts: [StoredAccount]
@@ -67,6 +68,15 @@ struct MenuBarAccountsView: View {
         .fileDialogCustomizationID("codex-auth-location")
         .fileDialogDefaultDirectory(FileManager.default.homeDirectoryForCurrentUser)
         .fileDialogBrowserOptions([.includeHiddenFiles])
+        .task {
+            controller.configure(modelContext: modelContext, undoManager: nil)
+        }
+        .onAppear {
+            controller.setMenuBarPresented(true)
+        }
+        .onDisappear {
+            controller.setMenuBarPresented(false)
+        }
     }
 
     private var header: some View {
@@ -177,6 +187,12 @@ struct MenuBarAccountsView: View {
                                 )
                         )
                         .disabled(controller.isSwitching)
+                        .onAppear {
+                            controller.setRateLimitVisibility(true, for: account.identityKey)
+                        }
+                        .onDisappear {
+                            controller.setRateLimitVisibility(false, for: account.identityKey)
+                        }
                     }
                 }
             }
