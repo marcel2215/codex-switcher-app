@@ -133,8 +133,8 @@ private struct SavedAccountWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func configuredSwitchIntent(for account: SharedCodexAccountRecord) -> SwitchAccountIntent {
-        SwitchAccountIntent(
+    private func configuredSwitchIntent(for account: SharedCodexAccountRecord) -> SwitchAccountControlIntent {
+        SwitchAccountControlIntent(
             account: CodexAccountEntity(record: account, currentAccountID: entry.state.currentAccountID)
         )
     }

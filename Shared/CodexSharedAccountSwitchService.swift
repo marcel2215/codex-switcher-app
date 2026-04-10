@@ -235,23 +235,75 @@ struct CodexSharedAccountSwitchService: Sendable {
         }
 
         var isStale = false
-        let folderURL = try URL(
-            resolvingBookmarkData: bookmarkData,
-            options: [.withSecurityScope, .withoutImplicitStartAccessing, .withoutUI],
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        ).standardizedFileURL
+        let folderURL: URL
+        do {
+            folderURL = try URL(
+                resolvingBookmarkData: bookmarkData,
+                options: [.withSecurityScope, .withoutImplicitStartAccessing, .withoutUI],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            ).standardizedFileURL
+        } catch {
+            throw normalizedBookmarkResolutionError(from: error)
+        }
 
         if isStale {
-            let refreshedBookmark = try folderURL.bookmarkData(
-                options: [.withSecurityScope],
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
-            try? bookmarkStore.save(refreshedBookmark)
+            // A stale bookmark still resolved to a usable URL for this run. Do
+            // not fail the switch just because refreshing persistence failed.
+            do {
+                let refreshedBookmark = try folderURL.bookmarkData(
+                    options: [.withSecurityScope],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
+                try? bookmarkStore.save(refreshedBookmark)
+            } catch {
+            }
         }
 
         return folderURL
+    }
+
+    /// Shortcuts surfaces raw bookmark-resolution failures as a generic
+    /// "The file couldn’t be opened" Cocoa error. Normalize those failures so
+    /// App Intents can ask the user to relink or reopen the Codex folder.
+    private nonisolated func normalizedBookmarkResolutionError(from error: Error) -> CodexSharedSwitchError {
+        let nsError = error as NSError
+        let linkedFolderURLHint = linkedFolderURLHint()
+
+        guard nsError.domain == NSCocoaErrorDomain else {
+            return .missingBookmark
+        }
+
+        switch nsError.code {
+        case NSFileReadNoPermissionError, NSFileWriteNoPermissionError:
+            if let linkedFolderURLHint {
+                return .accessDenied(linkedFolderURLHint)
+            }
+
+        case NSFileNoSuchFileError, NSFileReadNoSuchFileError:
+            if let linkedFolderURLHint {
+                return .linkedFolderUnavailable(linkedFolderURLHint)
+            }
+
+        default:
+            break
+        }
+
+        return .missingBookmark
+    }
+
+    private nonisolated func linkedFolderURLHint() -> URL? {
+        guard let linkedFolderPath = try? stateStore.load().linkedFolderPath else {
+            return nil
+        }
+
+        let trimmedLinkedFolderPath = linkedFolderPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedLinkedFolderPath.isEmpty else {
+            return nil
+        }
+
+        return URL(filePath: trimmedLinkedFolderPath)
     }
 
     private nonisolated func withAuthorizedFolder<T>(_ folderURL: URL, _ body: (URL) throws -> T) throws -> T {
