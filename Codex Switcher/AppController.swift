@@ -937,12 +937,17 @@ final class AppController {
                 break
             }
 
+            var acknowledgedAnyCommand = false
+            var deferredAnyCommand = false
+
             for command in commands {
                 let outcome = await handleSharedAppCommand(command)
                 guard outcome.shouldAcknowledge else {
+                    deferredAnyCommand = true
                     continue
                 }
 
+                acknowledgedAnyCommand = true
                 do {
                     try queue.removeCommand(id: command.id)
                     if outcome.shouldTerminateAfterAcknowledgement {
@@ -953,6 +958,12 @@ final class AppController {
                         "Couldn't acknowledge shared app command \(command.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
                     )
                 }
+            }
+
+            // Leave deferred work queued for the next external wakeup instead
+            // of spinning forever on commands this process cannot complete yet.
+            if !acknowledgedAnyCommand && deferredAnyCommand && !shouldProcessSharedCommandsAgain {
+                break
             }
 
             // Always re-check the persisted queue after each handled batch.
@@ -1061,8 +1072,26 @@ final class AppController {
             }
 
         case .quitApplication:
-            return .handledAndTerminate
+            switch command.quitRoutingDecision(
+                currentProcess: .current,
+                runningProcesses: runningMainApplicationProcesses()
+            ) {
+            case .terminateCurrentProcess:
+                return .handledAndTerminate
+
+            case .waitForTargetProcess:
+                return .retryLater
+
+            case .discardStaleCommand:
+                return .handled
+            }
         }
+    }
+
+    private func runningMainApplicationProcesses() -> [CodexSharedAppProcessIdentity] {
+        NSRunningApplication
+            .runningApplications(withBundleIdentifier: Self.mainApplicationBundleIdentifier)
+            .map(CodexSharedAppProcessIdentity.init(runningApplication:))
     }
 
     private func startObservingRemoteSwitchesIfNeeded() {

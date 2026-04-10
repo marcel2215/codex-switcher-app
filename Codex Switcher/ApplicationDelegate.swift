@@ -6,12 +6,33 @@
 //
 
 import AppKit
+import OSLog
 
 final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     /// Tracks whether the user wants Codex Switcher to remain available from
     /// the menu bar after all windows are closed.
     private(set) var keepsRunningInMenuBar = true
     private(set) var keepsRunningForAutopilot = false
+    private let singleInstanceCoordinator = AppSingleInstanceCoordinator()
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+        category: "ApplicationDelegate"
+    )
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        do {
+            let terminatedInstances = try singleInstanceCoordinator.requestTerminationOfOlderInstances()
+            guard !terminatedInstances.isEmpty else {
+                return
+            }
+
+            logger.info("Requested termination of \(terminatedInstances.count) older Codex Switcher instance(s).")
+        } catch {
+            logger.error(
+                "Couldn't enforce single-instance launch policy: \(String(describing: error), privacy: .private)"
+            )
+        }
+    }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         !(keepsRunningInMenuBar || keepsRunningForAutopilot)

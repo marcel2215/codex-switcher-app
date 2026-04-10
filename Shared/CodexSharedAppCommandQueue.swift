@@ -21,19 +21,47 @@ struct CodexSharedAppCommand: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     let action: CodexSharedAppCommandAction
     let accountIdentityKey: String?
+    let targetProcess: CodexSharedAppProcessIdentity?
     let requestedAt: Date
 
     nonisolated init(
         id: UUID = UUID(),
         action: CodexSharedAppCommandAction,
         accountIdentityKey: String? = nil,
+        targetProcess: CodexSharedAppProcessIdentity? = nil,
         requestedAt: Date = .now
     ) {
         self.id = id
         self.action = action
         self.accountIdentityKey = accountIdentityKey?
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.targetProcess = targetProcess
         self.requestedAt = requestedAt
+    }
+
+    enum QuitRoutingDecision: Equatable, Sendable {
+        case terminateCurrentProcess
+        case waitForTargetProcess
+        case discardStaleCommand
+    }
+
+    /// Targeted quit commands allow a newer app instance to ask one older
+    /// instance to exit without accidentally consuming the command itself.
+    nonisolated func quitRoutingDecision(
+        currentProcess: CodexSharedAppProcessIdentity,
+        runningProcesses: [CodexSharedAppProcessIdentity]
+    ) -> QuitRoutingDecision {
+        guard let targetProcess else {
+            return .terminateCurrentProcess
+        }
+
+        if targetProcess == currentProcess {
+            return .terminateCurrentProcess
+        }
+
+        return runningProcesses.contains(targetProcess)
+            ? .waitForTargetProcess
+            : .discardStaleCommand
     }
 }
 
