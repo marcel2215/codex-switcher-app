@@ -7,6 +7,7 @@
 
 import AppKit
 import Foundation
+import IOKit.ps
 import Observation
 import OSLog
 import SwiftData
@@ -22,6 +23,7 @@ struct UserFacingAlert: Identifiable, Equatable {
 @MainActor
 final class AppController {
     private nonisolated static let currentRateLimitDisplayVersion = 1
+    private nonisolated static let batterySaverRefreshPauseThreshold = 15
     private nonisolated static let currentAccountRateLimitRefreshInterval: TimeInterval = 60
     private nonisolated static let visibleAccountRateLimitRefreshInterval: TimeInterval = 5 * 60
     private nonisolated static let rateLimitPollingCadence: Duration = .seconds(5)
@@ -29,12 +31,9 @@ final class AppController {
     private nonisolated static let maximumRateLimitFailureBackoff: TimeInterval = 15 * 60
     private nonisolated static let autopilotLoopCadence: Duration = .seconds(20)
     private nonisolated static let autopilotRefreshInterval: TimeInterval = 5 * 60
-    private nonisolated static let autopilotLowPowerRefreshInterval: TimeInterval = 10 * 60
     private nonisolated static let autopilotSessionQuietWindow: TimeInterval = 45
     private nonisolated static let autopilotTaskTriggeredMinimumGap: TimeInterval = 90
-    private nonisolated static let autopilotLowPowerTaskTriggeredMinimumGap: TimeInterval = 5 * 60
-    private nonisolated static let autopilotInitialDelay: TimeInterval = 15
-    private nonisolated static let autopilotWakeDelay: TimeInterval = 15
+    private nonisolated static let autopilotWakeDelay: TimeInterval = 0
 
     var selection: Set<UUID> = []
     var searchText = ""
@@ -52,6 +51,8 @@ final class AppController {
     @ObservationIgnored private let notificationManager: AccountSwitchNotifying
     @ObservationIgnored private let rateLimitProvider: CodexRateLimitProviding
     @ObservationIgnored private let sessionRateLimitReader: CodexSessionRateLimitReader
+    @ObservationIgnored private let lowPowerModeProvider: () -> Bool
+    @ObservationIgnored private let batteryChargePercentProvider: () -> Int?
     @ObservationIgnored private let logger: Logger
     @ObservationIgnored private let startupAlert: UserFacingAlert?
 
@@ -80,6 +81,7 @@ final class AppController {
     @ObservationIgnored private var isSystemSleeping = false
     @ObservationIgnored private var areScreensSleeping = false
     @ObservationIgnored private var nextAutopilotEvaluationAt: Date?
+    @ObservationIgnored private var pendingAutopilotImmediateTrigger: AutopilotTrigger?
     @ObservationIgnored private var lastAutopilotEvaluationAt: Date?
     @ObservationIgnored private var lastObservedSessionActivityAt: Date?
     @ObservationIgnored private var lastHandledSessionActivityAt: Date?
@@ -93,6 +95,8 @@ final class AppController {
         startupAlert: UserFacingAlert? = nil,
         modelContainer: ModelContainer? = nil,
         bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+        lowPowerModeProvider: @escaping () -> Bool = AppController.defaultLowPowerModeProvider,
+        batteryChargePercentProvider: @escaping () -> Int? = AppController.defaultBatteryChargePercentProvider,
         autopilotEnabled: Bool = false
     ) {
         self.authFileManager = authFileManager
@@ -100,6 +104,8 @@ final class AppController {
         self.notificationManager = notificationManager
         self.rateLimitProvider = rateLimitProvider
         self.sessionRateLimitReader = sessionRateLimitReader
+        self.lowPowerModeProvider = lowPowerModeProvider
+        self.batteryChargePercentProvider = batteryChargePercentProvider
         self.startupAlert = startupAlert
         self.modelContainer = modelContainer
         self.isAutopilotEnabled = autopilotEnabled
@@ -142,9 +148,6 @@ final class AppController {
             presentedAlert = startupAlert
         }
 
-        startMonitoringIfNeeded()
-        updateAutopilotState()
-
         let initializationTask = Task { @MainActor [weak self] in
             guard let self else {
                 return
@@ -157,6 +160,11 @@ final class AppController {
             self.initializationTask = nil
         }
         self.initializationTask = initializationTask
+
+        startMonitoringIfNeeded()
+        // Autopilot startup checks can now fire immediately, so make sure the
+        // initialization task exists before the loop can begin awaiting it.
+        updateAutopilotState()
     }
 
     var canEditCustomOrder: Bool {
@@ -233,11 +241,12 @@ final class AppController {
 
         if isEnabled {
             // Ignore session activity that predates the user's opt-in, then
-            // schedule the first background evaluation shortly after enabling.
+            // immediately reevaluate using fresh remote limits.
             lastHandledSessionActivityAt = lastObservedSessionActivityAt
-            scheduleAutopilotEvaluationSoon(after: Self.autopilotInitialDelay)
+            scheduleAutopilotEvaluationSoon(trigger: .started)
         } else {
             nextAutopilotEvaluationAt = nil
+            pendingAutopilotImmediateTrigger = nil
             lastHandledSessionActivityAt = nil
         }
 
@@ -266,6 +275,10 @@ final class AppController {
 
         isApplicationActive = isActive
         updateRateLimitPollingState()
+
+        if isActive {
+            scheduleAutopilotEvaluationSoon(trigger: .appBecameActive)
+        }
 
         if isRateLimitSurfaceActive {
             requestImmediateRateLimitRefreshForVisibleAccounts()
@@ -718,6 +731,60 @@ final class AppController {
         await performRefresh(showUnexpectedErrors: true)
     }
 
+    func runAutopilotLaunchTriggerForTesting() async {
+        await runAutopilotEvaluation(trigger: .started)
+    }
+
+    func runAutopilotFocusTriggerForTesting() async {
+        await runAutopilotEvaluation(trigger: .appBecameActive)
+    }
+
+    func runAutopilotWakeTriggerForTesting() async {
+        await runAutopilotEvaluation(trigger: .systemWoke)
+    }
+
+    func runAutopilotSessionQuietTriggerForTesting(observedAt: Date) async {
+        noteRecentSessionActivityForTesting(observedAt: observedAt)
+        await runAutopilotEvaluation(trigger: .sessionBecameQuiet)
+    }
+
+    func runPeriodicRateLimitRefreshPassForTesting() async {
+        await refreshDueRateLimitsIfNeeded()
+    }
+
+    func scheduledAutopilotWouldRunNowForTesting() -> Bool {
+        let now = Date()
+        let previousScheduledEvaluation = nextAutopilotEvaluationAt
+        let previousImmediateTrigger = pendingAutopilotImmediateTrigger
+
+        defer {
+            nextAutopilotEvaluationAt = previousScheduledEvaluation
+            pendingAutopilotImmediateTrigger = previousImmediateTrigger
+        }
+
+        nextAutopilotEvaluationAt = now.addingTimeInterval(-1)
+        pendingAutopilotImmediateTrigger = nil
+        return autopilotTriggerDue(relativeTo: now) == .scheduled
+    }
+
+    func handleSystemWakeForTesting() {
+        isSystemSleeping = false
+        areScreensSleeping = false
+        if isRateLimitSurfaceActive {
+            requestImmediateRateLimitRefreshForVisibleAccounts()
+        }
+        scheduleAutopilotEvaluationSoon(after: Self.autopilotWakeDelay, trigger: .systemWoke)
+    }
+
+    func noteRecentSessionActivityForTesting(observedAt: Date) {
+        guard observedAt > (lastObservedSessionActivityAt ?? .distantPast) else {
+            return
+        }
+
+        lastObservedSessionActivityAt = observedAt
+        scheduleAutopilotEvaluationAfterRecentSessionActivity(observedAt: observedAt)
+    }
+
     func handleLocationImportForTesting(_ result: Result<[URL], any Error>) async {
         await waitForInitializationIfNeeded()
         await finishLocationImport(result)
@@ -800,8 +867,31 @@ final class AppController {
         }
 
         hasStartedObservingSystemState = true
+        isApplicationActive = NSApplication.shared.isActive
         let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
         systemStateObservationTasks = [
+            Task { @MainActor [weak self] in
+                for await _ in NotificationCenter.default.notifications(
+                    named: NSApplication.didBecomeActiveNotification
+                ) {
+                    guard let self else {
+                        return
+                    }
+
+                    self.setApplicationActive(true)
+                }
+            },
+            Task { @MainActor [weak self] in
+                for await _ in NotificationCenter.default.notifications(
+                    named: NSApplication.didResignActiveNotification
+                ) {
+                    guard let self else {
+                        return
+                    }
+
+                    self.setApplicationActive(false)
+                }
+            },
             Task { @MainActor [weak self] in
                 for await _ in workspaceNotificationCenter.notifications(named: NSWorkspace.willSleepNotification) {
                     guard let self else {
@@ -818,7 +908,13 @@ final class AppController {
                     }
 
                     self.isSystemSleeping = false
-                    self.scheduleAutopilotEvaluationSoon(after: Self.autopilotWakeDelay)
+                    if self.isRateLimitSurfaceActive {
+                        self.requestImmediateRateLimitRefreshForVisibleAccounts()
+                    }
+                    self.scheduleAutopilotEvaluationSoon(
+                        after: Self.autopilotWakeDelay,
+                        trigger: .systemWoke
+                    )
                 }
             },
             Task { @MainActor [weak self] in
@@ -837,15 +933,28 @@ final class AppController {
                     }
 
                     self.areScreensSleeping = false
-                    self.scheduleAutopilotEvaluationSoon(after: Self.autopilotWakeDelay)
+                    if self.isRateLimitSurfaceActive {
+                        self.requestImmediateRateLimitRefreshForVisibleAccounts()
+                    }
+                    self.scheduleAutopilotEvaluationSoon(
+                        after: Self.autopilotWakeDelay,
+                        trigger: .systemWoke
+                    )
                 }
             },
         ]
     }
 
-    private func scheduleAutopilotEvaluationSoon(after delay: TimeInterval = 0) {
+    private func scheduleAutopilotEvaluationSoon(
+        after delay: TimeInterval = 0,
+        trigger: AutopilotTrigger? = nil
+    ) {
         guard isAutopilotEnabled else {
             return
+        }
+
+        if let trigger {
+            pendingAutopilotImmediateTrigger = trigger
         }
 
         let candidateDate = Date().addingTimeInterval(max(delay, 0))
@@ -869,7 +978,7 @@ final class AppController {
         }
 
         if nextAutopilotEvaluationAt == nil {
-            scheduleAutopilotEvaluationSoon(after: Self.autopilotInitialDelay)
+            scheduleAutopilotEvaluationSoon(trigger: .started)
         }
 
         autopilotTask = Task { @MainActor [weak self] in
@@ -886,21 +995,34 @@ final class AppController {
     }
 
     private var currentAutopilotRefreshInterval: TimeInterval {
-        isLowPowerModeEnabled ? Self.autopilotLowPowerRefreshInterval : Self.autopilotRefreshInterval
+        Self.autopilotRefreshInterval
     }
 
     private var currentAutopilotTaskTriggeredMinimumGap: TimeInterval {
-        isLowPowerModeEnabled
-            ? Self.autopilotLowPowerTaskTriggeredMinimumGap
-            : Self.autopilotTaskTriggeredMinimumGap
+        Self.autopilotTaskTriggeredMinimumGap
     }
 
     private var isLowPowerModeEnabled: Bool {
-        if #available(macOS 12.0, *) {
-            return ProcessInfo.processInfo.isLowPowerModeEnabled
+        lowPowerModeProvider()
+    }
+
+    private var currentBatteryChargePercent: Int? {
+        batteryChargePercentProvider()
+    }
+
+    private var isBatteryChargeCriticallyLow: Bool {
+        guard let currentBatteryChargePercent else {
+            return false
         }
 
-        return false
+        return currentBatteryChargePercent <= Self.batterySaverRefreshPauseThreshold
+    }
+
+    // Only background timers are paused by battery saver conditions. Explicit
+    // user and system triggers still run immediately so the app feels current
+    // when it becomes visible or when the user asks for a refresh.
+    private var shouldPausePeriodicRefreshTimersForPowerSaving: Bool {
+        isLowPowerModeEnabled || isBatteryChargeCriticallyLow
     }
 
     private func runAutopilotLoop() async {
@@ -947,6 +1069,18 @@ final class AppController {
         }
 
         lastObservedSessionActivityAt = observation.observedAt
+        scheduleAutopilotEvaluationAfterRecentSessionActivity(observedAt: observation.observedAt)
+    }
+
+    private func scheduleAutopilotEvaluationAfterRecentSessionActivity(observedAt: Date) {
+        // Codex can emit several session updates while a task is still running.
+        // Wait for a short quiet period before reevaluating so background
+        // switching reacts after a task finishes rather than during it.
+        let quietDelay = max(
+            Self.autopilotSessionQuietWindow - Date().timeIntervalSince(observedAt),
+            0
+        )
+        scheduleAutopilotEvaluationSoon(after: quietDelay)
     }
 
     private func autopilotTriggerDue(relativeTo now: Date) -> AutopilotTrigger? {
@@ -954,11 +1088,21 @@ final class AppController {
             return nil
         }
 
+        if let pendingAutopilotImmediateTrigger,
+           let nextAutopilotEvaluationAt,
+           now >= nextAutopilotEvaluationAt {
+            return pendingAutopilotImmediateTrigger
+        }
+
         if let lastObservedSessionActivityAt,
            lastHandledSessionActivityAt != lastObservedSessionActivityAt,
            now.timeIntervalSince(lastObservedSessionActivityAt) >= Self.autopilotSessionQuietWindow,
            now.timeIntervalSince(lastAutopilotEvaluationAt ?? .distantPast) >= currentAutopilotTaskTriggeredMinimumGap {
             return .sessionBecameQuiet
+        }
+
+        if shouldPausePeriodicRefreshTimersForPowerSaving {
+            return nil
         }
 
         guard let nextAutopilotEvaluationAt, now >= nextAutopilotEvaluationAt else {
@@ -985,18 +1129,26 @@ final class AppController {
         }
 
         if isSwitching {
-            scheduleAutopilotEvaluationSoon(after: 30)
+            scheduleAutopilotEvaluationSoon(
+                after: 30,
+                trigger: trigger.shouldPreserveImmediatePriorityWhenDeferred ? trigger : nil
+            )
             return
         }
 
         await refreshAuthState(showUnexpectedErrors: false)
         applyLocalRateLimitResetsIfNeeded(relativeTo: Date())
+        let clearsPendingImmediateTrigger = pendingAutopilotImmediateTrigger == trigger
 
         defer {
             let completionDate = Date()
 
             if trigger == .sessionBecameQuiet {
                 lastHandledSessionActivityAt = lastObservedSessionActivityAt
+            }
+
+            if clearsPendingImmediateTrigger {
+                pendingAutopilotImmediateTrigger = nil
             }
 
             lastAutopilotEvaluationAt = completionDate
@@ -1059,7 +1211,7 @@ final class AppController {
         trigger: AutopilotTrigger
     ) async {
         for account in accounts {
-            let shouldForceRefresh = trigger == .testing
+            let shouldForceRefresh = trigger.forcesImmediateRateLimitRefresh
                 || (trigger == .sessionBecameQuiet && account.identityKey == activeIdentityKey)
 
             guard shouldForceRefresh || shouldRefreshAutopilotRateLimits(for: account.identityKey, relativeTo: now) else {
@@ -1628,6 +1780,10 @@ final class AppController {
         let now = Date()
         applyLocalRateLimitResetsIfNeeded(relativeTo: now)
 
+        guard !shouldPausePeriodicRefreshTimersForPowerSaving else {
+            return
+        }
+
         let identities = rateLimitCandidateIdentityKeys()
         guard !identities.isEmpty else {
             return
@@ -1814,6 +1970,42 @@ final class AppController {
         }
 
         return identities
+    }
+
+    private nonisolated static func defaultLowPowerModeProvider() -> Bool {
+        if #available(macOS 12.0, *) {
+            return ProcessInfo.processInfo.isLowPowerModeEnabled
+        }
+
+        return false
+    }
+
+    // Read the internal battery percentage directly from macOS power-source
+    // services. Desktops and machines that do not expose a battery return nil,
+    // which means "do not pause solely because of battery level".
+    private nonisolated static func defaultBatteryChargePercentProvider() -> Int? {
+        let powerSourcesInfo = IOPSCopyPowerSourcesInfo().takeRetainedValue()
+        let powerSources = IOPSCopyPowerSourcesList(powerSourcesInfo).takeRetainedValue() as Array
+
+        for powerSource in powerSources {
+            guard
+                let description = IOPSGetPowerSourceDescription(powerSourcesInfo, powerSource)?
+                    .takeUnretainedValue() as? [String: Any],
+                let sourceType = description[kIOPSTypeKey as String] as? String,
+                sourceType == kIOPSInternalBatteryType,
+                (description[kIOPSIsPresentKey as String] as? Bool) != false,
+                let currentCapacity = description[kIOPSCurrentCapacityKey as String] as? Int,
+                let maximumCapacity = description[kIOPSMaxCapacityKey as String] as? Int,
+                maximumCapacity > 0
+            else {
+                continue
+            }
+
+            let percentage = (Double(currentCapacity) / Double(maximumCapacity)) * 100
+            return Int(percentage.rounded())
+        }
+
+        return nil
     }
 
     private func storeSnapshot(
@@ -2356,9 +2548,30 @@ private enum PendingLocationAction {
 }
 
 private enum AutopilotTrigger {
+    case started
+    case appBecameActive
+    case systemWoke
     case scheduled
     case sessionBecameQuiet
     case testing
+
+    var forcesImmediateRateLimitRefresh: Bool {
+        switch self {
+        case .started, .appBecameActive, .systemWoke, .testing:
+            true
+        case .scheduled, .sessionBecameQuiet:
+            false
+        }
+    }
+
+    var shouldPreserveImmediatePriorityWhenDeferred: Bool {
+        switch self {
+        case .started, .appBecameActive, .systemWoke:
+            true
+        case .scheduled, .sessionBecameQuiet, .testing:
+            false
+        }
+    }
 }
 
 private enum ControllerError: LocalizedError {

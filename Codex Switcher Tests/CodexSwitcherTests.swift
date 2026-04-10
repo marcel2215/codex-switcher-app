@@ -349,6 +349,377 @@ struct CodexSwitcherTests {
         #expect(notificationManager.postedAccountNames == ["Better"])
     }
 
+    @Test func autopilotEvaluatesImmediatelyWhenAppLaunches() async throws {
+        let container = try makeInMemoryContainer()
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-launch-current")
+        let betterContents = makeChatGPTAuthJSON(accountID: "acct-launch-better")
+        let authFileManager = FakeAuthFileManager(contents: currentContents)
+        let notificationManager = FakeNotificationManager()
+        let rateLimitProvider = FakeRateLimitProvider()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            notificationManager: notificationManager,
+            rateLimitProvider: rateLimitProvider
+        )
+
+        let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
+        let betterSnapshot = try CodexAuthFile.parse(contents: betterContents)
+        container.mainContext.insert(
+            StoredAccount(
+                identityKey: currentSnapshot.identityKey,
+                name: "Current",
+                customOrder: 0,
+                authFileContents: currentContents,
+                authModeRaw: currentSnapshot.authMode.rawValue,
+                emailHint: currentSnapshot.email,
+                accountIdentifier: currentSnapshot.accountIdentifier
+            )
+        )
+        let betterAccount = StoredAccount(
+            identityKey: betterSnapshot.identityKey,
+            name: "Better",
+            customOrder: 1,
+            authFileContents: betterContents,
+            authModeRaw: betterSnapshot.authMode.rawValue,
+            emailHint: betterSnapshot.email,
+            accountIdentifier: betterSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(betterAccount)
+        try container.mainContext.save()
+
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: currentSnapshot.identityKey,
+                sevenDayRemainingPercent: 40,
+                fiveHourRemainingPercent: 35
+            ),
+            for: currentSnapshot.identityKey
+        )
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: betterSnapshot.identityKey,
+                sevenDayRemainingPercent: 90,
+                fiveHourRemainingPercent: 80
+            ),
+            for: betterSnapshot.identityKey
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.runAutopilotLaunchTriggerForTesting()
+
+        #expect(controller.activeIdentityKey == betterSnapshot.identityKey)
+        #expect(controller.selection == [betterAccount.id])
+        #expect(notificationManager.postedAccountNames == ["Better"])
+    }
+
+    @Test func autopilotReevaluatesImmediatelyWhenAppBecomesActive() async throws {
+        let container = try makeInMemoryContainer()
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-focus-current")
+        let betterContents = makeChatGPTAuthJSON(accountID: "acct-focus-better")
+        let authFileManager = FakeAuthFileManager(contents: currentContents)
+        let notificationManager = FakeNotificationManager()
+        let rateLimitProvider = FakeRateLimitProvider()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            notificationManager: notificationManager,
+            rateLimitProvider: rateLimitProvider
+        )
+
+        let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
+        let betterSnapshot = try CodexAuthFile.parse(contents: betterContents)
+        let currentAccount = StoredAccount(
+            identityKey: currentSnapshot.identityKey,
+            name: "Current",
+            customOrder: 0,
+            authFileContents: currentContents,
+            authModeRaw: currentSnapshot.authMode.rawValue,
+            emailHint: currentSnapshot.email,
+            accountIdentifier: currentSnapshot.accountIdentifier
+        )
+        let betterAccount = StoredAccount(
+            identityKey: betterSnapshot.identityKey,
+            name: "Better",
+            customOrder: 1,
+            authFileContents: betterContents,
+            authModeRaw: betterSnapshot.authMode.rawValue,
+            emailHint: betterSnapshot.email,
+            accountIdentifier: betterSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(currentAccount)
+        container.mainContext.insert(betterAccount)
+        try container.mainContext.save()
+
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: currentSnapshot.identityKey,
+                sevenDayRemainingPercent: 95,
+                fiveHourRemainingPercent: 90
+            ),
+            for: currentSnapshot.identityKey
+        )
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: betterSnapshot.identityKey,
+                sevenDayRemainingPercent: 60,
+                fiveHourRemainingPercent: 55
+            ),
+            for: betterSnapshot.identityKey
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: currentSnapshot.identityKey,
+                sevenDayRemainingPercent: 20,
+                fiveHourRemainingPercent: 15
+            ),
+            for: currentSnapshot.identityKey
+        )
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: betterSnapshot.identityKey,
+                sevenDayRemainingPercent: 85,
+                fiveHourRemainingPercent: 75
+            ),
+            for: betterSnapshot.identityKey
+        )
+
+        controller.setApplicationActive(false)
+        controller.setApplicationActive(true)
+        await controller.runAutopilotFocusTriggerForTesting()
+
+        #expect(controller.activeIdentityKey == betterSnapshot.identityKey)
+        #expect(controller.selection == [betterAccount.id])
+        #expect(notificationManager.postedAccountNames == ["Better"])
+    }
+
+    @Test func autopilotReevaluatesImmediatelyWhenMacWakes() async throws {
+        let container = try makeInMemoryContainer()
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-wake-current")
+        let betterContents = makeChatGPTAuthJSON(accountID: "acct-wake-better")
+        let authFileManager = FakeAuthFileManager(contents: currentContents)
+        let notificationManager = FakeNotificationManager()
+        let rateLimitProvider = FakeRateLimitProvider()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            notificationManager: notificationManager,
+            rateLimitProvider: rateLimitProvider
+        )
+
+        let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
+        let betterSnapshot = try CodexAuthFile.parse(contents: betterContents)
+        let currentAccount = StoredAccount(
+            identityKey: currentSnapshot.identityKey,
+            name: "Current",
+            customOrder: 0,
+            authFileContents: currentContents,
+            authModeRaw: currentSnapshot.authMode.rawValue,
+            emailHint: currentSnapshot.email,
+            accountIdentifier: currentSnapshot.accountIdentifier
+        )
+        let betterAccount = StoredAccount(
+            identityKey: betterSnapshot.identityKey,
+            name: "Better",
+            customOrder: 1,
+            authFileContents: betterContents,
+            authModeRaw: betterSnapshot.authMode.rawValue,
+            emailHint: betterSnapshot.email,
+            accountIdentifier: betterSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(currentAccount)
+        container.mainContext.insert(betterAccount)
+        try container.mainContext.save()
+
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: currentSnapshot.identityKey,
+                sevenDayRemainingPercent: 90,
+                fiveHourRemainingPercent: 85
+            ),
+            for: currentSnapshot.identityKey
+        )
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: betterSnapshot.identityKey,
+                sevenDayRemainingPercent: 70,
+                fiveHourRemainingPercent: 65
+            ),
+            for: betterSnapshot.identityKey
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: currentSnapshot.identityKey,
+                sevenDayRemainingPercent: 25,
+                fiveHourRemainingPercent: 20
+            ),
+            for: currentSnapshot.identityKey
+        )
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: betterSnapshot.identityKey,
+                sevenDayRemainingPercent: 88,
+                fiveHourRemainingPercent: 81
+            ),
+            for: betterSnapshot.identityKey
+        )
+
+        await controller.runAutopilotWakeTriggerForTesting()
+
+        #expect(controller.activeIdentityKey == betterSnapshot.identityKey)
+        #expect(controller.selection == [betterAccount.id])
+        #expect(notificationManager.postedAccountNames == ["Better"])
+    }
+
+    @Test func scheduledAutopilotPausesInLowPowerModeButWakeTriggerStillRuns() async throws {
+        let container = try makeInMemoryContainer()
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-lowpower-current")
+        let betterContents = makeChatGPTAuthJSON(accountID: "acct-lowpower-better")
+        let authFileManager = FakeAuthFileManager(contents: currentContents)
+        let notificationManager = FakeNotificationManager()
+        let rateLimitProvider = FakeRateLimitProvider()
+        let powerState = TestPowerStateSource(lowPowerModeEnabled: true, batteryChargePercent: 72)
+        let controller = makeController(
+            authFileManager: authFileManager,
+            notificationManager: notificationManager,
+            rateLimitProvider: rateLimitProvider,
+            lowPowerModeProvider: { powerState.lowPowerModeEnabled },
+            batteryChargePercentProvider: { powerState.batteryChargePercent }
+        )
+
+        let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
+        let betterSnapshot = try CodexAuthFile.parse(contents: betterContents)
+        container.mainContext.insert(
+            StoredAccount(
+                identityKey: currentSnapshot.identityKey,
+                name: "Current",
+                customOrder: 0,
+                authFileContents: currentContents,
+                authModeRaw: currentSnapshot.authMode.rawValue,
+                emailHint: currentSnapshot.email,
+                accountIdentifier: currentSnapshot.accountIdentifier
+            )
+        )
+        let betterAccount = StoredAccount(
+            identityKey: betterSnapshot.identityKey,
+            name: "Better",
+            customOrder: 1,
+            authFileContents: betterContents,
+            authModeRaw: betterSnapshot.authMode.rawValue,
+            emailHint: betterSnapshot.email,
+            accountIdentifier: betterSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(betterAccount)
+        try container.mainContext.save()
+
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: currentSnapshot.identityKey,
+                sevenDayRemainingPercent: 25,
+                fiveHourRemainingPercent: 20
+            ),
+            for: currentSnapshot.identityKey
+        )
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: betterSnapshot.identityKey,
+                sevenDayRemainingPercent: 88,
+                fiveHourRemainingPercent: 81
+            ),
+            for: betterSnapshot.identityKey
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+
+        #expect(controller.scheduledAutopilotWouldRunNowForTesting() == false)
+
+        await controller.runAutopilotWakeTriggerForTesting()
+
+        #expect(controller.activeIdentityKey == betterSnapshot.identityKey)
+        #expect(controller.selection == [betterAccount.id])
+        #expect(notificationManager.postedAccountNames == ["Better"])
+    }
+
+    @Test func autopilotReevaluatesWhenRecentSessionActivityBecomesQuiet() async throws {
+        let container = try makeInMemoryContainer()
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-task-current")
+        let betterContents = makeChatGPTAuthJSON(accountID: "acct-task-better")
+        let authFileManager = FakeAuthFileManager(contents: currentContents)
+        let notificationManager = FakeNotificationManager()
+        let rateLimitProvider = FakeRateLimitProvider()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            notificationManager: notificationManager,
+            rateLimitProvider: rateLimitProvider
+        )
+
+        let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
+        let betterSnapshot = try CodexAuthFile.parse(contents: betterContents)
+        let currentAccount = StoredAccount(
+            identityKey: currentSnapshot.identityKey,
+            name: "Current",
+            customOrder: 0,
+            authFileContents: currentContents,
+            authModeRaw: currentSnapshot.authMode.rawValue,
+            emailHint: currentSnapshot.email,
+            accountIdentifier: currentSnapshot.accountIdentifier
+        )
+        let betterAccount = StoredAccount(
+            identityKey: betterSnapshot.identityKey,
+            name: "Better",
+            customOrder: 1,
+            authFileContents: betterContents,
+            authModeRaw: betterSnapshot.authMode.rawValue,
+            emailHint: betterSnapshot.email,
+            accountIdentifier: betterSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(currentAccount)
+        container.mainContext.insert(betterAccount)
+        try container.mainContext.save()
+
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: currentSnapshot.identityKey,
+                sevenDayRemainingPercent: 94,
+                fiveHourRemainingPercent: 90
+            ),
+            for: currentSnapshot.identityKey
+        )
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: betterSnapshot.identityKey,
+                sevenDayRemainingPercent: 82,
+                fiveHourRemainingPercent: 80
+            ),
+            for: betterSnapshot.identityKey
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: currentSnapshot.identityKey,
+                sevenDayRemainingPercent: 35,
+                fiveHourRemainingPercent: 30
+            ),
+            for: currentSnapshot.identityKey
+        )
+        await controller.runAutopilotSessionQuietTriggerForTesting(
+            observedAt: Date().addingTimeInterval(-60)
+        )
+
+        #expect(controller.activeIdentityKey == betterSnapshot.identityKey)
+        #expect(controller.selection == [betterAccount.id])
+        #expect(notificationManager.postedAccountNames == ["Better"])
+    }
+
     @Test func remoteSwitchSignalRefreshesRunningControllerWithoutManualOpen() async throws {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))
@@ -427,6 +798,53 @@ struct CodexSwitcherTests {
         controller.setRateLimitVisibility(true, for: identityKey)
         controller.setApplicationActive(true)
 
+        try await waitUntil {
+            await rateLimitProvider.requestCount(for: identityKey) >= 1
+        }
+    }
+
+    @Test func periodicRateLimitRefreshPausesWhenBatteryIsCriticalButWakeRefreshStillRuns() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-battery"))
+        let rateLimitProvider = FakeRateLimitProvider()
+        let powerState = TestPowerStateSource(lowPowerModeEnabled: false, batteryChargePercent: 15)
+        let controller = makeController(
+            authFileManager: authFileManager,
+            rateLimitProvider: rateLimitProvider,
+            lowPowerModeProvider: { powerState.lowPowerModeEnabled },
+            batteryChargePercentProvider: { powerState.batteryChargePercent }
+        )
+
+        let contents = makeChatGPTAuthJSON(accountID: "acct-battery")
+        let snapshot = try CodexAuthFile.parse(contents: contents)
+        let account = StoredAccount(
+            identityKey: snapshot.identityKey,
+            name: "Battery",
+            customOrder: 0,
+            authFileContents: contents,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier
+        )
+        let identityKey = snapshot.identityKey
+        container.mainContext.insert(account)
+        try container.mainContext.save()
+        await rateLimitProvider.setSnapshot(makeRateLimitSnapshot(identityKey: identityKey), for: identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+        controller.setRateLimitVisibility(true, for: identityKey)
+        controller.setApplicationActive(true)
+
+        try await waitUntil {
+            await rateLimitProvider.requestCount(for: identityKey) >= 1
+        }
+
+        await rateLimitProvider.resetRequests()
+        await controller.runPeriodicRateLimitRefreshPassForTesting()
+        #expect(await rateLimitProvider.requestCount(for: identityKey) == 0)
+
+        controller.handleSystemWakeForTesting()
         try await waitUntil {
             await rateLimitProvider.requestCount(for: identityKey) >= 1
         }
@@ -1116,13 +1534,19 @@ private func makeController(
     authFileManager: FakeAuthFileManager,
     secretStore: FakeSecretStore = FakeSecretStore(),
     notificationManager: FakeNotificationManager = FakeNotificationManager(),
-    rateLimitProvider: CodexRateLimitProviding = FakeRateLimitProvider()
+    rateLimitProvider: CodexRateLimitProviding = FakeRateLimitProvider(),
+    lowPowerModeProvider: @escaping () -> Bool = { false },
+    batteryChargePercentProvider: @escaping () -> Int? = { nil },
+    autopilotEnabled: Bool = false
 ) -> AppController {
     AppController(
         authFileManager: authFileManager,
         secretStore: secretStore,
         notificationManager: notificationManager,
-        rateLimitProvider: rateLimitProvider
+        rateLimitProvider: rateLimitProvider,
+        lowPowerModeProvider: lowPowerModeProvider,
+        batteryChargePercentProvider: batteryChargePercentProvider,
+        autopilotEnabled: autopilotEnabled
     )
 }
 
@@ -1235,6 +1659,11 @@ private func makeRateLimitSnapshot(
         sevenDayResetsAt: observedAt.addingTimeInterval(7 * 24 * 60 * 60),
         fiveHourResetsAt: observedAt.addingTimeInterval(5 * 60 * 60)
     )
+}
+
+private struct TestPowerStateSource {
+    var lowPowerModeEnabled: Bool
+    var batteryChargePercent: Int?
 }
 
 private struct TestTimeoutError: Error {}
