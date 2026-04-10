@@ -1211,7 +1211,7 @@ struct CodexSwitcherTests {
         #expect(try CodexSharedAccountIntentResolver.bestEntity(in: state).id == best.id)
     }
 
-    @Test func sharedIntentResolverFallsBackToCurrentAccountWhenSelectionIsNotLive() throws {
+    @Test func sharedIntentResolverKeepsStrictSelectionSeparateFromFallbackSelection() throws {
         let current = makeSharedAccountRecord(
             identityKey: "chatgpt:current",
             name: "Current",
@@ -1233,7 +1233,13 @@ struct CodexSwitcherTests {
             accounts: [current, selected]
         )
 
-        #expect(try CodexSharedAccountIntentResolver.selectedEntity(in: staleState).id == current.id)
+        #expect(throws: CodexSharedIntentLookupError.self) {
+            try CodexSharedAccountIntentResolver.selectedEntity(in: staleState)
+        }
+
+        let resolution = try CodexSharedAccountIntentResolver.selectedOrCurrentEntityResolution(in: staleState)
+        #expect(resolution.entity.id == current.id)
+        #expect(resolution.usedCurrentFallback)
     }
 
     @Test func sharedIntentResolverRanksExactPrefixAndSubstringMatches() throws {
@@ -1400,6 +1406,36 @@ struct CodexSwitcherTests {
         #expect(remainingCommands.isEmpty)
     }
 
+    @Test func expectedResultCommandsPersistSuccessfulCompletions() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
+        let resultStore = CodexSharedAppCommandResultStore(baseURL: temporaryDirectory)
+        let authContents = makeChatGPTAuthJSON(accountID: "acct-expected-result")
+        let expectedIdentityKey = try CodexAuthFile.parse(contents: authContents).identityKey
+        let queuedCommand = CodexSharedAppCommand(
+            action: .captureCurrentAccount,
+            expectsResult: true
+        )
+        try queue.enqueue(queuedCommand)
+
+        let container = try makeInMemoryContainer()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: authContents)
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.processPendingSharedCommands(
+            allowsUnitTestExecution: true,
+            queue: queue,
+            resultStore: resultStore
+        )
+
+        let result = try #require(try resultStore.load(commandID: queuedCommand.id))
+        #expect(result.status == .success)
+        #expect(result.accountIdentityKey == expectedIdentityKey)
+        #expect(try queue.load().isEmpty)
+    }
+
     @Test func failedSharedCommandsStayQueuedForRetry() async throws {
         let temporaryDirectory = try makeTemporaryDirectory()
         let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
@@ -1420,6 +1456,33 @@ struct CodexSwitcherTests {
         let accounts = try fetchAccounts(in: container.mainContext)
         #expect(accounts.isEmpty)
         #expect(try queue.load() == [queuedCommand])
+    }
+
+    @Test func expectedResultCommandsAcknowledgeFailuresAndStoreErrorResults() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
+        let resultStore = CodexSharedAppCommandResultStore(baseURL: temporaryDirectory)
+        let queuedCommand = CodexSharedAppCommand(
+            action: .captureCurrentAccount,
+            expectsResult: true
+        )
+        try queue.enqueue(queuedCommand)
+
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-failed-result"))
+        await authFileManager.clearLinkedLocation()
+        let controller = makeController(authFileManager: authFileManager)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.processPendingSharedCommands(
+            allowsUnitTestExecution: true,
+            queue: queue,
+            resultStore: resultStore
+        )
+
+        let result = try #require(try resultStore.load(commandID: queuedCommand.id))
+        #expect(result.status == .failure)
+        #expect(try queue.load().isEmpty)
     }
 
     @Test func sharedCommandProcessingRepeatsWhenNewCommandsArriveMidPass() async throws {

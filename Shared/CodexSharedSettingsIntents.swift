@@ -27,50 +27,34 @@ enum CodexIntentToggleState: String, AppEnum, CaseIterable {
 struct SetNotificationsIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Notifications"
     static let description = IntentDescription("Turns Codex Switcher account-switch notifications on or off.")
+    static let supportedModes: IntentModes = .background
 
-    @Parameter(title: "State")
+    @Parameter(
+        title: "State",
+        requestValueDialog: IntentDialog("Turn notifications on or off?")
+    )
     var state: CodexIntentToggleState
 
     static var parameterSummary: some ParameterSummary {
         Summary("Turn notifications \(\.$state)")
     }
 
-    nonisolated func perform() async throws -> some IntentResult & ProvidesDialog {
+    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
         if state.isEnabled {
-            let center = UNUserNotificationCenter.current()
-            let settings = await center.notificationSettings()
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
 
             switch settings.authorizationStatus {
             case .authorized, .provisional:
                 CodexSharedPreferences.userDefaults.set(true, forKey: CodexSharedPreferenceKey.notificationsEnabled)
                 CodexSharedPreferenceFeedback.postPreferencesDidChange()
-                return .result(dialog: IntentDialog("Notifications are on."))
-            case .denied, .ephemeral:
+                return .result(value: .on, dialog: IntentDialog("Notifications are on."))
+            case .denied, .ephemeral, .notDetermined:
                 CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.notificationsEnabled)
                 CodexSharedPreferenceFeedback.postPreferencesDidChange()
                 return .result(
+                    value: .off,
                     dialog: IntentDialog("Notifications stay off until you allow them in System Settings > Notifications.")
                 )
-            case .notDetermined:
-                do {
-                    let granted = try await center.requestAuthorization(options: [.alert])
-                    CodexSharedPreferences.userDefaults.set(
-                        granted,
-                        forKey: CodexSharedPreferenceKey.notificationsEnabled
-                    )
-                    CodexSharedPreferenceFeedback.postPreferencesDidChange()
-                    return .result(
-                        dialog: IntentDialog(
-                            granted
-                                ? "Notifications are on."
-                                : "Notifications stay off until you allow them in System Settings > Notifications."
-                        )
-                    )
-                } catch {
-                    CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.notificationsEnabled)
-                    CodexSharedPreferenceFeedback.postPreferencesDidChange()
-                    throw CodexSettingsIntentError.notificationsUpdateFailed(error.localizedDescription)
-                }
             @unknown default:
                 CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.notificationsEnabled)
                 CodexSharedPreferenceFeedback.postPreferencesDidChange()
@@ -82,22 +66,26 @@ struct SetNotificationsIntent: AppIntent {
 
         CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.notificationsEnabled)
         CodexSharedPreferenceFeedback.postPreferencesDidChange()
-        return .result(dialog: IntentDialog("Notifications are off."))
+        return .result(value: .off, dialog: IntentDialog("Notifications are off."))
     }
 }
 
 struct SetMenuBarVisibilityIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Menu Bar Visibility"
     static let description = IntentDescription("Turns Codex Switcher's menu-bar item on or off.")
+    static let supportedModes: IntentModes = .background
 
-    @Parameter(title: "State")
+    @Parameter(
+        title: "State",
+        requestValueDialog: IntentDialog("Turn Show in Menu Bar on or off?")
+    )
     var state: CodexIntentToggleState
 
     static var parameterSummary: some ParameterSummary {
         Summary("Turn Show in Menu Bar \(\.$state)")
     }
 
-    nonisolated func perform() async throws -> some IntentResult & ProvidesDialog {
+    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
         let wasEnabled = CodexSharedPreferences.showMenuBarExtra
         let isEnabled = state.isEnabled
 
@@ -106,11 +94,13 @@ struct SetMenuBarVisibilityIntent: AppIntent {
 
         if wasEnabled == isEnabled {
             return .result(
+                value: state,
                 dialog: IntentDialog(isEnabled ? "Show in Menu Bar is already on." : "Show in Menu Bar is already off.")
             )
         }
 
         return .result(
+            value: state,
             dialog: IntentDialog(isEnabled ? "Show in Menu Bar is on." : "Show in Menu Bar is off.")
         )
     }
@@ -119,20 +109,25 @@ struct SetMenuBarVisibilityIntent: AppIntent {
 struct SetLaunchAtLoginIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Launch at Login"
     static let description = IntentDescription("Turns Codex Switcher's Launch at Login setting on or off.")
+    static let supportedModes: IntentModes = .background
 
-    @Parameter(title: "State")
+    @Parameter(
+        title: "State",
+        requestValueDialog: IntentDialog("Turn Launch at Login on or off?")
+    )
     var state: CodexIntentToggleState
 
     static var parameterSummary: some ParameterSummary {
         Summary("Turn Launch at Login \(\.$state)")
     }
 
-    nonisolated func perform() async throws -> some IntentResult & ProvidesDialog {
+    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
         let targetState = state.isEnabled
         let currentState = CodexSharedLaunchAtLoginService.currentState()
 
         if currentState.isEnabled == targetState && (!targetState || currentState.requiresApproval == false) {
             return .result(
+                value: state,
                 dialog: IntentDialog(targetState ? "Launch at Login is already on." : "Launch at Login is already off.")
             )
         }
@@ -143,6 +138,7 @@ struct SetLaunchAtLoginIntent: AppIntent {
 
             if updatedState.isEnabled && updatedState.requiresApproval {
                 return .result(
+                    value: .on,
                     dialog: IntentDialog(
                         "Launch at Login is on, but macOS still requires approval in System Settings > General > Login Items."
                     )
@@ -150,6 +146,7 @@ struct SetLaunchAtLoginIntent: AppIntent {
             }
 
             return .result(
+                value: updatedState.isEnabled ? .on : .off,
                 dialog: IntentDialog(updatedState.isEnabled ? "Launch at Login is on." : "Launch at Login is off.")
             )
         } catch {
@@ -163,15 +160,19 @@ struct SetLaunchAtLoginIntent: AppIntent {
 struct SetAutomaticSwitchAccountIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Automatically Switch Account"
     static let description = IntentDescription("Turns Codex Switcher's automatic account switching on or off.")
+    static let supportedModes: IntentModes = .background
 
-    @Parameter(title: "State")
+    @Parameter(
+        title: "State",
+        requestValueDialog: IntentDialog("Turn Automatically Switch Account on or off?")
+    )
     var state: CodexIntentToggleState
 
     static var parameterSummary: some ParameterSummary {
         Summary("Turn Automatically Switch Account \(\.$state)")
     }
 
-    nonisolated func perform() async throws -> some IntentResult & ProvidesDialog {
+    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
         let wasEnabled = CodexSharedPreferences.autopilotEnabled
         let isEnabled = state.isEnabled
 
@@ -180,6 +181,7 @@ struct SetAutomaticSwitchAccountIntent: AppIntent {
 
         if wasEnabled == isEnabled {
             return .result(
+                value: state,
                 dialog: IntentDialog(
                     isEnabled
                         ? "Automatically Switch Account is already on."
@@ -189,6 +191,7 @@ struct SetAutomaticSwitchAccountIntent: AppIntent {
         }
 
         return .result(
+            value: state,
             dialog: IntentDialog(
                 isEnabled
                     ? "Automatically Switch Account is on."

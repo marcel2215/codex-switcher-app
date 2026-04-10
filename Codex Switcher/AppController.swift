@@ -7,6 +7,7 @@
 
 import AppKit
 import AppIntents
+import CoreSpotlight
 import Foundation
 import IOKit.ps
 import Observation
@@ -35,7 +36,6 @@ final class AppController {
     private nonisolated static let autopilotSessionQuietWindow: TimeInterval = 45
     private nonisolated static let autopilotTaskTriggeredMinimumGap: TimeInterval = 90
     private nonisolated static let autopilotWakeDelay: TimeInterval = 0
-    private nonisolated static let mainApplicationBundleIdentifier = "com.marcel2215.codexswitcher"
 
     var selection: Set<UUID> = [] {
         didSet {
@@ -75,8 +75,8 @@ final class AppController {
     @ObservationIgnored private var initializationTask: Task<Void, Never>?
     @ObservationIgnored private var switchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSwitchOperationID: UUID?
-    @ObservationIgnored private var remoteSwitchObservationTask: Task<Void, Never>?
-    @ObservationIgnored private var sharedCommandObservationTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var remoteSwitchObserver: NSObjectProtocol?
+    @ObservationIgnored nonisolated(unsafe) private var sharedCommandObserver: NSObjectProtocol?
     @ObservationIgnored private var systemStateObservationTasks: [Task<Void, Never>] = []
     @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitPollingTask: Task<Void, Never>?
@@ -135,8 +135,12 @@ final class AppController {
         sharedStatePublishTask?.cancel()
         rateLimitPollingTask?.cancel()
         autopilotTask?.cancel()
-        remoteSwitchObservationTask?.cancel()
-        sharedCommandObservationTask?.cancel()
+        if let remoteSwitchObserver {
+            DistributedNotificationCenter.default().removeObserver(remoteSwitchObserver)
+        }
+        if let sharedCommandObserver {
+            DistributedNotificationCenter.default().removeObserver(sharedCommandObserver)
+        }
         systemStateObservationTasks.forEach { $0.cancel() }
     }
 
@@ -892,7 +896,8 @@ final class AppController {
 
     func processPendingSharedCommands(
         allowsUnitTestExecution: Bool = false,
-        queue: CodexSharedAppCommandQueue = CodexSharedAppCommandQueue()
+        queue: CodexSharedAppCommandQueue = CodexSharedAppCommandQueue(),
+        resultStore: CodexSharedAppCommandResultStore = CodexSharedAppCommandResultStore()
     ) async {
         guard allowsUnitTestExecution || !Self.isRunningMainApplicationUnitTests else {
             return
@@ -947,6 +952,20 @@ final class AppController {
                     continue
                 }
 
+                if let result = outcome.result {
+                    do {
+                        // Intents wait on this shared result file, so persist
+                        // the completion before dropping the durable queue item.
+                        try resultStore.save(result)
+                    } catch {
+                        logger.error(
+                            "Couldn't save shared app command result \(command.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
+                        )
+                        deferredAnyCommand = true
+                        continue
+                    }
+                }
+
                 acknowledgedAnyCommand = true
                 do {
                     try queue.removeCommand(id: command.id)
@@ -983,7 +1002,8 @@ final class AppController {
     /// that another queue scan is needed after the current pass finishes.
     func requestPendingSharedCommandsProcessing(
         allowsUnitTestExecution: Bool = false,
-        queue: CodexSharedAppCommandQueue = CodexSharedAppCommandQueue()
+        queue: CodexSharedAppCommandQueue = CodexSharedAppCommandQueue(),
+        resultStore: CodexSharedAppCommandResultStore = CodexSharedAppCommandResultStore()
     ) {
         if isProcessingSharedCommands {
             shouldProcessSharedCommandsAgain = true
@@ -997,27 +1017,27 @@ final class AppController {
 
             await self.processPendingSharedCommands(
                 allowsUnitTestExecution: allowsUnitTestExecution,
-                queue: queue
+                queue: queue,
+                resultStore: resultStore
             )
         }
     }
 
     private func startObservingSharedCommandsIfNeeded() {
-        guard sharedCommandObservationTask == nil else {
+        guard sharedCommandObserver == nil else {
             return
         }
 
-        sharedCommandObservationTask = Task { @MainActor [weak self] in
-            guard let self else {
-                return
-            }
+        sharedCommandObserver = DistributedNotificationCenter.default().addObserver(
+            forName: CodexSharedAppCommandSignal.didEnqueueCommandNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    return
+                }
 
-            let notifications = DistributedNotificationCenter.default().notifications(
-                named: CodexSharedAppCommandSignal.didEnqueueCommandNotification,
-                object: nil
-            )
-
-            for await _ in notifications {
                 self.requestPendingSharedCommandsProcessing()
             }
         }
@@ -1026,49 +1046,135 @@ final class AppController {
     private struct SharedAppCommandHandlingOutcome: Equatable {
         let shouldAcknowledge: Bool
         let shouldTerminateAfterAcknowledgement: Bool
+        let result: CodexSharedAppCommandResult?
 
         static let handled = SharedAppCommandHandlingOutcome(
             shouldAcknowledge: true,
-            shouldTerminateAfterAcknowledgement: false
+            shouldTerminateAfterAcknowledgement: false,
+            result: nil
         )
         static let retryLater = SharedAppCommandHandlingOutcome(
             shouldAcknowledge: false,
-            shouldTerminateAfterAcknowledgement: false
+            shouldTerminateAfterAcknowledgement: false,
+            result: nil
         )
         static let handledAndTerminate = SharedAppCommandHandlingOutcome(
             shouldAcknowledge: true,
-            shouldTerminateAfterAcknowledgement: true
+            shouldTerminateAfterAcknowledgement: true,
+            result: nil
         )
     }
 
     private func handleSharedAppCommand(_ command: CodexSharedAppCommand) async -> SharedAppCommandHandlingOutcome {
         switch command.action {
         case .captureCurrentAccount:
-            return await captureCurrentAccountNow(allowsInteractiveRecovery: false)
-                ? .handled
-                : .retryLater
+            guard await captureCurrentAccountNow(allowsInteractiveRecovery: false) else {
+                guard command.expectsResult else {
+                    return .retryLater
+                }
+
+                return SharedAppCommandHandlingOutcome(
+                    shouldAcknowledge: true,
+                    shouldTerminateAfterAcknowledgement: false,
+                    result: sharedCommandResult(
+                        for: command,
+                        status: .failure,
+                        message: "Codex Switcher couldn't save the current account."
+                    )
+                )
+            }
+
+            let savedAccount = activeIdentityKey.flatMap { identityKey in
+                try? fetchAccounts().first(where: { $0.identityKey == identityKey })
+            }
+            let message = savedAccount.map { "Saved \"\($0.name)\"." } ?? "Saved the current Codex account."
+            return SharedAppCommandHandlingOutcome(
+                shouldAcknowledge: true,
+                shouldTerminateAfterAcknowledgement: false,
+                result: sharedCommandResult(
+                    for: command,
+                    status: .success,
+                    message: message,
+                    accountIdentityKey: savedAccount?.identityKey ?? activeIdentityKey
+                )
+            )
 
         case .removeAccount:
             guard
                 let identityKey = command.accountIdentityKey,
                 !identityKey.isEmpty
             else {
-                return .handled
+                return SharedAppCommandHandlingOutcome(
+                    shouldAcknowledge: true,
+                    shouldTerminateAfterAcknowledgement: false,
+                    result: sharedCommandResult(
+                        for: command,
+                        status: .failure,
+                        message: "Codex Switcher couldn't determine which account to remove."
+                    )
+                )
             }
 
             do {
                 guard let account = try fetchAccounts().first(where: { $0.identityKey == identityKey }) else {
-                    return .handled
+                    return SharedAppCommandHandlingOutcome(
+                        shouldAcknowledge: true,
+                        shouldTerminateAfterAcknowledgement: false,
+                        result: sharedCommandResult(
+                            for: command,
+                            status: .success,
+                            message: "That Codex account was already removed.",
+                            accountIdentityKey: identityKey
+                        )
+                    )
                 }
 
-                return await removeAccountsNow(withIDs: [account.id], allowsInteractiveRecovery: false)
-                    ? .handled
-                    : .retryLater
+                guard await removeAccountsNow(withIDs: [account.id], allowsInteractiveRecovery: false) else {
+                    guard command.expectsResult else {
+                        return .retryLater
+                    }
+
+                    return SharedAppCommandHandlingOutcome(
+                        shouldAcknowledge: true,
+                        shouldTerminateAfterAcknowledgement: false,
+                        result: sharedCommandResult(
+                            for: command,
+                            status: .failure,
+                            message: "Codex Switcher couldn't remove \"\(account.name)\".",
+                            accountIdentityKey: identityKey
+                        )
+                    )
+                }
+
+                return SharedAppCommandHandlingOutcome(
+                    shouldAcknowledge: true,
+                    shouldTerminateAfterAcknowledgement: false,
+                    result: sharedCommandResult(
+                        for: command,
+                        status: .success,
+                        message: "Removed \"\(account.name)\".",
+                        accountIdentityKey: identityKey
+                    )
+                )
             } catch {
                 logger.error(
                     "Couldn't remove shared-command account \(identityKey, privacy: .public): \(String(describing: error), privacy: .private)"
                 )
-                return .retryLater
+
+                guard command.expectsResult else {
+                    return .retryLater
+                }
+
+                return SharedAppCommandHandlingOutcome(
+                    shouldAcknowledge: true,
+                    shouldTerminateAfterAcknowledgement: false,
+                    result: sharedCommandResult(
+                        for: command,
+                        status: .failure,
+                        message: "Codex Switcher couldn't remove that account.",
+                        accountIdentityKey: identityKey
+                    )
+                )
             }
 
         case .quitApplication:
@@ -1090,27 +1196,45 @@ final class AppController {
 
     private func runningMainApplicationProcesses() -> [CodexSharedAppProcessIdentity] {
         NSRunningApplication
-            .runningApplications(withBundleIdentifier: Self.mainApplicationBundleIdentifier)
+            .runningApplications(withBundleIdentifier: CodexSharedApplicationIdentity.mainApplicationBundleIdentifier)
             .map(CodexSharedAppProcessIdentity.init(runningApplication:))
     }
 
+    private func sharedCommandResult(
+        for command: CodexSharedAppCommand,
+        status: CodexSharedAppCommandResultStatus,
+        message: String,
+        accountIdentityKey: String? = nil
+    ) -> CodexSharedAppCommandResult? {
+        guard command.expectsResult else {
+            return nil
+        }
+
+        return CodexSharedAppCommandResult(
+            commandID: command.id,
+            status: status,
+            message: message,
+            accountIdentityKey: accountIdentityKey
+        )
+    }
+
     private func startObservingRemoteSwitchesIfNeeded() {
-        guard remoteSwitchObservationTask == nil else {
+        guard remoteSwitchObserver == nil else {
             return
         }
 
-        remoteSwitchObservationTask = Task { @MainActor [weak self] in
-            let notifications = DistributedNotificationCenter.default().notifications(
-                named: CodexSharedSwitchFeedback.didSwitchAccountNotification,
-                object: nil
-            )
+        remoteSwitchObserver = DistributedNotificationCenter.default().addObserver(
+            forName: CodexSharedSwitchFeedback.didSwitchAccountNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] notification in
+            guard let signal = CodexSharedSwitchFeedback.signal(from: notification) else {
+                return
+            }
 
-            for await notification in notifications {
-                guard
-                    let self,
-                    let signal = CodexSharedSwitchFeedback.signal(from: notification)
-                else {
-                    continue
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    return
                 }
 
                 await self.handleRemoteSwitchSignal(signal)
@@ -2460,12 +2584,25 @@ final class AppController {
 
         sharedStatePublishTask?.cancel()
         sharedStatePublishTask = Task.detached(priority: .utility) {
+            let sharedStateLogger = Logger(
+                subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+                category: "SharedState"
+            )
+
             do {
                 if !immediate {
                     try? await Task.sleep(for: .milliseconds(150))
                     try Task.checkCancellation()
                 }
                 try CodexSharedStateStore().save(sharedState)
+                try Task.checkCancellation()
+                do {
+                    try await Self.refreshSpotlightIndex(with: sharedState)
+                } catch {
+                    sharedStateLogger.error(
+                        "Couldn't refresh Spotlight index from shared state: \(String(describing: error), privacy: .private)"
+                    )
+                }
                 await MainActor.run {
                     CodexSwitcherAppShortcuts.updateAppShortcutParameters()
                 }
@@ -2473,11 +2610,7 @@ final class AppController {
             } catch is CancellationError {
                 return
             } catch {
-                let logger = Logger(
-                    subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
-                    category: "SharedState"
-                )
-                logger.error("Couldn't publish shared widget state: \(String(describing: error), privacy: .private)")
+                sharedStateLogger.error("Couldn't publish shared widget state: \(String(describing: error), privacy: .private)")
             }
         }
     }
@@ -2515,6 +2648,18 @@ final class AppController {
         )
     }
 
+    private nonisolated static func refreshSpotlightIndex(with sharedState: SharedCodexState) async throws {
+        let searchableIndex = CSSearchableIndex.default()
+        try await searchableIndex.deleteAppEntities(ofType: CodexAccountEntity.self)
+
+        let entities = CodexSharedAccountIntentResolver.allEntities(in: sharedState)
+        guard !entities.isEmpty else {
+            return
+        }
+
+        try await searchableIndex.indexAppEntities(entities)
+    }
+
     private func selectedSharedAccountIdentityKey(from accounts: [StoredAccount]) -> String? {
         guard isPrimarySelectionContextPresented else {
             return nil
@@ -2532,7 +2677,7 @@ final class AppController {
     }
 
     private nonisolated static var isRunningMainApplicationUnitTests: Bool {
-        Bundle.main.bundleIdentifier == mainApplicationBundleIdentifier
+        Bundle.main.bundleIdentifier == CodexSharedApplicationIdentity.mainApplicationBundleIdentifier
             && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 

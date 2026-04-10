@@ -22,6 +22,7 @@ struct CodexSharedAppCommand: Codable, Equatable, Identifiable, Sendable {
     let action: CodexSharedAppCommandAction
     let accountIdentityKey: String?
     let targetProcess: CodexSharedAppProcessIdentity?
+    let expectsResult: Bool
     let requestedAt: Date
 
     nonisolated init(
@@ -29,6 +30,7 @@ struct CodexSharedAppCommand: Codable, Equatable, Identifiable, Sendable {
         action: CodexSharedAppCommandAction,
         accountIdentityKey: String? = nil,
         targetProcess: CodexSharedAppProcessIdentity? = nil,
+        expectsResult: Bool = false,
         requestedAt: Date = .now
     ) {
         self.id = id
@@ -36,6 +38,7 @@ struct CodexSharedAppCommand: Codable, Equatable, Identifiable, Sendable {
         self.accountIdentityKey = accountIdentityKey?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         self.targetProcess = targetProcess
+        self.expectsResult = expectsResult
         self.requestedAt = requestedAt
     }
 
@@ -140,7 +143,7 @@ enum CodexSharedAppCommandSignal {
         "com.marcel2215.codexswitcher.didEnqueueAppCommand"
     )
 
-    nonisolated static let mainApplicationBundleIdentifier = "com.marcel2215.codexswitcher"
+    nonisolated static let mainApplicationBundleIdentifier = CodexSharedApplicationIdentity.mainApplicationBundleIdentifier
 
     nonisolated static func postCommandQueuedSignal() {
         DistributedNotificationCenter.default().post(

@@ -134,8 +134,8 @@ private struct SavedAccountWidgetView: View {
     }
 
     private func configuredSwitchIntent(for account: SharedCodexAccountRecord) -> SwitchAccountIntent {
-        let intent = SwitchAccountIntent()
-        intent.account = CodexAccountEntity(record: account, currentAccountID: entry.state.currentAccountID)
-        return intent
+        SwitchAccountIntent(
+            account: CodexAccountEntity(record: account, currentAccountID: entry.state.currentAccountID)
+        )
     }
 }

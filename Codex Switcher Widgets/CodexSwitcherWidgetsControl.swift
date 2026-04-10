@@ -12,7 +12,7 @@ struct QuickSwitchControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(
             kind: CodexSharedSurfaceKinds.quickSwitchControl,
-            intent: SwitchAccountIntent.self
+            intent: SwitchAccountControlIntent.self
         ) { configuration in
             ControlWidgetButton(action: configuration) {
                 Label(
