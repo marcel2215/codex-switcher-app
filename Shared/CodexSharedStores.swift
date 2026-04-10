@@ -40,9 +40,14 @@ struct CodexSharedStateStore: Sendable {
 
 struct CodexSharedBookmarkStore: Sendable {
     private let baseURL: URL?
+    private let filename: String
 
-    nonisolated init(baseURL: URL? = nil) {
+    nonisolated init(
+        baseURL: URL? = nil,
+        filename: String = CodexSharedAppGroup.bookmarkFilename
+    ) {
         self.baseURL = baseURL
+        self.filename = filename
     }
 
     nonisolated func load() throws -> Data? {
@@ -70,6 +75,6 @@ struct CodexSharedBookmarkStore: Sendable {
 
     private nonisolated func bookmarkFileURL() throws -> URL {
         let containerURL = try baseURL ?? CodexSharedAppGroup.containerURL()
-        return containerURL.appending(path: CodexSharedAppGroup.bookmarkFilename, directoryHint: .notDirectory)
+        return containerURL.appending(path: filename, directoryHint: .notDirectory)
     }
 }

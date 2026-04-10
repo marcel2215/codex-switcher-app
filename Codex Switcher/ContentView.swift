@@ -212,34 +212,34 @@ struct ContentView: View {
     }
 
     private var authStatusBanner: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(controller.authAccessState.title, systemImage: controller.authAccessState.systemImage)
-                .font(.headline)
-                .accessibilityIdentifier("auth-status-title")
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(controller.authAccessState.title, systemImage: controller.authAccessState.systemImage)
+                    .font(.headline)
+                    .accessibilityIdentifier("auth-status-title")
 
-            Text(controller.authAccessState.message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("auth-status-message")
+                Text(controller.authAccessState.message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("auth-status-message")
 
-            HStack(spacing: 12) {
-                Button(controller.linkButtonTitle) {
-                    controller.beginLinkingCodexLocation()
-                }
-                .accessibilityIdentifier("auth-link-button")
-
-                if controller.authAccessState != .unlinked {
-                    Button("Refresh") {
-                        controller.refresh()
+                HStack(spacing: 12) {
+                    Button(controller.linkButtonTitle) {
+                        controller.beginLinkingCodexLocation()
                     }
-                    .accessibilityIdentifier("auth-refresh-button")
+                    .accessibilityIdentifier("auth-link-button")
+
+                    if controller.authAccessState != .unlinked {
+                        Button("Refresh") {
+                            controller.refresh()
+                        }
+                        .accessibilityIdentifier("auth-refresh-button")
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("auth-status-banner")
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     @ViewBuilder

@@ -41,4 +41,28 @@ struct CodexSharedProcessLock: Sendable {
         defer { flock(fileDescriptor, LOCK_UN) }
         return try body()
     }
+
+    nonisolated func withExclusiveAccess<T>(_ body: () async throws -> T) async throws -> T {
+        let containerURL = try baseURL ?? CodexSharedAppGroup.containerURL()
+        let lockURL = containerURL
+            .appending(path: CodexSharedAppGroup.lockFilename, directoryHint: .notDirectory)
+
+        if !FileManager.default.fileExists(atPath: lockURL.path) {
+            FileManager.default.createFile(atPath: lockURL.path, contents: nil)
+        }
+
+        let fileDescriptor = open(lockURL.path, O_RDWR)
+        guard fileDescriptor >= 0 else {
+            throw POSIXError(.EIO)
+        }
+
+        defer { close(fileDescriptor) }
+
+        guard flock(fileDescriptor, LOCK_EX) == 0 else {
+            throw POSIXError(.EWOULDBLOCK)
+        }
+
+        defer { flock(fileDescriptor, LOCK_UN) }
+        return try await body()
+    }
 }

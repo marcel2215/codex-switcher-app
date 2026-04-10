@@ -10,7 +10,8 @@ import Foundation
 enum CodexSharedAppGroup {
     nonisolated static let identifier = "group.com.marcel2215.codexswitcher"
     nonisolated static let stateFilename = "SharedCodexState.json"
-    nonisolated static let bookmarkFilename = "LinkedCodexFolder.bookmark"
+    nonisolated static let bookmarkFilename = "LinkedCodexFolderShared.bookmark"
+    nonisolated static let legacyBookmarkFilename = "LinkedCodexFolder.bookmark"
     nonisolated static let appCommandFilename = "PendingCodexAppCommands.json"
     nonisolated static let appCommandResultFilename = "PendingCodexAppCommandResults.json"
     nonisolated static let lockFilename = "CodexAccountSwitch.lock"

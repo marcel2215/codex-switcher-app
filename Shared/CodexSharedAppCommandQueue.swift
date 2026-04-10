@@ -13,6 +13,8 @@ import AppKit
 
 enum CodexSharedAppCommandAction: String, Codable, Sendable {
     case captureCurrentAccount
+    case switchAccount
+    case switchBestAccount
     case removeAccount
     case quitApplication
 }

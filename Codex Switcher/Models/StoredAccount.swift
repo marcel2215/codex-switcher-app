@@ -17,10 +17,11 @@ final class StoredAccount {
     var lastLoginAt: Date?
     var customOrder: Double = 0
 
-    // Stores the full auth.json snapshot so SwiftData + CloudKit can sync
-    // saved accounts across devices. The controller also mirrors the same
-    // value into the local Keychain as a best-effort device-local cache.
+    // Migration-only legacy field. New builds move auth snapshots into the
+    // shared keychain and clear this value so SwiftData/CloudKit only carry
+    // metadata, not the raw auth.json contents.
     var authFileContents: String?
+    var hasLocalSnapshot: Bool = false
     var authModeRaw: String = "chatgpt"
     var emailHint: String?
     var accountIdentifier: String?
@@ -42,6 +43,7 @@ final class StoredAccount {
         lastLoginAt: Date? = nil,
         customOrder: Double,
         authFileContents: String? = nil,
+        hasLocalSnapshot: Bool = false,
         authModeRaw: String,
         emailHint: String? = nil,
         accountIdentifier: String? = nil,
@@ -58,6 +60,7 @@ final class StoredAccount {
         self.lastLoginAt = lastLoginAt
         self.customOrder = customOrder
         self.authFileContents = authFileContents
+        self.hasLocalSnapshot = hasLocalSnapshot
         self.authModeRaw = authModeRaw
         self.emailHint = emailHint
         self.accountIdentifier = accountIdentifier

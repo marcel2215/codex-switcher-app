@@ -18,6 +18,7 @@ enum CodexSharedSwitchError: LocalizedError {
     case missingStoredSnapshot(String)
     case invalidStoredSnapshot(String)
     case missingBookmark
+    case bookmarkRefreshRequired
     case unsupportedAuthState(SharedCodexAuthState)
     case accessDenied(URL)
     case linkedFolderUnavailable(URL)
@@ -39,6 +40,8 @@ enum CodexSharedSwitchError: LocalizedError {
             return "The saved auth snapshot for \(accountName) is no longer valid."
         case .missingBookmark:
             return "Choose the Codex folder before switching accounts."
+        case .bookmarkRefreshRequired:
+            return "Open Codex Switcher once to refresh access to the linked Codex folder."
         case let .unsupportedAuthState(authState):
             switch authState {
             case .unlinked:
@@ -92,15 +95,23 @@ enum CodexSharedAccountSwitchOutcome: Sendable, Equatable {
 struct CodexSharedAccountSwitchService: Sendable {
     private let stateStore: CodexSharedStateStore
     private let bookmarkStore: CodexSharedBookmarkStore
+    private let legacyBookmarkStore: CodexSharedBookmarkStore
+    private let snapshotStore: AccountSnapshotStoring
     private let lock: CodexSharedProcessLock
 
     nonisolated init(
         stateStore: CodexSharedStateStore = CodexSharedStateStore(),
         bookmarkStore: CodexSharedBookmarkStore = CodexSharedBookmarkStore(),
+        legacyBookmarkStore: CodexSharedBookmarkStore = CodexSharedBookmarkStore(
+            filename: CodexSharedAppGroup.legacyBookmarkFilename
+        ),
+        snapshotStore: AccountSnapshotStoring? = nil,
         lock: CodexSharedProcessLock = CodexSharedProcessLock()
     ) {
         self.stateStore = stateStore
         self.bookmarkStore = bookmarkStore
+        self.legacyBookmarkStore = legacyBookmarkStore
+        self.snapshotStore = snapshotStore ?? SharedKeychainSnapshotStore()
         self.lock = lock
     }
 
@@ -108,10 +119,10 @@ struct CodexSharedAccountSwitchService: Sendable {
     /// process. The service never touches SwiftData directly; it only consumes
     /// the app-prepared App Group snapshot and the shared security-scoped
     /// bookmark so extensions stay lightweight and deterministic.
-    nonisolated func switchToAccount(identityKey: String) throws -> CodexSharedAccountSwitchOutcome {
+    nonisolated func switchToAccount(identityKey: String) async throws -> CodexSharedAccountSwitchOutcome {
         do {
-            let outcome = try lock.withExclusiveAccess {
-                try performSwitch(identityKey: identityKey)
+            let outcome = try await lock.withExclusiveAccess {
+                try await performSwitch(identityKey: identityKey)
             }
             return finalizeSwitchOutcome(outcome)
         } catch let error as CodexSharedSwitchError {
@@ -121,15 +132,15 @@ struct CodexSharedAccountSwitchService: Sendable {
         }
     }
 
-    nonisolated func switchToBestAccount() throws -> CodexSharedAccountSwitchOutcome {
+    nonisolated func switchToBestAccount() async throws -> CodexSharedAccountSwitchOutcome {
         do {
-            let outcome = try lock.withExclusiveAccess {
+            let outcome = try await lock.withExclusiveAccess {
                 let state = try stateStore.load()
                 guard let bestAccount = Self.bestRateLimitCandidate(in: state.accounts) else {
                     throw CodexSharedSwitchError.noBestAccountAvailable
                 }
 
-                return try performSwitch(identityKey: bestAccount.id, initialState: state)
+                return try await performSwitch(identityKey: bestAccount.id, initialState: state)
             }
             return finalizeSwitchOutcome(outcome)
         } catch let error as CodexSharedSwitchError {
@@ -157,7 +168,7 @@ struct CodexSharedAccountSwitchService: Sendable {
     private nonisolated func performSwitch(
         identityKey: String,
         initialState: SharedCodexState? = nil
-    ) throws -> CodexSharedAccountSwitchOutcome {
+    ) async throws -> CodexSharedAccountSwitchOutcome {
         var state = try initialState ?? stateStore.load()
 
         guard state.authState.canAttemptSwitch else {
@@ -168,7 +179,14 @@ struct CodexSharedAccountSwitchService: Sendable {
             throw CodexSharedSwitchError.accountNotFound(identityKey)
         }
 
-        guard let authFileContents = account.authFileContents, !authFileContents.isEmpty else {
+        guard account.hasLocalSnapshot else {
+            throw CodexSharedSwitchError.missingStoredSnapshot(account.name)
+        }
+
+        let authFileContents: String
+        do {
+            authFileContents = try await snapshotStore.loadSnapshot(forIdentityKey: identityKey)
+        } catch AccountSnapshotStoreError.missingSnapshot {
             throw CodexSharedSwitchError.missingStoredSnapshot(account.name)
         }
 
@@ -179,13 +197,22 @@ struct CodexSharedAccountSwitchService: Sendable {
 
         let folderURL = try resolveLinkedFolderURL()
         var didWriteAuthFile = false
-        try withAuthorizedFolder(folderURL) { authorizedFolderURL in
+        try await withAuthorizedFolder(folderURL) { authorizedFolderURL in
             let authFileURL = authorizedFolderURL.appending(path: "auth.json", directoryHint: .notDirectory)
 
             if FileManager.default.fileExists(atPath: authFileURL.path) {
                 let existingContents = try coordinatedRead(of: authFileURL)
                 if existingContents == authFileContents {
                     return
+                }
+
+                if let existingSnapshot = try? SharedCodexAuthFile.parse(contents: existingContents) {
+                    try await preserveExistingSnapshotIfKnown(
+                        contents: existingContents,
+                        snapshot: existingSnapshot,
+                        knownAccounts: state.accounts,
+                        replacingIdentityKey: identityKey
+                    )
                 }
             }
 
@@ -221,6 +248,22 @@ struct CodexSharedAccountSwitchService: Sendable {
         return didWriteAuthFile ? .switched(account) : .alreadyCurrent(account)
     }
 
+    private nonisolated func preserveExistingSnapshotIfKnown(
+        contents: String,
+        snapshot: SharedCodexAuthSnapshot,
+        knownAccounts: [SharedCodexAccountRecord],
+        replacingIdentityKey: String
+    ) async throws {
+        guard
+            snapshot.identityKey != replacingIdentityKey,
+            knownAccounts.contains(where: { $0.id == snapshot.identityKey })
+        else {
+            return
+        }
+
+        try await snapshotStore.saveSnapshot(contents, forIdentityKey: snapshot.identityKey)
+    }
+
     private nonisolated func parseStoredSnapshot(contents: String, accountName: String) throws -> SharedCodexAuthSnapshot {
         do {
             return try SharedCodexAuthFile.parse(contents: contents)
@@ -231,6 +274,9 @@ struct CodexSharedAccountSwitchService: Sendable {
 
     private nonisolated func resolveLinkedFolderURL() throws -> URL {
         guard let bookmarkData = try bookmarkStore.load() else {
+            if (try? legacyBookmarkStore.load()) != nil {
+                throw CodexSharedSwitchError.bookmarkRefreshRequired
+            }
             throw CodexSharedSwitchError.missingBookmark
         }
 
@@ -239,7 +285,7 @@ struct CodexSharedAccountSwitchService: Sendable {
         do {
             folderURL = try URL(
                 resolvingBookmarkData: bookmarkData,
-                options: [.withSecurityScope, .withoutImplicitStartAccessing, .withoutUI],
+                options: [.withoutImplicitStartAccessing, .withoutUI],
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             ).standardizedFileURL
@@ -252,7 +298,7 @@ struct CodexSharedAccountSwitchService: Sendable {
             // not fail the switch just because refreshing persistence failed.
             do {
                 let refreshedBookmark = try folderURL.bookmarkData(
-                    options: [.withSecurityScope],
+                    options: [],
                     includingResourceValuesForKeys: nil,
                     relativeTo: nil
                 )
@@ -306,7 +352,10 @@ struct CodexSharedAccountSwitchService: Sendable {
         return URL(filePath: trimmedLinkedFolderPath)
     }
 
-    private nonisolated func withAuthorizedFolder<T>(_ folderURL: URL, _ body: (URL) throws -> T) throws -> T {
+    private nonisolated func withAuthorizedFolder<T>(
+        _ folderURL: URL,
+        _ body: (URL) async throws -> T
+    ) async throws -> T {
         let started = folderURL.startAccessingSecurityScopedResource()
         guard started else {
             throw CodexSharedSwitchError.accessDenied(folderURL)
@@ -317,7 +366,7 @@ struct CodexSharedAccountSwitchService: Sendable {
             throw CodexSharedSwitchError.linkedFolderUnavailable(folderURL)
         }
 
-        return try body(folderURL)
+        return try await body(folderURL)
     }
 
     private nonisolated func coordinatedRead(of authFileURL: URL) throws -> String {
@@ -390,6 +439,8 @@ struct CodexSharedAccountSwitchService: Sendable {
             state.authState = .unlinked
             state.linkedFolderPath = nil
             state.currentAccountID = nil
+        case .bookmarkRefreshRequired:
+            return
         case let .accessDenied(folderURL):
             state.authState = .accessDenied
             state.linkedFolderPath = folderURL.path
@@ -419,6 +470,7 @@ struct CodexSharedAccountSwitchService: Sendable {
         in accounts: [SharedCodexAccountRecord]
     ) -> SharedCodexAccountRecord? {
         accounts
+            .filter(\.hasLocalSnapshot)
             .sorted { lhs, rhs in
                 if areEquivalentForRateLimitSort(lhs, rhs) {
                     return lhs.sortOrder < rhs.sortOrder

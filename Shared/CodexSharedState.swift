@@ -41,11 +41,88 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
     var fiveHourLimitUsedPercent: Int?
     var rateLimitsObservedAt: Date?
     var sortOrder: Double
-    var authFileContents: String?
+    var hasLocalSnapshot: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case iconSystemName
+        case emailHint
+        case accountIdentifier
+        case authModeRaw
+        case lastLoginAt
+        case sevenDayLimitUsedPercent
+        case fiveHourLimitUsedPercent
+        case rateLimitsObservedAt
+        case sortOrder
+        case hasLocalSnapshot
+        case authFileContents
+    }
+
+    init(
+        id: String,
+        name: String,
+        iconSystemName: String,
+        emailHint: String?,
+        accountIdentifier: String?,
+        authModeRaw: String,
+        lastLoginAt: Date?,
+        sevenDayLimitUsedPercent: Int?,
+        fiveHourLimitUsedPercent: Int?,
+        rateLimitsObservedAt: Date?,
+        sortOrder: Double,
+        hasLocalSnapshot: Bool
+    ) {
+        self.id = id
+        self.name = name
+        self.iconSystemName = iconSystemName
+        self.emailHint = emailHint
+        self.accountIdentifier = accountIdentifier
+        self.authModeRaw = authModeRaw
+        self.lastLoginAt = lastLoginAt
+        self.sevenDayLimitUsedPercent = sevenDayLimitUsedPercent
+        self.fiveHourLimitUsedPercent = fiveHourLimitUsedPercent
+        self.rateLimitsObservedAt = rateLimitsObservedAt
+        self.sortOrder = sortOrder
+        self.hasLocalSnapshot = hasLocalSnapshot
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        iconSystemName = try container.decode(String.self, forKey: .iconSystemName)
+        emailHint = try container.decodeIfPresent(String.self, forKey: .emailHint)
+        accountIdentifier = try container.decodeIfPresent(String.self, forKey: .accountIdentifier)
+        authModeRaw = try container.decode(String.self, forKey: .authModeRaw)
+        lastLoginAt = try container.decodeIfPresent(Date.self, forKey: .lastLoginAt)
+        sevenDayLimitUsedPercent = try container.decodeIfPresent(Int.self, forKey: .sevenDayLimitUsedPercent)
+        fiveHourLimitUsedPercent = try container.decodeIfPresent(Int.self, forKey: .fiveHourLimitUsedPercent)
+        rateLimitsObservedAt = try container.decodeIfPresent(Date.self, forKey: .rateLimitsObservedAt)
+        sortOrder = try container.decode(Double.self, forKey: .sortOrder)
+        hasLocalSnapshot = try container.decodeIfPresent(Bool.self, forKey: .hasLocalSnapshot)
+            ?? (try container.decodeIfPresent(String.self, forKey: .authFileContents)?.isEmpty == false)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(iconSystemName, forKey: .iconSystemName)
+        try container.encodeIfPresent(emailHint, forKey: .emailHint)
+        try container.encodeIfPresent(accountIdentifier, forKey: .accountIdentifier)
+        try container.encode(authModeRaw, forKey: .authModeRaw)
+        try container.encodeIfPresent(lastLoginAt, forKey: .lastLoginAt)
+        try container.encodeIfPresent(sevenDayLimitUsedPercent, forKey: .sevenDayLimitUsedPercent)
+        try container.encodeIfPresent(fiveHourLimitUsedPercent, forKey: .fiveHourLimitUsedPercent)
+        try container.encodeIfPresent(rateLimitsObservedAt, forKey: .rateLimitsObservedAt)
+        try container.encode(sortOrder, forKey: .sortOrder)
+        try container.encode(hasLocalSnapshot, forKey: .hasLocalSnapshot)
+    }
 }
 
 nonisolated struct SharedCodexState: Codable, Sendable {
-    nonisolated static let currentSchemaVersion = 3
+    nonisolated static let currentSchemaVersion = 4
 
     var schemaVersion: Int
     var authState: SharedCodexAuthState

@@ -61,7 +61,7 @@ enum CodexCredentialStoreHint: String, Sendable, Equatable {
 }
 
 protocol AuthFileManaging: AnyObject {
-    func linkedLocation() async -> AuthLinkedLocation?
+    func linkedLocation() async throws -> AuthLinkedLocation?
     func linkLocation(_ selectedURL: URL) async throws -> AuthLinkedLocation
     func clearLinkedLocation() async
     func readAuthFile() async throws -> AuthFileReadResult
@@ -118,8 +118,13 @@ enum AuthFileAccessError: LocalizedError, Equatable {
 actor SecurityScopedAuthFileManager: AuthFileManaging {
     private let legacyDefaults: UserDefaults = .standard
     private let fileManager: FileManager = .default
-    private let bookmarkStore = CodexSharedBookmarkStore()
-    private let bookmarkKey = "CodexLinkedFolderBookmark"
+    private let sharedBookmarkStore = CodexSharedBookmarkStore()
+    private let legacySharedBookmarkStore = CodexSharedBookmarkStore(
+        filename: CodexSharedAppGroup.legacyBookmarkFilename
+    )
+    private let localBookmarkKey = "CodexLinkedFolderAppScopedBookmark"
+    private let legacyBookmarkKey = "CodexLinkedFolderBookmark"
+    private let linkedFolderPathKey = "CodexLinkedFolderPath"
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
         category: "AuthFileManager"
@@ -127,8 +132,8 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
     private let watcher = AuthDirectoryWatcher()
     private var onChange: (@Sendable () -> Void)?
 
-    func linkedLocation() async -> AuthLinkedLocation? {
-        guard let folderURL = await resolveLinkedFolderURLIfAvailable() else {
+    func linkedLocation() async throws -> AuthLinkedLocation? {
+        guard let folderURL = try resolveLinkedFolderURLIfAvailable() else {
             return nil
         }
 
@@ -136,14 +141,19 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
         return AuthLinkedLocation(folderURL: folderURL, credentialStoreHint: credentialStoreHint)
     }
 
-    private func resolveLinkedFolderURLIfAvailable() async -> URL? {
+    private func resolveLinkedFolderURLIfAvailable() throws -> URL? {
         do {
             return try resolveLinkedFolderURL()
+        } catch let error as AuthFileAccessError {
+            if case .accessRequired = error {
+                return nil
+            }
+
+            logger.error("Failed to resolve linked folder: \(String(describing: error), privacy: .private)")
+            throw error
         } catch {
             logger.error("Failed to resolve linked folder: \(String(describing: error), privacy: .private)")
-            clearStoredBookmark()
-            await watcher.stop()
-            return nil
+            throw error
         }
     }
 
@@ -216,7 +226,7 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
     }
 
     private func requireLinkedLocation() async throws -> AuthLinkedLocation {
-        guard let folderURL = await resolveLinkedFolderURLIfAvailable() else {
+        guard let folderURL = try resolveLinkedFolderURLIfAvailable() else {
             throw AuthFileAccessError.accessRequired
         }
 
@@ -225,26 +235,87 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
     }
 
     private func resolveLinkedFolderURL() throws -> URL {
-        let bookmarkData: Data
-        if let sharedBookmark = try bookmarkStore.load() {
-            bookmarkData = sharedBookmark
-        } else if let legacyBookmark = legacyDefaults.data(forKey: bookmarkKey) {
-            bookmarkData = legacyBookmark
-            try? bookmarkStore.save(legacyBookmark)
-        } else {
-            throw AuthFileAccessError.accessRequired
+        var firstResolutionError: Error?
+
+        if let localBookmarkData = legacyDefaults.data(forKey: localBookmarkKey) {
+            do {
+                return try resolveStoredBookmark(
+                    localBookmarkData,
+                    options: [.withSecurityScope, .withoutImplicitStartAccessing, .withoutUI],
+                    refreshOptions: [.withSecurityScope],
+                    shouldRewriteSplitStores: false
+                )
+            } catch {
+                firstResolutionError = error
+            }
         }
 
+        if let sharedBookmarkData = try sharedBookmarkStore.load() {
+            do {
+                return try resolveStoredBookmark(
+                    sharedBookmarkData,
+                    options: [.withoutImplicitStartAccessing, .withoutUI],
+                    refreshOptions: [],
+                    shouldRewriteSplitStores: true
+                )
+            } catch {
+                firstResolutionError = firstResolutionError ?? error
+            }
+        }
+
+        if let legacyBookmarkData = try legacyBookmarkData() {
+            do {
+                let folderURL = try resolveStoredBookmark(
+                    legacyBookmarkData,
+                    options: [.withSecurityScope, .withoutImplicitStartAccessing, .withoutUI],
+                    refreshOptions: [.withSecurityScope],
+                    shouldRewriteSplitStores: true
+                )
+                clearLegacyBookmarkArtifacts()
+                return folderURL
+            } catch {
+                firstResolutionError = firstResolutionError ?? error
+            }
+        }
+
+        if let firstResolutionError {
+            throw normalizedBookmarkResolutionError(from: firstResolutionError)
+        }
+
+        throw AuthFileAccessError.accessRequired
+    }
+
+    private func resolveStoredBookmark(
+        _ bookmarkData: Data,
+        options: URL.BookmarkResolutionOptions,
+        refreshOptions: URL.BookmarkCreationOptions,
+        shouldRewriteSplitStores: Bool
+    ) throws -> URL {
         var isStale = false
         let folderURL = try URL(
             resolvingBookmarkData: bookmarkData,
-            options: [.withSecurityScope, .withoutImplicitStartAccessing, .withoutUI],
+            options: options,
             relativeTo: nil,
             bookmarkDataIsStale: &isStale
         ).standardizedFileURL
 
-        if isStale {
-            try storeBookmark(for: folderURL)
+        if isStale || shouldRewriteSplitStores {
+            try persistBookmarks(for: folderURL)
+        } else {
+            storeLinkedFolderPath(folderURL)
+        }
+
+        if isStale, !refreshOptions.isEmpty {
+            let refreshedBookmark = try folderURL.bookmarkData(
+                options: refreshOptions,
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            if refreshOptions.contains(.withSecurityScope) {
+                legacyDefaults.set(refreshedBookmark, forKey: localBookmarkKey)
+            } else {
+                try sharedBookmarkStore.save(refreshedBookmark)
+            }
         }
 
         return folderURL
@@ -311,18 +382,31 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
     }
 
     private func storeBookmark(for folderURL: URL) throws {
-        let bookmark = try folderURL.bookmarkData(
+        try persistBookmarks(for: folderURL)
+    }
+
+    private func persistBookmarks(for folderURL: URL) throws {
+        let appScopedBookmark = try folderURL.bookmarkData(
             options: [.withSecurityScope],
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
-        try bookmarkStore.save(bookmark)
-        legacyDefaults.set(bookmark, forKey: bookmarkKey)
+        let sharedImplicitBookmark = try folderURL.bookmarkData(
+            options: [],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+
+        legacyDefaults.set(appScopedBookmark, forKey: localBookmarkKey)
+        try sharedBookmarkStore.save(sharedImplicitBookmark)
+        storeLinkedFolderPath(folderURL)
     }
 
     private func clearStoredBookmark() {
-        try? bookmarkStore.clear()
-        legacyDefaults.removeObject(forKey: bookmarkKey)
+        try? sharedBookmarkStore.clear()
+        clearLegacyBookmarkArtifacts()
+        legacyDefaults.removeObject(forKey: localBookmarkKey)
+        legacyDefaults.removeObject(forKey: linkedFolderPathKey)
     }
 
     private func restartMonitoringIfPossible() async {
@@ -332,7 +416,14 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
             return
         }
 
-        guard let folderURL = await resolveLinkedFolderURLIfAvailable() else {
+        let folderURL: URL
+        do {
+            guard let resolvedURL = try resolveLinkedFolderURLIfAvailable() else {
+                return
+            }
+            folderURL = resolvedURL
+        } catch {
+            logger.error("Failed to resolve linked folder for monitoring: \(String(describing: error), privacy: .private)")
             return
         }
 
@@ -444,6 +535,66 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
 
         return false
     }
+
+    private func legacyBookmarkData() throws -> Data? {
+        if let legacyBookmark = try legacySharedBookmarkStore.load() {
+            return legacyBookmark
+        }
+
+        if let legacyBookmark = legacyDefaults.data(forKey: legacyBookmarkKey) {
+            return legacyBookmark
+        }
+
+        return nil
+    }
+
+    private func clearLegacyBookmarkArtifacts() {
+        try? legacySharedBookmarkStore.clear()
+        legacyDefaults.removeObject(forKey: legacyBookmarkKey)
+    }
+
+    private func storeLinkedFolderPath(_ folderURL: URL) {
+        legacyDefaults.set(folderURL.path, forKey: linkedFolderPathKey)
+    }
+
+    private func linkedFolderURLHint() -> URL? {
+        guard let linkedFolderPath = legacyDefaults.string(forKey: linkedFolderPathKey) else {
+            return nil
+        }
+
+        let trimmedPath = linkedFolderPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            return nil
+        }
+
+        return URL(filePath: trimmedPath)
+    }
+
+    private func normalizedBookmarkResolutionError(from error: Error) -> AuthFileAccessError {
+        let nsError = error as NSError
+        let linkedFolderURLHint = linkedFolderURLHint()
+
+        if nsError.domain == NSCocoaErrorDomain {
+            switch nsError.code {
+            case NSFileReadNoPermissionError, NSFileWriteNoPermissionError:
+                if let linkedFolderURLHint {
+                    return .accessDenied(linkedFolderURLHint)
+                }
+            case NSFileNoSuchFileError, NSFileReadNoSuchFileError:
+                if let linkedFolderURLHint {
+                    return .locationUnavailable(linkedFolderURLHint)
+                }
+            default:
+                break
+            }
+        }
+
+        if let linkedFolderURLHint {
+            return .accessDenied(linkedFolderURLHint)
+        }
+
+        return .accessRequired
+    }
 }
 
 private actor AuthDirectoryWatcher {
@@ -451,6 +602,7 @@ private actor AuthDirectoryWatcher {
     private var fileDescriptor: CInt = -1
     private var monitoredURL: URL?
     private var isAccessingSecurityScope = false
+    private var onEvent: (@Sendable () -> Void)?
 
     func start(directoryURL: URL, onEvent: @escaping @Sendable () -> Void) throws {
         stop()
@@ -472,7 +624,19 @@ private actor AuthDirectoryWatcher {
             queue: DispatchQueue.global(qos: .utility)
         )
 
-        source.setEventHandler(handler: onEvent)
+        self.onEvent = onEvent
+        source.setEventHandler { [weak self, weak source] in
+            guard let self, let source else {
+                return
+            }
+
+            let event = source.data
+            let shouldRestart =
+                event.contains(.rename) || event.contains(.delete) || event.contains(.revoke)
+            Task {
+                await self.handleEvent(shouldRestart: shouldRestart)
+            }
+        }
         source.setCancelHandler { [descriptor, directoryURL] in
             close(descriptor)
             directoryURL.stopAccessingSecurityScopedResource()
@@ -496,5 +660,21 @@ private actor AuthDirectoryWatcher {
         fileDescriptor = -1
         monitoredURL = nil
         isAccessingSecurityScope = false
+        onEvent = nil
+    }
+
+    private func handleEvent(shouldRestart: Bool) async {
+        onEvent?()
+
+        guard
+            shouldRestart,
+            let monitoredURL,
+            let onEvent
+        else {
+            return
+        }
+
+        stop()
+        try? start(directoryURL: monitoredURL, onEvent: onEvent)
     }
 }

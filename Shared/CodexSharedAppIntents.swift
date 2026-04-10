@@ -53,12 +53,16 @@ struct CodexAccountEntity: AppEntity, IndexedEntity, Hashable, Sendable {
     @Property(title: "7d Limit Used")
     var sevenDayLimitUsedPercent: Int?
 
+    @Property(title: "Available On This Mac")
+    var hasLocalSnapshot: Bool
+
     var iconSystemName: String
     var sortOrder: Double
 
     nonisolated var displayRepresentation: DisplayRepresentation {
         let subtitleParts = [
             isCurrent ? "Current" : nil,
+            hasLocalSnapshot ? nil : "Needs local capture on this Mac",
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
         ]
@@ -77,6 +81,7 @@ struct CodexAccountEntity: AppEntity, IndexedEntity, Hashable, Sendable {
         attributeSet.displayName = name
         attributeSet.contentDescription = [
             isCurrent ? "Current account" : nil,
+            hasLocalSnapshot ? nil : "Needs local capture on this Mac",
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
         ]
@@ -87,6 +92,7 @@ struct CodexAccountEntity: AppEntity, IndexedEntity, Hashable, Sendable {
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
             isCurrent ? "Current" : nil,
+            hasLocalSnapshot ? "Available" : "Needs local capture",
             "Codex",
             "Account",
         ]
@@ -110,6 +116,7 @@ struct CodexAccountEntity: AppEntity, IndexedEntity, Hashable, Sendable {
         self.lastLoginAt = record.lastLoginAt
         self.fiveHourLimitUsedPercent = record.fiveHourLimitUsedPercent
         self.sevenDayLimitUsedPercent = record.sevenDayLimitUsedPercent
+        self.hasLocalSnapshot = record.hasLocalSnapshot
     }
 
     static func == (lhs: CodexAccountEntity, rhs: CodexAccountEntity) -> Bool {
@@ -590,7 +597,7 @@ struct SwitchAccountControlIntent: AppIntent, ControlConfigurationIntent {
         }
 
         do {
-            let outcome = try CodexSharedAccountSwitchService().switchToAccount(identityKey: account.id)
+            let outcome = try await CodexSharedAccountSwitchService().switchToAccount(identityKey: account.id)
 
             if outcome.didChangeAccount {
                 await CodexSharedSwitchFeedback.postLocalSwitchNotificationIfAuthorized(
@@ -628,6 +635,7 @@ nonisolated func mappedSwitchIntentError(from error: Error) -> Error {
 
     switch error {
     case .missingBookmark,
+         .bookmarkRefreshRequired,
          .accessDenied,
          .linkedFolderUnavailable,
          .verificationFailed,

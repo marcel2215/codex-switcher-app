@@ -68,9 +68,18 @@ enum CodexSharedSwitchFeedback {
     /// code path completing the switch. Respect the shared notification
     /// preference instead of prompting here, because the explicit settings
     /// toggle is responsible for requesting permission.
-    static func postLocalSwitchNotificationIfAuthorized(accountName: String) async {
-        let trimmedAccountName = accountName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedAccountName.isEmpty, CodexSharedPreferences.notificationsEnabled else {
+    static func postLocalSwitchNotificationIfAuthorized(
+        accountName: String,
+        kind: CodexSwitchNotificationKind = .backgroundConfirmation
+    ) async {
+        guard CodexSharedPreferences.notificationsEnabled else {
+            return
+        }
+
+        guard let content = CodexSharedSwitchNotificationContent.makeContent(
+            accountName: accountName,
+            kind: kind
+        ) else {
             return
         }
 
@@ -82,13 +91,6 @@ enum CodexSharedSwitchFeedback {
         else {
             return
         }
-
-        let content = UNMutableNotificationContent()
-        content.title = "Account Switched"
-        content.body = "Now using \"\(trimmedAccountName)\"."
-        content.sound = nil
-        content.interruptionLevel = .active
-        content.relevanceScore = 0
 
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,

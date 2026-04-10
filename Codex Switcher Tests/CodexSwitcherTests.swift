@@ -82,8 +82,9 @@ struct CodexSwitcherTests {
         #expect(controller.selection == [account.id])
         #expect(account.name == "acct-123@example.com")
         #expect(account.iconSystemName == AccountIconOption.defaultOption.systemName)
-        #expect(account.authFileContents == makeChatGPTAuthJSON(accountID: "acct-123"))
-        #expect(await secretStore.secret(for: account.id) == makeChatGPTAuthJSON(accountID: "acct-123"))
+        #expect(account.authFileContents == nil)
+        #expect(account.hasLocalSnapshot)
+        #expect(await secretStore.secret(forIdentityKey: account.identityKey) == makeChatGPTAuthJSON(accountID: "acct-123"))
     }
 
     @Test func captureFallsBackToGeneratedNameWhenEmailUnknown() async throws {
@@ -179,8 +180,9 @@ struct CodexSwitcherTests {
         await controller.refreshAuthStateForTesting()
 
         let migratedAccount = try #require(fetchAccounts(in: container.mainContext).first)
-        #expect(migratedAccount.authFileContents == legacyContents)
-        #expect(await secretStore.secret(for: migratedAccount.id) == legacyContents)
+        #expect(migratedAccount.authFileContents == nil)
+        #expect(migratedAccount.hasLocalSnapshot)
+        #expect(await secretStore.secret(forIdentityKey: migratedAccount.identityKey) == legacyContents)
     }
 
     @Test func refreshMarksUnsupportedCredentialStoresInline() async throws {
@@ -748,18 +750,15 @@ struct CodexSwitcherTests {
         await controller.refreshAuthStateForTesting()
 
         await authFileManager.setContents(targetContents)
-        CodexSharedSwitchFeedback.postSwitchSignal(
-            identityKey: targetIdentityKey,
-            accountName: targetAccount.name
+        await controller.handleRemoteSwitchSignalForTesting(
+            CodexSharedSwitchSignal(
+                identityKey: targetIdentityKey,
+                accountName: targetAccount.name
+            )
         )
 
-        try await waitUntil {
-            await MainActor.run {
-                controller.activeIdentityKey == targetIdentityKey
-                    && controller.selection == [targetAccountID]
-            }
-        }
-
+        #expect(controller.activeIdentityKey == targetIdentityKey)
+        #expect(controller.selection == [targetAccountID])
         #expect(controller.authAccessState == .ready(
             linkedFolder: URL(fileURLWithPath: "/tmp/.codex", isDirectory: true)
         ))
@@ -995,7 +994,7 @@ struct CodexSwitcherTests {
         await secretStore.resetSaveCallCount()
         await controller.switchToAccountNow(id: account.id)
 
-        #expect(await secretStore.saveCallCount == 0)
+        #expect(secretStore.saveCallCount == 0)
         #expect(await authFileManager.currentContents == targetContents)
     }
 
@@ -1033,7 +1032,10 @@ struct CodexSwitcherTests {
 
         #expect(await authFileManager.currentContents == targetContents)
         #expect(controller.activeIdentityKey == targetSnapshot.identityKey)
-        #expect(try fetchAccounts(in: container.mainContext).first?.authFileContents == targetContents)
+        let storedAccount = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(storedAccount.authFileContents == nil)
+        #expect(storedAccount.hasLocalSnapshot)
+        #expect(await secretStore.secret(forIdentityKey: targetSnapshot.identityKey) == targetContents)
     }
 
     @Test func cancelledLocationPickerDoesNotShowAlert() async throws {
@@ -1488,7 +1490,6 @@ struct CodexSwitcherTests {
     @Test func sharedCommandProcessingRepeatsWhenNewCommandsArriveMidPass() async throws {
         let temporaryDirectory = try makeTemporaryDirectory()
         let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
-        try queue.enqueue(CodexSharedAppCommand(action: .captureCurrentAccount))
 
         let container = try makeInMemoryContainer()
         let authFileManager = ReentrantQueueingAuthFileManager(
@@ -1500,6 +1501,9 @@ struct CodexSwitcherTests {
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
         authFileManager.controller = controller
+        await controller.refreshAuthStateForTesting()
+        authFileManager.enableQueuedCommandOnNextRead()
+        try queue.enqueue(CodexSharedAppCommand(action: .captureCurrentAccount))
 
         await controller.processPendingSharedCommands(
             allowsUnitTestExecution: true,
@@ -1574,8 +1578,8 @@ struct CodexSwitcherTests {
         await controller.removeAllAccountsNow()
 
         #expect(try fetchAccounts(in: container.mainContext).isEmpty)
-        #expect(await secretStore.secret(for: firstAccount.id) == nil)
-        #expect(await secretStore.secret(for: secondAccount.id) == nil)
+        #expect(await secretStore.secret(forIdentityKey: firstAccount.identityKey) == nil)
+        #expect(await secretStore.secret(forIdentityKey: secondAccount.identityKey) == nil)
     }
 
     @Test func removalShortcutSupportsDeleteWithExpectedModifiersOnly() {
@@ -1721,16 +1725,8 @@ struct CodexSwitcherTests {
             .appending(path: "2026", directoryHint: .isDirectory)
             .appending(path: "04", directoryHint: .isDirectory)
             .appending(path: "09", directoryHint: .isDirectory)
-        let authFileURL = rootURL.appending(path: "auth.json", directoryHint: .notDirectory)
 
         try fileManager.createDirectory(at: sessionsDirectoryURL, withIntermediateDirectories: true)
-        try "{}".write(to: authFileURL, atomically: true, encoding: .utf8)
-
-        let authModifiedAt = Date(timeIntervalSince1970: 2_000)
-        try fileManager.setAttributes(
-            [.modificationDate: authModifiedAt],
-            ofItemAtPath: authFileURL.path
-        )
 
         let sessionFileURL = sessionsDirectoryURL.appending(path: "rollout-test.jsonl", directoryHint: .notDirectory)
         try makeSessionRateLimitJSONL([
@@ -1739,10 +1735,7 @@ struct CodexSwitcherTests {
         ], shape: .payloadRateLimits, fiveHourWindowMinutes: 299, sevenDayWindowMinutes: 10_079)
         .write(to: sessionFileURL, atomically: true, encoding: .utf8)
 
-        let observation = await CodexSessionRateLimitReader().readLatestObservation(
-            in: rootURL,
-            authFileURL: authFileURL
-        )
+        let observation = await CodexSessionRateLimitReader().readLatestObservation(in: rootURL)
 
         #expect(observation?.fiveHourRemainingPercent == 66)
         #expect(observation?.sevenDayRemainingPercent == 7)
@@ -1852,8 +1845,10 @@ struct CodexSwitcherTests {
 
     @Test func startupReconcilesDuplicateAccountsForTheSameIdentityKey() async throws {
         let container = try makeInMemoryContainer()
+        let secretStore = FakeSecretStore()
         let controller = makeController(
-            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-current"))
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-current")),
+            secretStore: secretStore
         )
 
         let duplicateContents = makeChatGPTAuthJSON(accountID: "acct-duplicate")
@@ -1898,7 +1893,9 @@ struct CodexSwitcherTests {
         #expect(reconciledAccount.lastLoginAt != nil)
         #expect(reconciledAccount.customOrder == 0)
         #expect(reconciledAccount.iconSystemName == AccountIconOption.briefcase.systemName)
-        #expect(reconciledAccount.authFileContents == duplicateContents)
+        #expect(reconciledAccount.authFileContents == nil)
+        #expect(reconciledAccount.hasLocalSnapshot)
+        #expect(await secretStore.secret(forIdentityKey: snapshot.identityKey) == duplicateContents)
     }
 }
 
@@ -1947,7 +1944,8 @@ private func makeSharedAccountRecord(
     accountIdentifier: String? = nil,
     sortOrder: Double,
     sevenDayLimitUsedPercent: Int?,
-    fiveHourLimitUsedPercent: Int?
+    fiveHourLimitUsedPercent: Int?,
+    hasLocalSnapshot: Bool = true
 ) -> SharedCodexAccountRecord {
     SharedCodexAccountRecord(
         id: identityKey,
@@ -1961,7 +1959,7 @@ private func makeSharedAccountRecord(
         fiveHourLimitUsedPercent: fiveHourLimitUsedPercent,
         rateLimitsObservedAt: nil,
         sortOrder: sortOrder,
-        authFileContents: nil
+        hasLocalSnapshot: hasLocalSnapshot
     )
 }
 
@@ -2193,7 +2191,7 @@ actor FakeAuthFileManager: AuthFileManaging {
         self.linkError = linkError
     }
 
-    func linkedLocation() async -> AuthLinkedLocation? {
+    func linkedLocation() async throws -> AuthLinkedLocation? {
         linkedLocationValue
     }
 
@@ -2269,48 +2267,103 @@ actor FakeAuthFileManager: AuthFileManaging {
     }
 }
 
-actor FakeSecretStore: AccountSecretStoring {
-    private var secrets: [UUID: String] = [:]
+final class FakeSecretStore: @unchecked Sendable, AccountSnapshotStoring {
+    private let lock = NSLock()
+    private var snapshots: [String: String] = [:]
+    private var legacySecrets: [UUID: String] = [:]
     private var saveError: Error?
     private var loadError: Error?
     private var deleteError: Error?
     private(set) var saveCallCount = 0
 
+    func saveSnapshot(_ contents: String, forIdentityKey identityKey: String) async throws {
+        try withLock {
+            if let saveError {
+                throw saveError
+            }
+
+            saveCallCount += 1
+            snapshots[identityKey] = contents
+        }
+    }
+
+    func loadSnapshot(forIdentityKey identityKey: String) async throws -> String {
+        try withLock {
+            if let loadError {
+                throw loadError
+            }
+
+            guard let snapshot = snapshots[identityKey] else {
+                throw AccountSnapshotStoreError.missingSnapshot
+            }
+
+            return snapshot
+        }
+    }
+
+    func deleteSnapshot(forIdentityKey identityKey: String) async throws {
+        try withLock {
+            if let deleteError {
+                throw deleteError
+            }
+
+            snapshots.removeValue(forKey: identityKey)
+        }
+    }
+
+    func containsSnapshot(forIdentityKey identityKey: String) async -> Bool {
+        withLock {
+            snapshots[identityKey] != nil
+        }
+    }
+
+    func migrateLegacySnapshotIfNeeded(
+        fromLegacyAccountID accountID: UUID,
+        toIdentityKey identityKey: String
+    ) async throws -> Bool {
+        try withLock {
+            if let saveError {
+                throw saveError
+            }
+
+            guard snapshots[identityKey] == nil, let legacySnapshot = legacySecrets[accountID] else {
+                legacySecrets.removeValue(forKey: accountID)
+                return false
+            }
+
+            saveCallCount += 1
+            snapshots[identityKey] = legacySnapshot
+            legacySecrets.removeValue(forKey: accountID)
+            return true
+        }
+    }
+
     func saveSecret(_ contents: String, for accountID: UUID) async throws {
-        if let saveError {
-            throw saveError
-        }
+        try withLock {
+            if let saveError {
+                throw saveError
+            }
 
-        saveCallCount += 1
-        secrets[accountID] = contents
+            legacySecrets[accountID] = contents
+        }
     }
 
-    func loadSecret(for accountID: UUID) async throws -> String {
-        if let loadError {
-            throw loadError
+    func secret(forIdentityKey identityKey: String) async -> String? {
+        withLock {
+            snapshots[identityKey]
         }
-
-        guard let secret = secrets[accountID] else {
-            throw AccountSecretStoreError.missingSecret
-        }
-
-        return secret
     }
 
-    func deleteSecret(for accountID: UUID) async throws {
-        if let deleteError {
-            throw deleteError
+    func resetSaveCallCount() async {
+        withLock {
+            saveCallCount = 0
         }
-
-        secrets.removeValue(forKey: accountID)
     }
 
-    func secret(for accountID: UUID) async -> String? {
-        secrets[accountID]
-    }
-
-    func resetSaveCallCount() {
-        saveCallCount = 0
+    private func withLock<T>(_ body: () throws -> T) rethrows -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body()
     }
 }
 
@@ -2346,7 +2399,7 @@ final class FakeNotificationManager: AccountSwitchNotifying {
     private(set) var postedAccountNames: [String] = []
     var authorizationRequestResult: NotificationAuthorizationRequestResult = .enabled
 
-    func postSwitchNotification(for accountName: String) async {
+    func postSwitchNotification(for accountName: String, kind: CodexSwitchNotificationKind) async {
         postedAccountNames.append(accountName)
     }
 
@@ -2371,11 +2424,13 @@ actor TerminationRecorder {
 final class ReentrantQueueingAuthFileManager: AuthFileManaging {
     weak var controller: AppController?
 
+    private let initialContents: String
     private var currentContents: String
     private let queuedContents: String
     private let queue: CodexSharedAppCommandQueue
     private var linkedLocationValue: AuthLinkedLocation?
     private var hasQueuedAdditionalCommand = false
+    private var shouldQueueAdditionalCommandOnNextRead = false
     private var onChange: (@Sendable () -> Void)?
 
     init(
@@ -2387,13 +2442,14 @@ final class ReentrantQueueingAuthFileManager: AuthFileManaging {
             credentialStoreHint: .file
         )
     ) {
+        self.initialContents = initialContents
         self.currentContents = initialContents
         self.queuedContents = queuedContents
         self.queue = queue
         self.linkedLocationValue = linkedLocation
     }
 
-    func linkedLocation() async -> AuthLinkedLocation? {
+    func linkedLocation() async throws -> AuthLinkedLocation? {
         linkedLocationValue
     }
 
@@ -2416,8 +2472,9 @@ final class ReentrantQueueingAuthFileManager: AuthFileManaging {
         }
 
         let currentContents = self.currentContents
-        if !hasQueuedAdditionalCommand {
+        if shouldQueueAdditionalCommandOnNextRead && !hasQueuedAdditionalCommand {
             hasQueuedAdditionalCommand = true
+            shouldQueueAdditionalCommandOnNextRead = false
             self.currentContents = queuedContents
             try? queue.enqueue(CodexSharedAppCommand(action: .captureCurrentAccount))
             if let controller {
@@ -2441,5 +2498,11 @@ final class ReentrantQueueingAuthFileManager: AuthFileManaging {
 
     func startMonitoring(_ onChange: @escaping @Sendable () -> Void) async {
         self.onChange = onChange
+    }
+
+    func enableQueuedCommandOnNextRead() {
+        currentContents = initialContents
+        hasQueuedAdditionalCommand = false
+        shouldQueueAdditionalCommandOnNextRead = true
     }
 }

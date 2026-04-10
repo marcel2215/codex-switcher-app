@@ -22,13 +22,13 @@ struct CodexSessionRateLimitReader: Sendable {
     /// Reads the newest Codex session telemetry from the linked `.codex` folder.
     /// This is intentionally best-effort: failures return `nil` so the UI can
     /// fall back to `?` instead of surfacing unrelated filesystem errors.
-    nonisolated func readLatestObservation(in linkedFolderURL: URL, authFileURL: URL) async -> CodexRateLimitObservation? {
+    nonisolated func readLatestObservation(in linkedFolderURL: URL) async -> CodexRateLimitObservation? {
         await Task.detached(priority: .utility) {
-            readLatestObservationSynchronously(in: linkedFolderURL, authFileURL: authFileURL)
+            readLatestObservationSynchronously(in: linkedFolderURL)
         }.value
     }
 
-    private nonisolated func readLatestObservationSynchronously(in linkedFolderURL: URL, authFileURL: URL) -> CodexRateLimitObservation? {
+    private nonisolated func readLatestObservationSynchronously(in linkedFolderURL: URL) -> CodexRateLimitObservation? {
         let startedAccess = linkedFolderURL.startAccessingSecurityScopedResource()
         defer {
             if startedAccess {

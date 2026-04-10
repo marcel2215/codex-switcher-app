@@ -280,7 +280,7 @@ private struct AppBootstrap {
         }
 
         let authFileManager = SecurityScopedAuthFileManager()
-        let secretStore = KeychainAccountSecretStore(bundleIdentifier: bundleIdentifier)
+        let secretStore = SharedKeychainSnapshotStore()
         let notificationManager = AccountSwitchNotificationManager()
 
         do {
@@ -762,7 +762,7 @@ private enum AppSupportLink {
         string: "mailto:marcel2215@icloud.com?subject=Codex%20Switcher%20Support"
     )!
     static let sourceCodeURL = URL(string: "https://github.com/marcel2215/codex-switcher")!
-    static let privacyPolicyURL = URL(string: "https://example.com/privacy")!
+    static let privacyPolicyURL = URL(string: "https://github.com/marcel2215/codex-switcher/blob/main/PRIVACY.md")!
 }
 
 private enum SettingsConfirmationAction: String, Identifiable {

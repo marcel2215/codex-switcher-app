@@ -16,7 +16,7 @@ enum NotificationAuthorizationRequestResult: Equatable {
 
 @MainActor
 protocol AccountSwitchNotifying: AnyObject {
-    func postSwitchNotification(for accountName: String) async
+    func postSwitchNotification(for accountName: String, kind: CodexSwitchNotificationKind) async
     func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult
 }
 
@@ -30,8 +30,15 @@ final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
         self.center.delegate = self
     }
 
-    func postSwitchNotification(for accountName: String) async {
+    func postSwitchNotification(for accountName: String, kind: CodexSwitchNotificationKind) async {
         guard CodexSharedPreferences.notificationsEnabled else {
+            return
+        }
+
+        guard let content = CodexSharedSwitchNotificationContent.makeContent(
+            accountName: accountName,
+            kind: kind
+        ) else {
             return
         }
 
@@ -39,13 +46,6 @@ final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
             return
         }
-
-        let content = UNMutableNotificationContent()
-        content.title = "Account Switched"
-        content.body = "Now using \"\(accountName)\"."
-        content.sound = nil
-        content.interruptionLevel = .active
-        content.relevanceScore = 0
 
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,

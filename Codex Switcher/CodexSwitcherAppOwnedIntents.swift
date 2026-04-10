@@ -400,30 +400,30 @@ struct SwitchAccountIntent: AppIntent {
     }
 
     nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexAccountEntity> & ProvidesDialog {
-        do {
-            let outcome = try CodexSharedAccountSwitchService().switchToAccount(identityKey: account.id)
-            let switchedAccount = CodexAccountEntity(
-                record: outcome.account,
-                currentAccountID: outcome.account.id
-            )
+        let command = CodexSharedAppCommand(
+            action: .switchAccount,
+            accountIdentityKey: account.id,
+            expectsResult: true
+        )
+        let result = try await awaitQueuedCommandResult(for: command)
+        defer { try? CodexSharedAppCommandResultStore().remove(commandID: command.id) }
 
-            if outcome.didChangeAccount {
-                await CodexSharedSwitchFeedback.postLocalSwitchNotificationIfAuthorized(
-                    accountName: outcome.account.name
-                )
-            }
-
-            return .result(
-                value: switchedAccount,
-                dialog: IntentDialog(
-                    outcome.didChangeAccount
-                        ? "Now using \"\(outcome.account.name)\"."
-                        : "Already using \"\(outcome.account.name)\"."
-                )
+        guard result.status == .success else {
+            throw CodexSharedIntentExecutionError.commandFailed(
+                result.message ?? "Codex Switcher couldn't switch accounts."
             )
-        } catch {
-            throw mappedSwitchIntentError(from: error)
         }
+
+        let state = try CodexSharedAccountIntentResolver.loadState()
+        let switchedAccount = try resolveLiveAccountEntity(for: account, in: state)
+
+        return .result(
+            value: switchedAccount,
+            dialog: IntentDialog(
+                stringLiteral: result.message
+                    ?? "Now using \"\(switchedAccount.name)\"."
+            )
+        )
     }
 }
 
@@ -435,30 +435,29 @@ struct SwitchToBestAccountIntent: AppIntent {
     static let supportedModes: IntentModes = .background
 
     nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexAccountEntity> & ProvidesDialog {
-        do {
-            let outcome = try CodexSharedAccountSwitchService().switchToBestAccount()
-            let switchedAccount = CodexAccountEntity(
-                record: outcome.account,
-                currentAccountID: outcome.account.id
-            )
+        let command = CodexSharedAppCommand(
+            action: .switchBestAccount,
+            expectsResult: true
+        )
+        let result = try await awaitQueuedCommandResult(for: command)
+        defer { try? CodexSharedAppCommandResultStore().remove(commandID: command.id) }
 
-            if outcome.didChangeAccount {
-                await CodexSharedSwitchFeedback.postLocalSwitchNotificationIfAuthorized(
-                    accountName: outcome.account.name
-                )
-            }
-
-            return .result(
-                value: switchedAccount,
-                dialog: IntentDialog(
-                    outcome.didChangeAccount
-                        ? "Now using \"\(outcome.account.name)\", your best available account."
-                        : "Already using \"\(outcome.account.name)\", your best available account."
-                )
+        guard result.status == .success else {
+            throw CodexSharedIntentExecutionError.commandFailed(
+                result.message ?? "Codex Switcher couldn't switch to the best available account."
             )
-        } catch {
-            throw mappedSwitchIntentError(from: error)
         }
+
+        let state = try CodexSharedAccountIntentResolver.loadState()
+        let switchedAccount = try CodexSharedAccountIntentResolver.bestEntity(in: state)
+
+        return .result(
+            value: switchedAccount,
+            dialog: IntentDialog(
+                stringLiteral: result.message
+                    ?? "Now using \"\(switchedAccount.name)\", your best available account."
+            )
+        )
     }
 }
 

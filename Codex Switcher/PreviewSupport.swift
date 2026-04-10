@@ -71,7 +71,7 @@ actor PreviewAuthFileManager: AuthFileManaging {
     }
     """
 
-    func linkedLocation() async -> AuthLinkedLocation? {
+    func linkedLocation() async throws -> AuthLinkedLocation? {
         AuthLinkedLocation(
             folderURL: URL(fileURLWithPath: "/tmp/.codex", isDirectory: true),
             credentialStoreHint: .file
@@ -101,14 +101,16 @@ actor PreviewAuthFileManager: AuthFileManaging {
 
 @MainActor
 final class PreviewNotificationManager: AccountSwitchNotifying {
-    func postSwitchNotification(for accountName: String) async {}
+    func postSwitchNotification(for accountName: String, kind: CodexSwitchNotificationKind) async {}
     func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult { .enabled }
 }
 
-actor PreviewSecretStore: AccountSecretStoring {
-    func saveSecret(_ contents: String, for accountID: UUID) async throws {}
-    func loadSecret(for accountID: UUID) async throws -> String { "{}" }
-    func deleteSecret(for accountID: UUID) async throws {}
+actor PreviewSecretStore: AccountSnapshotStoring {
+    func saveSnapshot(_ contents: String, forIdentityKey identityKey: String) async throws {}
+    func loadSnapshot(forIdentityKey identityKey: String) async throws -> String { "{}" }
+    func deleteSnapshot(forIdentityKey identityKey: String) async throws {}
+    func containsSnapshot(forIdentityKey identityKey: String) async -> Bool { true }
+    func migrateLegacySnapshotIfNeeded(fromLegacyAccountID accountID: UUID, toIdentityKey identityKey: String) async throws -> Bool { false }
 }
 
 /// Dedicated launch scenarios let UI tests validate edge-case banners and
@@ -151,7 +153,7 @@ actor UITestAuthFileManager: AuthFileManaging {
         }
     }
 
-    func linkedLocation() async -> AuthLinkedLocation? {
+    func linkedLocation() async throws -> AuthLinkedLocation? {
         linkedLocationState
     }
 
@@ -190,14 +192,16 @@ actor UITestAuthFileManager: AuthFileManaging {
     func startMonitoring(_ onChange: @escaping @Sendable () -> Void) async {}
 }
 
-actor UITestSecretStore: AccountSecretStoring {
-    func saveSecret(_ contents: String, for accountID: UUID) async throws {}
-    func loadSecret(for accountID: UUID) async throws -> String { "{}" }
-    func deleteSecret(for accountID: UUID) async throws {}
+actor UITestSecretStore: AccountSnapshotStoring {
+    func saveSnapshot(_ contents: String, forIdentityKey identityKey: String) async throws {}
+    func loadSnapshot(forIdentityKey identityKey: String) async throws -> String { "{}" }
+    func deleteSnapshot(forIdentityKey identityKey: String) async throws {}
+    func containsSnapshot(forIdentityKey identityKey: String) async -> Bool { true }
+    func migrateLegacySnapshotIfNeeded(fromLegacyAccountID accountID: UUID, toIdentityKey identityKey: String) async throws -> Bool { false }
 }
 
 @MainActor
 final class UITestNotificationManager: AccountSwitchNotifying {
-    func postSwitchNotification(for accountName: String) async {}
+    func postSwitchNotification(for accountName: String, kind: CodexSwitchNotificationKind) async {}
     func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult { .enabled }
 }

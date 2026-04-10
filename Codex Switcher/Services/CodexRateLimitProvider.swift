@@ -61,8 +61,7 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
         }
 
         let fallbackObservation = await sessionReader.readLatestObservation(
-            in: linkedLocation.folderURL,
-            authFileURL: linkedLocation.authFileURL
+            in: linkedLocation.folderURL
         )
 
         guard let fallbackObservation else {

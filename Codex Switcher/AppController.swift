@@ -57,7 +57,7 @@ final class AppController {
     private(set) var isSwitching = false
 
     @ObservationIgnored private let authFileManager: AuthFileManaging
-    @ObservationIgnored private let secretStore: AccountSecretStoring
+    @ObservationIgnored private let secretStore: AccountSnapshotStoring
     @ObservationIgnored private let notificationManager: AccountSwitchNotifying
     @ObservationIgnored private let rateLimitProvider: CodexRateLimitProviding
     @ObservationIgnored private let sessionRateLimitReader: CodexSessionRateLimitReader
@@ -103,7 +103,7 @@ final class AppController {
 
     init(
         authFileManager: AuthFileManaging,
-        secretStore: AccountSecretStoring,
+        secretStore: AccountSnapshotStoring,
         notificationManager: AccountSwitchNotifying,
         rateLimitProvider: CodexRateLimitProviding = CodexRateLimitProvider(),
         sessionRateLimitReader: CodexSessionRateLimitReader = CodexSessionRateLimitReader(),
@@ -588,7 +588,7 @@ final class AppController {
             let accounts = try fetchAccounts()
 
             if let existingAccount = accounts.first(where: { $0.identityKey == snapshot.identityKey }) {
-                _ = await storeSnapshot(snapshot, on: existingAccount)
+                _ = try await storeSnapshot(snapshot, on: existingAccount)
                 selection = [existingAccount.id]
             } else {
                 guard accounts.count < 1_000 else {
@@ -600,14 +600,13 @@ final class AppController {
                     identityKey: snapshot.identityKey,
                     name: defaultName(for: snapshot, existingAccounts: accounts),
                     customOrder: nextCustomOrder,
-                    authFileContents: snapshot.rawContents,
                     authModeRaw: snapshot.authMode.rawValue,
                     emailHint: snapshot.email,
                     accountIdentifier: snapshot.accountIdentifier
                 )
 
                 modelContext.insert(account)
-                await cacheSecretLocallyIfPossible(snapshot.rawContents, for: account.id)
+                _ = try await storeSnapshot(snapshot, on: account)
 
                 selection = [account.id]
             }
@@ -633,7 +632,8 @@ final class AppController {
     func switchToAccountNow(
         id: UUID,
         operationID: UUID? = nil,
-        allowsInteractiveRecovery: Bool = true
+        allowsInteractiveRecovery: Bool = true,
+        notificationKind: CodexSwitchNotificationKind = .userInitiated
     ) async {
         await waitForInitializationIfNeeded()
 
@@ -702,7 +702,10 @@ final class AppController {
 
             publishSharedState()
             requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
-            await notificationManager.postSwitchNotification(for: targetAccount.name)
+            await notificationManager.postSwitchNotification(
+                for: targetAccount.name,
+                kind: notificationKind
+            )
         } catch is CancellationError {
             return
         } catch {
@@ -725,10 +728,17 @@ final class AppController {
 
         do {
             let modelContext = try requireModelContext()
-            let accountsToDelete = try fetchAccounts().filter { ids.contains($0.id) }
+            let allAccounts = try fetchAccounts()
+            let accountsToDelete = allAccounts.filter { ids.contains($0.id) }
             guard !accountsToDelete.isEmpty else {
                 return true
             }
+            let remainingIdentityKeys = Set(
+                allAccounts
+                    .filter { !ids.contains($0.id) }
+                    .map(\.identityKey)
+                    .filter { !$0.isEmpty }
+            )
             let deletedIdentityKeys = Set(
                 accountsToDelete
                     .map(\.identityKey)
@@ -736,7 +746,9 @@ final class AppController {
             )
 
             for account in accountsToDelete {
-                try? await secretStore.deleteSecret(for: account.id)
+                if !remainingIdentityKeys.contains(account.identityKey) {
+                    try? await secretStore.deleteSnapshot(forIdentityKey: account.identityKey)
+                }
                 modelContext.delete(account)
             }
 
@@ -807,6 +819,10 @@ final class AppController {
 
     func runPeriodicRateLimitRefreshPassForTesting() async {
         await refreshDueRateLimitsIfNeeded()
+    }
+
+    func handleRemoteSwitchSignalForTesting(_ signal: CodexSharedSwitchSignal) async {
+        await handleRemoteSwitchSignal(signal)
     }
 
     func scheduledAutopilotWouldRunNowForTesting() -> Bool {
@@ -1098,6 +1114,160 @@ final class AppController {
                     accountIdentityKey: savedAccount?.identityKey ?? activeIdentityKey
                 )
             )
+
+        case .switchAccount:
+            guard
+                let identityKey = command.accountIdentityKey,
+                !identityKey.isEmpty
+            else {
+                return SharedAppCommandHandlingOutcome(
+                    shouldAcknowledge: true,
+                    shouldTerminateAfterAcknowledgement: false,
+                    result: sharedCommandResult(
+                        for: command,
+                        status: .failure,
+                        message: "Codex Switcher couldn't determine which account to switch to."
+                    )
+                )
+            }
+
+            do {
+                guard let account = try fetchAccounts().first(where: { $0.identityKey == identityKey }) else {
+                    return SharedAppCommandHandlingOutcome(
+                        shouldAcknowledge: true,
+                        shouldTerminateAfterAcknowledgement: false,
+                        result: sharedCommandResult(
+                            for: command,
+                            status: .failure,
+                            message: "That Codex account no longer exists.",
+                            accountIdentityKey: identityKey
+                        )
+                    )
+                }
+
+                guard account.hasLocalSnapshot else {
+                    return SharedAppCommandHandlingOutcome(
+                        shouldAcknowledge: true,
+                        shouldTerminateAfterAcknowledgement: false,
+                        result: sharedCommandResult(
+                            for: command,
+                            status: .failure,
+                            message: "That saved account needs a local capture on this Mac before it can be used.",
+                            accountIdentityKey: identityKey
+                        )
+                    )
+                }
+
+                let previousIdentityKey = activeIdentityKey
+                await switchToAccountNow(
+                    id: account.id,
+                    allowsInteractiveRecovery: false,
+                    notificationKind: .userInitiated
+                )
+
+                guard activeIdentityKey == identityKey else {
+                    return SharedAppCommandHandlingOutcome(
+                        shouldAcknowledge: true,
+                        shouldTerminateAfterAcknowledgement: false,
+                        result: sharedCommandResult(
+                            for: command,
+                            status: .failure,
+                            message: "Codex Switcher couldn't switch to \"\(account.name)\".",
+                            accountIdentityKey: identityKey
+                        )
+                    )
+                }
+
+                let message = previousIdentityKey == identityKey
+                    ? "Already using \"\(account.name)\"."
+                    : "Now using \"\(account.name)\"."
+                return SharedAppCommandHandlingOutcome(
+                    shouldAcknowledge: true,
+                    shouldTerminateAfterAcknowledgement: false,
+                    result: sharedCommandResult(
+                        for: command,
+                        status: .success,
+                        message: message,
+                        accountIdentityKey: identityKey
+                    )
+                )
+            } catch {
+                logger.error(
+                    "Couldn't switch shared-command account \(identityKey, privacy: .public): \(String(describing: error), privacy: .private)"
+                )
+                return SharedAppCommandHandlingOutcome(
+                    shouldAcknowledge: true,
+                    shouldTerminateAfterAcknowledgement: false,
+                    result: sharedCommandResult(
+                        for: command,
+                        status: .failure,
+                        message: "Codex Switcher couldn't switch to that account.",
+                        accountIdentityKey: identityKey
+                    )
+                )
+            }
+
+        case .switchBestAccount:
+            do {
+                guard let account = bestAutopilotAccountCandidate(
+                    from: try fetchAccounts().filter { !$0.identityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                ) else {
+                    return SharedAppCommandHandlingOutcome(
+                        shouldAcknowledge: true,
+                        shouldTerminateAfterAcknowledgement: false,
+                        result: sharedCommandResult(
+                            for: command,
+                            status: .failure,
+                            message: "No saved account currently has both 5h and 7d rate limits available for ranking."
+                        )
+                    )
+                }
+
+                let previousIdentityKey = activeIdentityKey
+                await switchToAccountNow(
+                    id: account.id,
+                    allowsInteractiveRecovery: false,
+                    notificationKind: .userInitiated
+                )
+
+                guard activeIdentityKey == account.identityKey else {
+                    return SharedAppCommandHandlingOutcome(
+                        shouldAcknowledge: true,
+                        shouldTerminateAfterAcknowledgement: false,
+                        result: sharedCommandResult(
+                            for: command,
+                            status: .failure,
+                            message: "Codex Switcher couldn't switch to the best available account.",
+                            accountIdentityKey: account.identityKey
+                        )
+                    )
+                }
+
+                let message = previousIdentityKey == account.identityKey
+                    ? "Already using \"\(account.name)\", your best available account."
+                    : "Now using \"\(account.name)\", your best available account."
+                return SharedAppCommandHandlingOutcome(
+                    shouldAcknowledge: true,
+                    shouldTerminateAfterAcknowledgement: false,
+                    result: sharedCommandResult(
+                        for: command,
+                        status: .success,
+                        message: message,
+                        accountIdentityKey: account.identityKey
+                    )
+                )
+            } catch {
+                logger.error("Couldn't switch to the best shared-command account: \(String(describing: error), privacy: .private)")
+                return SharedAppCommandHandlingOutcome(
+                    shouldAcknowledge: true,
+                    shouldTerminateAfterAcknowledgement: false,
+                    result: sharedCommandResult(
+                        for: command,
+                        status: .failure,
+                        message: "Codex Switcher couldn't switch to the best available account."
+                    )
+                )
+            }
 
         case .removeAccount:
             guard
@@ -1429,7 +1599,7 @@ final class AppController {
             return
         }
 
-        guard let linkedLocation = await authFileManager.linkedLocation() else {
+        guard let linkedLocation = try? await authFileManager.linkedLocation() else {
             return
         }
 
@@ -1438,8 +1608,7 @@ final class AppController {
         }
 
         guard let observation = await sessionRateLimitReader.readLatestObservation(
-            in: linkedLocation.folderURL,
-            authFileURL: linkedLocation.authFileURL
+            in: linkedLocation.folderURL
         ) else {
             return
         }
@@ -1570,7 +1739,8 @@ final class AppController {
 
             await switchToAccountNow(
                 id: bestCandidate.id,
-                allowsInteractiveRecovery: false
+                allowsInteractiveRecovery: false,
+                notificationKind: .recoveryAttention
             )
         } catch {
             logger.error("Autopilot evaluation failed: \(String(describing: error), privacy: .private)")
@@ -1633,25 +1803,28 @@ final class AppController {
     }
 
     private func orderedAccountsForAutopilotRefresh(from accounts: [StoredAccount]) -> [StoredAccount] {
-        accounts.sorted { lhs, rhs in
-            if lhs.identityKey == activeIdentityKey, rhs.identityKey != activeIdentityKey {
-                return true
-            }
+        accounts
+            .filter(\.hasLocalSnapshot)
+            .sorted { lhs, rhs in
+                if lhs.identityKey == activeIdentityKey, rhs.identityKey != activeIdentityKey {
+                    return true
+                }
 
-            if rhs.identityKey == activeIdentityKey, lhs.identityKey != activeIdentityKey {
-                return false
-            }
+                if rhs.identityKey == activeIdentityKey, lhs.identityKey != activeIdentityKey {
+                    return false
+                }
 
-            if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: .descending) {
-                return lhs.createdAt < rhs.createdAt
-            }
+                if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: .descending) {
+                    return lhs.createdAt < rhs.createdAt
+                }
 
-            return Self.rateLimitSortComesBefore(lhs, rhs, direction: .descending)
-        }
+                return Self.rateLimitSortComesBefore(lhs, rhs, direction: .descending)
+            }
     }
 
     private func bestAutopilotAccountCandidate(from accounts: [StoredAccount]) -> StoredAccount? {
         accounts
+            .filter(\.hasLocalSnapshot)
             .sorted { lhs, rhs in
                 if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: .descending) {
                     return lhs.createdAt < rhs.createdAt
@@ -1732,19 +1905,15 @@ final class AppController {
             var didChange = false
 
             for account in accounts {
+                didChange = await migrateLegacySnapshotIfNeeded(for: account) || didChange
+
                 guard let storedContents = await bestAvailableSnapshotContents(for: account) else {
                     continue
                 }
 
                 do {
                     let snapshot = try await parseSnapshot(from: storedContents)
-                    didChange = await storeSnapshot(snapshot, on: account) || didChange
-                    if let syncedContents = account.authFileContents, !syncedContents.isEmpty {
-                        // Backfill the local keychain cache once during startup
-                        // reconciliation so older synced records still work
-                        // offline, without paying this cost on every switch.
-                        await cacheSecretLocallyIfPossible(syncedContents, for: account.id)
-                    }
+                    didChange = (try await storeSnapshot(snapshot, on: account)) || didChange
                 } catch {
                     logger.error("Stored snapshot reconciliation failed for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)")
                 }
@@ -1797,7 +1966,20 @@ final class AppController {
     private func refreshAuthState(showUnexpectedErrors: Bool) async {
         defer { publishSharedState() }
 
-        guard let linkedLocation = await authFileManager.linkedLocation() else {
+        let linkedLocation: AuthLinkedLocation
+        do {
+            guard let resolvedLinkedLocation = try await authFileManager.linkedLocation() else {
+                activeIdentityKey = nil
+                authAccessState = .unlinked
+                return
+            }
+
+            linkedLocation = resolvedLinkedLocation
+        } catch let error as AuthFileAccessError {
+            activeIdentityKey = nil
+            applyAuthAccessState(error, linkedLocation: nil)
+            return
+        } catch {
             activeIdentityKey = nil
             authAccessState = .unlinked
             return
@@ -1877,29 +2059,35 @@ final class AppController {
             return
         }
 
-        let didChange = await storeSnapshot(snapshot, on: existingAccount)
+        let didChange = try await storeSnapshot(snapshot, on: existingAccount)
         if didChange {
             try requireModelContext().save()
         }
     }
 
     private func loadStoredSnapshot(for account: StoredAccount) async throws -> String {
-        if let storedContents = account.authFileContents, !storedContents.isEmpty {
-            return storedContents
+        let didChange = await migrateLegacySnapshotIfNeeded(for: account)
+        if didChange {
+            try? requireModelContext().save()
+            publishSharedState()
         }
 
-        let cachedContents = try await secretStore.loadSecret(for: account.id)
-        if account.authFileContents != cachedContents {
-            account.authFileContents = cachedContents
-
-            do {
-                try requireModelContext().save()
-            } catch {
-                logger.error("Couldn't backfill synced snapshot for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)")
+        do {
+            let contents = try await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
+            if !account.hasLocalSnapshot {
+                account.hasLocalSnapshot = true
+                try? requireModelContext().save()
+                publishSharedState()
             }
+            return contents
+        } catch {
+            if account.hasLocalSnapshot {
+                account.hasLocalSnapshot = false
+                try? requireModelContext().save()
+                publishSharedState()
+            }
+            throw error
         }
-
-        return cachedContents
     }
 
     private func handleExpectedAuthOperationError(
@@ -1945,11 +2133,15 @@ final class AppController {
         present(error, title: title)
     }
 
-    private func applyAuthAccessState(_ error: AuthFileAccessError, linkedLocation: AuthLinkedLocation) {
+    private func applyAuthAccessState(_ error: AuthFileAccessError, linkedLocation: AuthLinkedLocation?) {
         switch error {
         case .accessRequired:
             authAccessState = .unlinked
         case let .missingAuthFile(_, credentialStoreHint):
+            guard let linkedLocation else {
+                authAccessState = .unlinked
+                return
+            }
             authAccessState = .missingAuthFile(
                 linkedFolder: linkedLocation.folderURL,
                 credentialStoreHint: credentialStoreHint
@@ -1961,7 +2153,11 @@ final class AppController {
         case let .unsupportedCredentialStore(url, mode):
             authAccessState = .unsupportedCredentialStore(linkedFolder: url, mode: mode)
         case .invalidSelection, .cancelled, .unreadable, .unwritable, .verificationFailed:
-            authAccessState = .ready(linkedFolder: linkedLocation.folderURL)
+            if let linkedLocation {
+                authAccessState = .ready(linkedFolder: linkedLocation.folderURL)
+            } else {
+                authAccessState = .unlinked
+            }
         }
     }
 
@@ -1997,20 +2193,97 @@ final class AppController {
         return didChange
     }
 
-    private func bestAvailableSnapshotContents(for account: StoredAccount) async -> String? {
-        if let storedContents = account.authFileContents, !storedContents.isEmpty {
-            return storedContents
+    private func migrateLegacySnapshotIfNeeded(for account: StoredAccount) async -> Bool {
+        var didChange = false
+
+        if let syncedContents = account.authFileContents, !syncedContents.isEmpty {
+            do {
+                let migratedSnapshot = try await parseSnapshot(from: syncedContents)
+                didChange = update(account: account, from: migratedSnapshot) || didChange
+                try await secretStore.saveSnapshot(
+                    syncedContents,
+                    forIdentityKey: migratedSnapshot.identityKey
+                )
+                account.authFileContents = nil
+                didChange = true
+            } catch {
+                logger.error(
+                    "Couldn't migrate synced snapshot for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
+                )
+            }
         }
 
-        return try? await secretStore.loadSecret(for: account.id)
+        let normalizedIdentityKey = account.identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !normalizedIdentityKey.isEmpty {
+            do {
+                if try await secretStore.migrateLegacySnapshotIfNeeded(
+                    fromLegacyAccountID: account.id,
+                    toIdentityKey: normalizedIdentityKey
+                ) {
+                    didChange = true
+                }
+            } catch {
+                logger.error(
+                    "Couldn't migrate legacy keychain snapshot for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
+                )
+            }
+        }
+
+        let hasLocalSnapshot: Bool
+        if normalizedIdentityKey.isEmpty {
+            hasLocalSnapshot = false
+        } else {
+            hasLocalSnapshot = await secretStore.containsSnapshot(forIdentityKey: normalizedIdentityKey)
+        }
+        if account.hasLocalSnapshot != hasLocalSnapshot {
+            account.hasLocalSnapshot = hasLocalSnapshot
+            didChange = true
+        }
+
+        return didChange
     }
 
-    private func cacheSecretLocallyIfPossible(_ contents: String, for accountID: UUID) async {
+    private func bestAvailableSnapshotContents(for account: StoredAccount) async -> String? {
+        _ = await migrateLegacySnapshotIfNeeded(for: account)
+
         do {
-            try await secretStore.saveSecret(contents, for: accountID)
+            return try await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
+        } catch AccountSnapshotStoreError.missingSnapshot {
+            return nil
         } catch {
-            logger.error("Local keychain cache update failed for account \(accountID.uuidString, privacy: .public): \(String(describing: error), privacy: .private)")
+            logger.error(
+                "Couldn't load local snapshot for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
+            )
+            return nil
         }
+    }
+
+    private func storeSnapshot(
+        _ snapshot: CodexAuthSnapshot,
+        rateLimitObservation: CodexRateLimitObservation? = nil,
+        on account: StoredAccount
+    ) async throws -> Bool {
+        let metadataChanged = update(account: account, from: snapshot)
+        let rateLimitsChanged = update(account: account, from: rateLimitObservation)
+        let existingContents = try? await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
+        let needsSnapshotWrite = existingContents != snapshot.rawContents || !account.hasLocalSnapshot
+
+        if needsSnapshotWrite {
+            try await secretStore.saveSnapshot(snapshot.rawContents, forIdentityKey: account.identityKey)
+        }
+
+        var didChange = metadataChanged || rateLimitsChanged || needsSnapshotWrite
+        if account.authFileContents != nil {
+            account.authFileContents = nil
+            didChange = true
+        }
+
+        if !account.hasLocalSnapshot {
+            account.hasLocalSnapshot = true
+            didChange = true
+        }
+
+        return didChange
     }
 
     private var isRateLimitSurfaceActive: Bool {
@@ -2194,7 +2467,9 @@ final class AppController {
             return
         }
 
-        let linkedLocation = identityKey == activeIdentityKey ? await authFileManager.linkedLocation() : nil
+        let linkedLocation = identityKey == activeIdentityKey
+            ? ((try? await authFileManager.linkedLocation()) ?? nil)
+            : nil
         let request = CodexRateLimitRequest(
             identityKey: identityKey,
             authFileContents: await bestAvailableSnapshotContents(for: account),
@@ -2389,26 +2664,6 @@ final class AppController {
         return nil
     }
 
-    private func storeSnapshot(
-        _ snapshot: CodexAuthSnapshot,
-        rateLimitObservation: CodexRateLimitObservation? = nil,
-        on account: StoredAccount
-    ) async -> Bool {
-        let metadataChanged = update(account: account, from: snapshot)
-        let contentsChanged = account.authFileContents != snapshot.rawContents
-        let rateLimitsChanged = update(account: account, from: rateLimitObservation)
-
-        if contentsChanged {
-            account.authFileContents = snapshot.rawContents
-            // Avoid rewriting the local keychain cache on every refresh or
-            // switch. Keychain writes are relatively expensive, and the synced
-            // snapshot already remains available in SwiftData for normal reads.
-            await cacheSecretLocallyIfPossible(snapshot.rawContents, for: account.id)
-        }
-
-        return metadataChanged || contentsChanged || rateLimitsChanged
-    }
-
     // CloudKit-backed SwiftData cannot enforce unique constraints, so the app
     // merges duplicates by identityKey when it boots with synced records.
     private func reconcileDuplicateAccountsIfNeeded() async -> Bool {
@@ -2450,7 +2705,6 @@ final class AppController {
                         renameTargetID = survivor.id
                     }
 
-                    try? await secretStore.deleteSecret(for: duplicate.id)
                     modelContext.delete(duplicate)
                     didChange = true
                 }
@@ -2502,14 +2756,9 @@ final class AppController {
             didChange = true
         }
 
-        if (survivor.authFileContents?.isEmpty ?? true) {
-            if let duplicateContents = duplicate.authFileContents, !duplicateContents.isEmpty {
-                survivor.authFileContents = duplicateContents
-                didChange = true
-            } else if let duplicateContents = try? await secretStore.loadSecret(for: duplicate.id) {
-                survivor.authFileContents = duplicateContents
-                didChange = true
-            }
+        if !survivor.hasLocalSnapshot, duplicate.hasLocalSnapshot {
+            survivor.hasLocalSnapshot = true
+            didChange = true
         }
 
         if survivor.emailHint == nil, let duplicateEmail = duplicate.emailHint {
@@ -2526,10 +2775,6 @@ final class AppController {
            duplicate.iconSystemName != AccountIconOption.defaultOption.systemName {
             survivor.iconSystemName = duplicate.iconSystemName
             didChange = true
-        }
-
-        if let survivorContents = survivor.authFileContents, !survivorContents.isEmpty {
-            await cacheSecretLocallyIfPossible(survivorContents, for: survivor.id)
         }
 
         return didChange
@@ -2632,7 +2877,7 @@ final class AppController {
                     fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
                     rateLimitsObservedAt: account.rateLimitsObservedAt,
                     sortOrder: account.customOrder,
-                    authFileContents: account.authFileContents
+                    hasLocalSnapshot: account.hasLocalSnapshot
                 )
             }
 

@@ -106,20 +106,21 @@ struct MenuBarAccountsView: View {
     }
 
     private var statusCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(controller.authAccessState.title, systemImage: controller.authAccessState.systemImage)
-                .font(.subheadline.weight(.semibold))
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(controller.authAccessState.title, systemImage: controller.authAccessState.systemImage)
+                    .font(.subheadline.weight(.semibold))
 
-            Text(controller.authAccessState.message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(controller.authAccessState.message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            Button(controller.linkButtonTitle) {
-                controller.beginLinkingCodexLocation()
+                Button(controller.linkButtonTitle) {
+                    controller.beginLinkingCodexLocation()
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(10)
-        .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     @ViewBuilder
@@ -172,14 +173,12 @@ struct MenuBarAccountsView: View {
                             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
                         .buttonStyle(.plain)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(
-                                    account.identityKey == controller.activeIdentityKey
-                                    ? Color.primary.opacity(0.08)
-                                    : .clear
-                                )
-                        )
+                        .overlay(alignment: .leading) {
+                            if account.identityKey == controller.activeIdentityKey {
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .strokeBorder(.secondary.opacity(0.25), lineWidth: 1)
+                            }
+                        }
                         .disabled(controller.isSwitching)
                         .onAppear {
                             controller.setRateLimitVisibility(true, for: account.identityKey)
