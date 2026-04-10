@@ -15,6 +15,10 @@ struct CodexSwitcherApp: App {
         CodexSharedPreferenceKey.notificationsEnabled,
         store: CodexSharedPreferences.userDefaults
     ) private var showNotifications = CodexSharedPreferenceDefaults.notificationsEnabled
+    @AppStorage(
+        CodexSharedPreferenceKey.autopilotEnabled,
+        store: CodexSharedPreferences.userDefaults
+    ) private var autopilotEnabled = CodexSharedPreferenceDefaults.autopilotEnabled
     @AppStorage(AppPreferenceKey.showMenuBarExtra) private var showMenuBarExtra = AppPreferenceDefaults.showMenuBarExtra
     @AppStorage(AppPreferenceKey.menuBarIconSystemName) private var persistedMenuBarIconSystemName = AppPreferenceDefaults.menuBarIconSystemName
     @AppStorage(AppPreferenceKey.sortCriterion) private var persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
@@ -43,7 +47,7 @@ struct CodexSwitcherApp: App {
         Window("Codex Switcher", id: "main") {
             rootContentView
                 .task {
-                    applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
+                    applyRuntimePreferences()
                 }
         }
         .defaultSize(width: 620, height: 720)
@@ -62,14 +66,15 @@ struct CodexSwitcherApp: App {
             SettingsView(
                 controller: controller,
                 showNotifications: $showNotifications,
+                autopilotEnabled: autopilotBinding,
                 showMenuBarExtra: showMenuBarExtraBinding,
                 menuBarIcon: menuBarIconBinding,
                 areAppPreferencesAtDefaults: areAppPreferencesAtDefaults,
                 onResetSettings: resetStoredSettingsToDefaults
             )
-            .frame(width: 520, height: 510)
+            .frame(width: 520, height: 590)
             .task {
-                applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
+                applyRuntimePreferences()
             }
         }
     }
@@ -94,14 +99,14 @@ struct CodexSwitcherApp: App {
                         .modelContainer(sharedModelContainer)
                 }
                     .task {
-                        applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
+                        applyRuntimePreferences()
                     }
             } else {
                 MenuBarStorageRecoveryView(
                     message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database."
                 )
                 .task {
-                    applicationDelegate.applyMenuBarPreference(isEnabled: showMenuBarExtra)
+                    applyRuntimePreferences()
                 }
             }
         }
@@ -117,7 +122,26 @@ struct CodexSwitcherApp: App {
             },
             set: { newValue in
                 showMenuBarExtra = newValue
-                applicationDelegate.applyMenuBarPreference(isEnabled: newValue)
+                applicationDelegate.applyBackgroundResidency(
+                    menuBarEnabled: newValue,
+                    autopilotEnabled: autopilotEnabled
+                )
+            }
+        )
+    }
+
+    private var autopilotBinding: Binding<Bool> {
+        Binding(
+            get: {
+                autopilotEnabled
+            },
+            set: { newValue in
+                autopilotEnabled = newValue
+                controller.setAutopilotEnabled(newValue)
+                applicationDelegate.applyBackgroundResidency(
+                    menuBarEnabled: showMenuBarExtra,
+                    autopilotEnabled: newValue
+                )
             }
         )
     }
@@ -135,6 +159,7 @@ struct CodexSwitcherApp: App {
 
     private func resetStoredSettingsToDefaults() {
         showNotifications = CodexSharedPreferenceDefaults.notificationsEnabled
+        autopilotBinding.wrappedValue = CodexSharedPreferenceDefaults.autopilotEnabled
         showMenuBarExtraBinding.wrappedValue = AppPreferenceDefaults.showMenuBarExtra
         menuBarIconBinding.wrappedValue = MenuBarIconOption.defaultOption
         persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
@@ -147,10 +172,19 @@ struct CodexSwitcherApp: App {
 
     private var areAppPreferencesAtDefaults: Bool {
         showNotifications == CodexSharedPreferenceDefaults.notificationsEnabled
+            && autopilotEnabled == CodexSharedPreferenceDefaults.autopilotEnabled
             && showMenuBarExtra == AppPreferenceDefaults.showMenuBarExtra
             && persistedMenuBarIconSystemName == AppPreferenceDefaults.menuBarIconSystemName
             && persistedSortCriterionRawValue == AppPreferenceDefaults.sortCriterionRawValue
             && persistedSortDirectionRawValue == AppPreferenceDefaults.sortDirectionRawValue
+    }
+
+    private func applyRuntimePreferences() {
+        controller.setAutopilotEnabled(autopilotEnabled)
+        applicationDelegate.applyBackgroundResidency(
+            menuBarEnabled: showMenuBarExtra,
+            autopilotEnabled: autopilotEnabled
+        )
     }
 
     @ViewBuilder
@@ -178,6 +212,7 @@ private struct AppBootstrap {
     static func make() -> AppBootstrap {
         let bundleIdentifier = Bundle.main.bundleIdentifier ?? "CodexSwitcher"
         let schema = Schema([StoredAccount.self])
+        let autopilotEnabled = CodexSharedPreferences.autopilotEnabled
 
         if let uiTestScenario = UITestScenario.current {
             return makeUITestBootstrap(
@@ -207,7 +242,8 @@ private struct AppBootstrap {
                 authFileManager: authFileManager,
                 secretStore: secretStore,
                 notificationManager: notificationManager,
-                modelContainer: modelContainer
+                modelContainer: modelContainer,
+                autopilotEnabled: autopilotEnabled
             )
             return AppBootstrap(controller: controller, modelContainer: modelContainer, storageRecoveryMessage: nil)
         } catch {
@@ -224,7 +260,8 @@ private struct AppBootstrap {
                         title: "Using Temporary Storage",
                         message: "Codex Switcher couldn't open its local database and started with temporary in-memory storage instead. \(error.localizedDescription)"
                     ),
-                    modelContainer: fallbackContainer
+                    modelContainer: fallbackContainer,
+                    autopilotEnabled: autopilotEnabled
                 )
                 return AppBootstrap(
                     controller: controller,
@@ -239,7 +276,8 @@ private struct AppBootstrap {
                     startupAlert: UserFacingAlert(
                         title: "Storage Unavailable",
                         message: "Codex Switcher couldn't start its local database. \(error.localizedDescription)"
-                    )
+                    ),
+                    autopilotEnabled: autopilotEnabled
                 )
                 return AppBootstrap(
                     controller: controller,
@@ -394,6 +432,7 @@ private struct MenuBarStorageRecoveryView: View {
 private struct SettingsView: View {
     @Bindable var controller: AppController
     @Binding var showNotifications: Bool
+    @Binding var autopilotEnabled: Bool
     @Binding var showMenuBarExtra: Bool
     @Binding var menuBarIcon: MenuBarIconOption
     let areAppPreferencesAtDefaults: Bool
@@ -416,6 +455,14 @@ private struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            Section("Autopilot") {
+                Toggle("Automatically Switch Account", isOn: $autopilotEnabled)
+
+                Text("Run in the background and automatically switch to the account with the most rate limit reamining.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             Section("Menu Bar") {

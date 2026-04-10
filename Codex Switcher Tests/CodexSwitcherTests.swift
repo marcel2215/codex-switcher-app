@@ -250,6 +250,105 @@ struct CodexSwitcherTests {
         #expect(notificationManager.postedAccountNames == ["Account 1"])
     }
 
+    @Test func switchingToTheAlreadyActiveAccountSkipsRewriteAndNotification() async throws {
+        let container = try makeInMemoryContainer()
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-current")
+        let authFileManager = FakeAuthFileManager(contents: currentContents)
+        let notificationManager = FakeNotificationManager()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            notificationManager: notificationManager
+        )
+
+        let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
+        let currentAccount = StoredAccount(
+            identityKey: currentSnapshot.identityKey,
+            name: "Current",
+            customOrder: 0,
+            authFileContents: currentContents,
+            authModeRaw: currentSnapshot.authMode.rawValue,
+            emailHint: currentSnapshot.email,
+            accountIdentifier: currentSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(currentAccount)
+        try container.mainContext.save()
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+        await controller.switchToAccountNow(id: currentAccount.id)
+
+        #expect(await authFileManager.writeCallCount == 0)
+        #expect(await authFileManager.currentContents == currentContents)
+        #expect(controller.activeIdentityKey == currentSnapshot.identityKey)
+        #expect(controller.selection == [currentAccount.id])
+        #expect(notificationManager.postedAccountNames.isEmpty)
+    }
+
+    @Test func autopilotSwitchesToTheBestRateLimitAccountAndNotifiesOnlyOnRealChange() async throws {
+        let container = try makeInMemoryContainer()
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-current")
+        let betterContents = makeChatGPTAuthJSON(accountID: "acct-better")
+        let authFileManager = FakeAuthFileManager(contents: currentContents)
+        let notificationManager = FakeNotificationManager()
+        let rateLimitProvider = FakeRateLimitProvider()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            notificationManager: notificationManager,
+            rateLimitProvider: rateLimitProvider
+        )
+
+        let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
+        let betterSnapshot = try CodexAuthFile.parse(contents: betterContents)
+        let currentAccount = StoredAccount(
+            identityKey: currentSnapshot.identityKey,
+            name: "Current",
+            customOrder: 0,
+            authFileContents: currentContents,
+            authModeRaw: currentSnapshot.authMode.rawValue,
+            emailHint: currentSnapshot.email,
+            accountIdentifier: currentSnapshot.accountIdentifier
+        )
+        let betterAccount = StoredAccount(
+            identityKey: betterSnapshot.identityKey,
+            name: "Better",
+            customOrder: 1,
+            authFileContents: betterContents,
+            authModeRaw: betterSnapshot.authMode.rawValue,
+            emailHint: betterSnapshot.email,
+            accountIdentifier: betterSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(currentAccount)
+        container.mainContext.insert(betterAccount)
+        try container.mainContext.save()
+
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: currentSnapshot.identityKey,
+                sevenDayRemainingPercent: 45,
+                fiveHourRemainingPercent: 40
+            ),
+            for: currentSnapshot.identityKey
+        )
+        await rateLimitProvider.setSnapshot(
+            makeRateLimitSnapshot(
+                identityKey: betterSnapshot.identityKey,
+                sevenDayRemainingPercent: 80,
+                fiveHourRemainingPercent: 70
+            ),
+            for: betterSnapshot.identityKey
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+        await controller.runAutopilotCheckForTesting()
+
+        #expect(await authFileManager.currentContents == betterContents)
+        #expect(await authFileManager.writeCallCount == 1)
+        #expect(controller.activeIdentityKey == betterSnapshot.identityKey)
+        #expect(controller.selection == [betterAccount.id])
+        #expect(notificationManager.postedAccountNames == ["Better"])
+    }
+
     @Test func remoteSwitchSignalRefreshesRunningControllerWithoutManualOpen() async throws {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))
@@ -1210,6 +1309,7 @@ private final class MockURLProtocol: URLProtocol, @unchecked Sendable {
 
 actor FakeAuthFileManager: AuthFileManaging {
     private(set) var currentContents: String
+    private(set) var writeCallCount = 0
     private var linkedLocationValue: AuthLinkedLocation?
     private var readError: Error?
     private var writeError: Error?
@@ -1283,6 +1383,7 @@ actor FakeAuthFileManager: AuthFileManaging {
             throw AuthFileAccessError.accessRequired
         }
 
+        writeCallCount += 1
         currentContents = contents
         isMissingAuthFile = false
     }

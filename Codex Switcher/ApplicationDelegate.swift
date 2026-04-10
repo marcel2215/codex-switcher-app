@@ -11,31 +11,43 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     /// Tracks whether the user wants Codex Switcher to remain available from
     /// the menu bar after all windows are closed.
     private(set) var keepsRunningInMenuBar = true
+    private(set) var keepsRunningForAutopilot = false
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        !keepsRunningInMenuBar
+        !(keepsRunningInMenuBar || keepsRunningForAutopilot)
     }
 
     func applyMenuBarPreference(isEnabled: Bool) {
-        keepsRunningInMenuBar = isEnabled
+        applyBackgroundResidency(
+            menuBarEnabled: isEnabled,
+            autopilotEnabled: keepsRunningForAutopilot
+        )
+    }
 
-        // If the menu bar mode was turned off while the app was running as an
-        // accessory, immediately restore the Dock icon so the app doesn't
-        // become unreachable.
-        if !isEnabled {
+    func applyBackgroundResidency(menuBarEnabled: Bool, autopilotEnabled: Bool) {
+        keepsRunningInMenuBar = menuBarEnabled
+        keepsRunningForAutopilot = autopilotEnabled
+
+        // Without a menu bar extra, keep the Dock icon available so the app
+        // remains reachable while background Autopilot continues to run.
+        if !menuBarEnabled {
             restoreForegroundPresentation()
         }
     }
 
     func handlePrimaryQuitCommand() {
-        guard keepsRunningInMenuBar else {
+        guard keepsRunningInMenuBar || keepsRunningForAutopilot else {
             NSApp.terminate(nil)
             return
         }
 
-        guard NSApp.setActivationPolicy(.accessory) else {
-            NSApp.terminate(nil)
-            return
+        if keepsRunningInMenuBar {
+            guard NSApp.setActivationPolicy(.accessory) else {
+                NSApp.terminate(nil)
+                return
+            }
+        } else {
+            restoreForegroundPresentation()
         }
 
         for window in NSApp.windows where window.isVisible {

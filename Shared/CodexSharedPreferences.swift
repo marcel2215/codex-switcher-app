@@ -9,10 +9,12 @@ import Foundation
 
 enum CodexSharedPreferenceKey {
     nonisolated static let notificationsEnabled = "notificationsEnabled"
+    nonisolated static let autopilotEnabled = "autopilotEnabled"
 }
 
 enum CodexSharedPreferenceDefaults {
     nonisolated static let notificationsEnabled = false
+    nonisolated static let autopilotEnabled = false
 }
 
 enum CodexSharedPreferences {
@@ -29,5 +31,13 @@ enum CodexSharedPreferences {
         }
 
         return userDefaults.bool(forKey: CodexSharedPreferenceKey.notificationsEnabled)
+    }
+
+    nonisolated static var autopilotEnabled: Bool {
+        guard userDefaults.object(forKey: CodexSharedPreferenceKey.autopilotEnabled) != nil else {
+            return CodexSharedPreferenceDefaults.autopilotEnabled
+        }
+
+        return userDefaults.bool(forKey: CodexSharedPreferenceKey.autopilotEnabled)
     }
 }

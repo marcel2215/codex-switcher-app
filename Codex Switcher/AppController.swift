@@ -5,6 +5,7 @@
 //  Created by Codex on 2026-04-08.
 //
 
+import AppKit
 import Foundation
 import Observation
 import OSLog
@@ -26,6 +27,14 @@ final class AppController {
     private nonisolated static let rateLimitPollingCadence: Duration = .seconds(5)
     private nonisolated static let initialRateLimitFailureBackoff: TimeInterval = 60
     private nonisolated static let maximumRateLimitFailureBackoff: TimeInterval = 15 * 60
+    private nonisolated static let autopilotLoopCadence: Duration = .seconds(20)
+    private nonisolated static let autopilotRefreshInterval: TimeInterval = 5 * 60
+    private nonisolated static let autopilotLowPowerRefreshInterval: TimeInterval = 10 * 60
+    private nonisolated static let autopilotSessionQuietWindow: TimeInterval = 45
+    private nonisolated static let autopilotTaskTriggeredMinimumGap: TimeInterval = 90
+    private nonisolated static let autopilotLowPowerTaskTriggeredMinimumGap: TimeInterval = 5 * 60
+    private nonisolated static let autopilotInitialDelay: TimeInterval = 15
+    private nonisolated static let autopilotWakeDelay: TimeInterval = 15
 
     var selection: Set<UUID> = []
     var searchText = ""
@@ -42,19 +51,23 @@ final class AppController {
     @ObservationIgnored private let secretStore: AccountSecretStoring
     @ObservationIgnored private let notificationManager: AccountSwitchNotifying
     @ObservationIgnored private let rateLimitProvider: CodexRateLimitProviding
+    @ObservationIgnored private let sessionRateLimitReader: CodexSessionRateLimitReader
     @ObservationIgnored private let logger: Logger
     @ObservationIgnored private let startupAlert: UserFacingAlert?
 
     @ObservationIgnored private var modelContainer: ModelContainer?
     @ObservationIgnored private var hasConfiguredInitialState = false
     @ObservationIgnored private var hasStartedMonitoring = false
+    @ObservationIgnored private var hasStartedObservingSystemState = false
     @ObservationIgnored private var pendingLocationAction: PendingLocationAction?
     @ObservationIgnored private var initializationTask: Task<Void, Never>?
     @ObservationIgnored private var switchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSwitchOperationID: UUID?
-    @ObservationIgnored private var remoteSwitchObserver: NSObjectProtocol?
+    @ObservationIgnored private var remoteSwitchObservationTask: Task<Void, Never>?
+    @ObservationIgnored private var systemStateObservationTasks: [Task<Void, Never>] = []
     @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitPollingTask: Task<Void, Never>?
+    @ObservationIgnored private var autopilotTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitSnapshotsByIdentityKey: [String: CodexRateLimitSnapshot] = [:]
     @ObservationIgnored private var visibleRateLimitIdentityCounts: [String: Int] = [:]
     @ObservationIgnored private var pendingForcedRateLimitRefreshes: Set<String> = []
@@ -63,22 +76,33 @@ final class AppController {
     @ObservationIgnored private var rateLimitFailureBackoffDurations: [String: TimeInterval] = [:]
     @ObservationIgnored private var isApplicationActive = false
     @ObservationIgnored private var isMenuBarPresented = false
+    @ObservationIgnored private var isAutopilotEnabled = false
+    @ObservationIgnored private var isSystemSleeping = false
+    @ObservationIgnored private var areScreensSleeping = false
+    @ObservationIgnored private var nextAutopilotEvaluationAt: Date?
+    @ObservationIgnored private var lastAutopilotEvaluationAt: Date?
+    @ObservationIgnored private var lastObservedSessionActivityAt: Date?
+    @ObservationIgnored private var lastHandledSessionActivityAt: Date?
 
     init(
         authFileManager: AuthFileManaging,
         secretStore: AccountSecretStoring,
         notificationManager: AccountSwitchNotifying,
         rateLimitProvider: CodexRateLimitProviding = CodexRateLimitProvider(),
+        sessionRateLimitReader: CodexSessionRateLimitReader = CodexSessionRateLimitReader(),
         startupAlert: UserFacingAlert? = nil,
         modelContainer: ModelContainer? = nil,
-        bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "CodexSwitcher"
+        bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+        autopilotEnabled: Bool = false
     ) {
         self.authFileManager = authFileManager
         self.secretStore = secretStore
         self.notificationManager = notificationManager
         self.rateLimitProvider = rateLimitProvider
+        self.sessionRateLimitReader = sessionRateLimitReader
         self.startupAlert = startupAlert
         self.modelContainer = modelContainer
+        self.isAutopilotEnabled = autopilotEnabled
         self.logger = Logger(subsystem: bundleIdentifier, category: "AppController")
     }
 
@@ -87,6 +111,9 @@ final class AppController {
         switchTask?.cancel()
         sharedStatePublishTask?.cancel()
         rateLimitPollingTask?.cancel()
+        autopilotTask?.cancel()
+        remoteSwitchObservationTask?.cancel()
+        systemStateObservationTasks.forEach { $0.cancel() }
     }
 
     func configure(modelContext: ModelContext, undoManager: UndoManager?) {
@@ -109,12 +136,14 @@ final class AppController {
 
         hasConfiguredInitialState = true
         startObservingRemoteSwitchesIfNeeded()
+        startObservingSystemStateIfNeeded()
 
         if let startupAlert {
             presentedAlert = startupAlert
         }
 
         startMonitoringIfNeeded()
+        updateAutopilotState()
 
         let initializationTask = Task { @MainActor [weak self] in
             guard let self else {
@@ -193,6 +222,30 @@ final class AppController {
     /// prompt stays centralized and testable.
     func requestNotificationAuthorizationForSettings() async -> NotificationAuthorizationRequestResult {
         await notificationManager.requestAuthorizationForNotificationsPreference()
+    }
+
+    func setAutopilotEnabled(_ isEnabled: Bool) {
+        guard isAutopilotEnabled != isEnabled else {
+            return
+        }
+
+        isAutopilotEnabled = isEnabled
+
+        if isEnabled {
+            // Ignore session activity that predates the user's opt-in, then
+            // schedule the first background evaluation shortly after enabling.
+            lastHandledSessionActivityAt = lastObservedSessionActivityAt
+            scheduleAutopilotEvaluationSoon(after: Self.autopilotInitialDelay)
+        } else {
+            nextAutopilotEvaluationAt = nil
+            lastHandledSessionActivityAt = nil
+        }
+
+        updateAutopilotState()
+    }
+
+    func runAutopilotCheckForTesting() async {
+        await runAutopilotEvaluation(trigger: .testing)
     }
 
     var linkButtonTitle: String {
@@ -518,7 +571,11 @@ final class AppController {
         }
     }
 
-    func switchToAccountNow(id: UUID, operationID: UUID? = nil) async {
+    func switchToAccountNow(
+        id: UUID,
+        operationID: UUID? = nil,
+        allowsInteractiveRecovery: Bool = true
+    ) async {
         await waitForInitializationIfNeeded()
 
         let resolvedOperationID = operationID ?? UUID()
@@ -534,6 +591,23 @@ final class AppController {
             let modelContext = try requireModelContext()
             let targetAccount = try requireAccount(withID: id)
             let desiredAuthContents = try await loadStoredSnapshot(for: targetAccount)
+
+            if activeIdentityKey == targetAccount.identityKey {
+                selection = [targetAccount.id]
+                renameTargetID = nil
+                requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
+                return
+            }
+
+            if let currentRead = try? await authFileManager.readAuthFile(), currentRead.contents == desiredAuthContents {
+                activeIdentityKey = targetAccount.identityKey
+                authAccessState = .ready(linkedFolder: currentRead.url.deletingLastPathComponent())
+                selection = [targetAccount.id]
+                renameTargetID = nil
+                publishSharedState()
+                requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
+                return
+            }
 
             await preserveCurrentLiveSnapshotIfKnown()
             try Task.checkCancellation()
@@ -555,12 +629,16 @@ final class AppController {
             do {
                 try modelContext.save()
             } catch {
-                present(
-                    UserFacingAlert(
-                        title: "Account Switched",
-                        message: "The Codex account changed successfully, but the local metadata update failed: \(error.localizedDescription)"
+                if allowsInteractiveRecovery {
+                    present(
+                        UserFacingAlert(
+                            title: "Account Switched",
+                            message: "The Codex account changed successfully, but the local metadata update failed: \(error.localizedDescription)"
+                        )
                     )
-                )
+                } else {
+                    logger.error("Account metadata update failed after a successful switch: \(String(describing: error), privacy: .private)")
+                }
             }
 
             publishSharedState()
@@ -572,7 +650,8 @@ final class AppController {
             await handleExpectedAuthOperationError(
                 error,
                 title: "Couldn't Switch Account",
-                retryAction: .switchAccount(id)
+                retryAction: .switchAccount(id),
+                allowsInteractiveRecovery: allowsInteractiveRecovery
             )
         }
     }
@@ -692,30 +771,362 @@ final class AppController {
     }
 
     private func startObservingRemoteSwitchesIfNeeded() {
-        guard remoteSwitchObserver == nil else {
+        guard remoteSwitchObservationTask == nil else {
             return
         }
 
-        remoteSwitchObserver = DistributedNotificationCenter.default().addObserver(
-            forName: CodexSharedSwitchFeedback.didSwitchAccountNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard
-                let self,
-                let signal = CodexSharedSwitchFeedback.signal(from: notification)
-            else {
-                return
-            }
+        remoteSwitchObservationTask = Task { @MainActor [weak self] in
+            let notifications = DistributedNotificationCenter.default().notifications(
+                named: CodexSharedSwitchFeedback.didSwitchAccountNotification,
+                object: nil
+            )
 
-            Task { @MainActor [weak self] in
-                guard let self else {
-                    return
+            for await notification in notifications {
+                guard
+                    let self,
+                    let signal = CodexSharedSwitchFeedback.signal(from: notification)
+                else {
+                    continue
                 }
 
                 await self.handleRemoteSwitchSignal(signal)
             }
         }
+    }
+
+    private func startObservingSystemStateIfNeeded() {
+        guard !hasStartedObservingSystemState else {
+            return
+        }
+
+        hasStartedObservingSystemState = true
+        let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
+        systemStateObservationTasks = [
+            Task { @MainActor [weak self] in
+                for await _ in workspaceNotificationCenter.notifications(named: NSWorkspace.willSleepNotification) {
+                    guard let self else {
+                        return
+                    }
+
+                    self.isSystemSleeping = true
+                }
+            },
+            Task { @MainActor [weak self] in
+                for await _ in workspaceNotificationCenter.notifications(named: NSWorkspace.didWakeNotification) {
+                    guard let self else {
+                        return
+                    }
+
+                    self.isSystemSleeping = false
+                    self.scheduleAutopilotEvaluationSoon(after: Self.autopilotWakeDelay)
+                }
+            },
+            Task { @MainActor [weak self] in
+                for await _ in workspaceNotificationCenter.notifications(named: NSWorkspace.screensDidSleepNotification) {
+                    guard let self else {
+                        return
+                    }
+
+                    self.areScreensSleeping = true
+                }
+            },
+            Task { @MainActor [weak self] in
+                for await _ in workspaceNotificationCenter.notifications(named: NSWorkspace.screensDidWakeNotification) {
+                    guard let self else {
+                        return
+                    }
+
+                    self.areScreensSleeping = false
+                    self.scheduleAutopilotEvaluationSoon(after: Self.autopilotWakeDelay)
+                }
+            },
+        ]
+    }
+
+    private func scheduleAutopilotEvaluationSoon(after delay: TimeInterval = 0) {
+        guard isAutopilotEnabled else {
+            return
+        }
+
+        let candidateDate = Date().addingTimeInterval(max(delay, 0))
+
+        if let nextAutopilotEvaluationAt {
+            self.nextAutopilotEvaluationAt = min(nextAutopilotEvaluationAt, candidateDate)
+        } else {
+            nextAutopilotEvaluationAt = candidateDate
+        }
+    }
+
+    private func updateAutopilotState() {
+        guard hasConfiguredInitialState, isAutopilotEnabled else {
+            autopilotTask?.cancel()
+            autopilotTask = nil
+            return
+        }
+
+        guard autopilotTask == nil else {
+            return
+        }
+
+        if nextAutopilotEvaluationAt == nil {
+            scheduleAutopilotEvaluationSoon(after: Self.autopilotInitialDelay)
+        }
+
+        autopilotTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.runAutopilotLoop()
+        }
+    }
+
+    private var isAutopilotPausedBySystemState: Bool {
+        isSystemSleeping || areScreensSleeping
+    }
+
+    private var currentAutopilotRefreshInterval: TimeInterval {
+        isLowPowerModeEnabled ? Self.autopilotLowPowerRefreshInterval : Self.autopilotRefreshInterval
+    }
+
+    private var currentAutopilotTaskTriggeredMinimumGap: TimeInterval {
+        isLowPowerModeEnabled
+            ? Self.autopilotLowPowerTaskTriggeredMinimumGap
+            : Self.autopilotTaskTriggeredMinimumGap
+    }
+
+    private var isLowPowerModeEnabled: Bool {
+        if #available(macOS 12.0, *) {
+            return ProcessInfo.processInfo.isLowPowerModeEnabled
+        }
+
+        return false
+    }
+
+    private func runAutopilotLoop() async {
+        defer {
+            autopilotTask = nil
+        }
+
+        while isAutopilotEnabled, !Task.isCancelled {
+            if !isAutopilotPausedBySystemState {
+                await observeRecentSessionActivityIfNeeded()
+
+                if let trigger = autopilotTriggerDue(relativeTo: Date()) {
+                    await runAutopilotEvaluation(trigger: trigger)
+                }
+            }
+
+            try? await Task.sleep(for: Self.autopilotLoopCadence)
+        }
+    }
+
+    private func observeRecentSessionActivityIfNeeded() async {
+        guard activeIdentityKey != nil else {
+            return
+        }
+
+        guard let linkedLocation = await authFileManager.linkedLocation() else {
+            return
+        }
+
+        guard linkedLocation.credentialStoreHint.isSupportedForFileSwitching else {
+            return
+        }
+
+        guard let observation = await sessionRateLimitReader.readLatestObservation(
+            in: linkedLocation.folderURL,
+            authFileURL: linkedLocation.authFileURL
+        ) else {
+            return
+        }
+
+        let latestKnownActivityAt = lastObservedSessionActivityAt ?? .distantPast
+        guard observation.observedAt > latestKnownActivityAt else {
+            return
+        }
+
+        lastObservedSessionActivityAt = observation.observedAt
+    }
+
+    private func autopilotTriggerDue(relativeTo now: Date) -> AutopilotTrigger? {
+        guard !isAutopilotPausedBySystemState else {
+            return nil
+        }
+
+        if let lastObservedSessionActivityAt,
+           lastHandledSessionActivityAt != lastObservedSessionActivityAt,
+           now.timeIntervalSince(lastObservedSessionActivityAt) >= Self.autopilotSessionQuietWindow,
+           now.timeIntervalSince(lastAutopilotEvaluationAt ?? .distantPast) >= currentAutopilotTaskTriggeredMinimumGap {
+            return .sessionBecameQuiet
+        }
+
+        guard let nextAutopilotEvaluationAt, now >= nextAutopilotEvaluationAt else {
+            return nil
+        }
+
+        if let lastObservedSessionActivityAt,
+           now.timeIntervalSince(lastObservedSessionActivityAt) < Self.autopilotSessionQuietWindow {
+            return nil
+        }
+
+        return .scheduled
+    }
+
+    private func runAutopilotEvaluation(trigger: AutopilotTrigger) async {
+        await waitForInitializationIfNeeded()
+
+        guard !Task.isCancelled else {
+            return
+        }
+
+        if isAutopilotPausedBySystemState {
+            return
+        }
+
+        if isSwitching {
+            scheduleAutopilotEvaluationSoon(after: 30)
+            return
+        }
+
+        await refreshAuthState(showUnexpectedErrors: false)
+        applyLocalRateLimitResetsIfNeeded(relativeTo: Date())
+
+        defer {
+            let completionDate = Date()
+
+            if trigger == .sessionBecameQuiet {
+                lastHandledSessionActivityAt = lastObservedSessionActivityAt
+            }
+
+            lastAutopilotEvaluationAt = completionDate
+
+            if trigger != .testing {
+                nextAutopilotEvaluationAt = completionDate.addingTimeInterval(currentAutopilotRefreshInterval)
+            }
+        }
+
+        guard canAutopilotAttemptBackgroundSwitch else {
+            return
+        }
+
+        do {
+            let accounts = try fetchAccounts()
+                .filter { !$0.identityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+            guard !accounts.isEmpty else {
+                return
+            }
+
+            await refreshAutopilotRateLimits(
+                for: orderedAccountsForAutopilotRefresh(from: accounts),
+                relativeTo: Date(),
+                trigger: trigger
+            )
+
+            let refreshedAccounts = try fetchAccounts()
+                .filter { !$0.identityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+            guard let bestCandidate = bestAutopilotAccountCandidate(from: refreshedAccounts) else {
+                return
+            }
+
+            guard bestCandidate.identityKey != activeIdentityKey else {
+                return
+            }
+
+            await switchToAccountNow(
+                id: bestCandidate.id,
+                allowsInteractiveRecovery: false
+            )
+        } catch {
+            logger.error("Autopilot evaluation failed: \(String(describing: error), privacy: .private)")
+        }
+    }
+
+    private var canAutopilotAttemptBackgroundSwitch: Bool {
+        switch authAccessState {
+        case .ready, .missingAuthFile, .corruptAuthFile:
+            true
+        case .unlinked, .locationUnavailable, .accessDenied, .unsupportedCredentialStore:
+            false
+        }
+    }
+
+    private func refreshAutopilotRateLimits(
+        for accounts: [StoredAccount],
+        relativeTo now: Date,
+        trigger: AutopilotTrigger
+    ) async {
+        for account in accounts {
+            let shouldForceRefresh = trigger == .testing
+                || (trigger == .sessionBecameQuiet && account.identityKey == activeIdentityKey)
+
+            guard shouldForceRefresh || shouldRefreshAutopilotRateLimits(for: account.identityKey, relativeTo: now) else {
+                continue
+            }
+
+            await refreshRateLimitsNow(for: account.identityKey)
+        }
+    }
+
+    private func shouldRefreshAutopilotRateLimits(for identityKey: String, relativeTo now: Date) -> Bool {
+        if pendingForcedRateLimitRefreshes.contains(identityKey) {
+            return true
+        }
+
+        if let backoffUntil = rateLimitFailureBackoffUntil[identityKey], backoffUntil > now {
+            return false
+        }
+
+        if let snapshot = rateLimitSnapshotsByIdentityKey[identityKey] {
+            if let nextResetAt = snapshot.nextResetAt, now >= nextResetAt {
+                return true
+            }
+
+            return now.timeIntervalSince(snapshot.fetchedAt) >= currentAutopilotRefreshInterval
+        }
+
+        do {
+            if let account = try fetchAccounts().first(where: { $0.identityKey == identityKey }),
+               let observedAt = account.rateLimitsObservedAt {
+                return now.timeIntervalSince(observedAt) >= currentAutopilotRefreshInterval
+            }
+        } catch {
+            return true
+        }
+
+        return true
+    }
+
+    private func orderedAccountsForAutopilotRefresh(from accounts: [StoredAccount]) -> [StoredAccount] {
+        accounts.sorted { lhs, rhs in
+            if lhs.identityKey == activeIdentityKey, rhs.identityKey != activeIdentityKey {
+                return true
+            }
+
+            if rhs.identityKey == activeIdentityKey, lhs.identityKey != activeIdentityKey {
+                return false
+            }
+
+            if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: .descending) {
+                return lhs.createdAt < rhs.createdAt
+            }
+
+            return Self.rateLimitSortComesBefore(lhs, rhs, direction: .descending)
+        }
+    }
+
+    private func bestAutopilotAccountCandidate(from accounts: [StoredAccount]) -> StoredAccount? {
+        accounts
+            .sorted { lhs, rhs in
+                if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: .descending) {
+                    return lhs.createdAt < rhs.createdAt
+                }
+
+                return Self.rateLimitSortComesBefore(lhs, rhs, direction: .descending)
+            }
+            .first { Self.rateLimitSortMetrics(for: $0).isComplete }
     }
 
     private func handleRemoteSwitchSignal(_ signal: CodexSharedSwitchSignal) async {
@@ -961,14 +1372,20 @@ final class AppController {
     private func handleExpectedAuthOperationError(
         _ error: Error,
         title: String,
-        retryAction: PendingLocationAction
+        retryAction: PendingLocationAction,
+        allowsInteractiveRecovery: Bool = true
     ) async {
         if let authError = error as? AuthFileAccessError {
             switch authError {
             case .accessRequired, .accessDenied, .locationUnavailable:
+                await refreshAuthState(showUnexpectedErrors: false)
+
+                guard allowsInteractiveRecovery else {
+                    return
+                }
+
                 pendingLocationAction = retryAction
                 isShowingLocationPicker = true
-                await refreshAuthState(showUnexpectedErrors: false)
                 return
 
             case .missingAuthFile, .unsupportedCredentialStore:
@@ -985,6 +1402,11 @@ final class AppController {
 
         if error is CodexAuthFileError {
             await refreshAuthState(showUnexpectedErrors: false)
+        }
+
+        guard allowsInteractiveRecovery else {
+            logger.error("\(title, privacy: .public): \(String(describing: error), privacy: .private)")
+            return
         }
 
         present(error, title: title)
@@ -1931,6 +2353,12 @@ private enum PendingLocationAction {
     case captureCurrentAccount
     case switchAccount(UUID)
     case refresh
+}
+
+private enum AutopilotTrigger {
+    case scheduled
+    case sessionBecameQuiet
+    case testing
 }
 
 private enum ControllerError: LocalizedError {
