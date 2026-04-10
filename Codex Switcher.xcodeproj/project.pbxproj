@@ -72,8 +72,8 @@
 		1F87C9562F8406C9007DED25 /* Codex Switcher Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F87C9602F8406C9007DED25 /* Codex Switcher UI Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher UI Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F96B5A62F89BF5100044DB7 /* Codex Switcher iOS App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Codex Switcher iOS App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		1F96B5B62F89BF5200044DB7 /* Codex Switcher iOS AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher iOS AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		1F96B5C02F89BF5200044DB7 /* Codex Switcher iOS AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher iOS AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F96B5B62F89BF5200044DB7 /* Codex Switcher iOS App Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher iOS App Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F96B5C02F89BF5200044DB7 /* Codex Switcher iOS App UI Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher iOS App UI Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -135,14 +135,14 @@
 			path = "Codex Switcher iOS App";
 			sourceTree = "<group>";
 		};
-		1F96B5B92F89BF5200044DB7 /* Codex Switcher iOS AppTests */ = {
+		1F96B5B92F89BF5200044DB7 /* Codex Switcher iOS App Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Codex Switcher iOS AppTests";
+			path = "Codex Switcher iOS App Tests";
 			sourceTree = "<group>";
 		};
-		1F96B5C32F89BF5200044DB7 /* Codex Switcher iOS AppUITests */ = {
+		1F96B5C32F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Codex Switcher iOS AppUITests";
+			path = "Codex Switcher iOS App UI Tests";
 			sourceTree = "<group>";
 		};
 		7A1B2C3D4E5F60718293A4B5 /* Shared */ = {
@@ -225,8 +225,8 @@
 				1F87C9632F8406C9007DED25 /* Codex Switcher UI Tests */,
 				1F28ABB22F86DA4B00639A74 /* Codex Switcher Widgets */,
 				1F96B5A72F89BF5100044DB7 /* Codex Switcher iOS App */,
-				1F96B5B92F89BF5200044DB7 /* Codex Switcher iOS AppTests */,
-				1F96B5C32F89BF5200044DB7 /* Codex Switcher iOS AppUITests */,
+				1F96B5B92F89BF5200044DB7 /* Codex Switcher iOS App Tests */,
+				1F96B5C32F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */,
 				1F28ABAD2F86DA4A00639A74 /* Frameworks */,
 				1F87C9482F8406C7007DED25 /* Products */,
 			);
@@ -240,8 +240,8 @@
 				1F87C9602F8406C9007DED25 /* Codex Switcher UI Tests.xctest */,
 				1F28ABAC2F86DA4A00639A74 /* Codex Switcher Widgets.appex */,
 				1F96B5A62F89BF5100044DB7 /* Codex Switcher iOS App.app */,
-				1F96B5B62F89BF5200044DB7 /* Codex Switcher iOS AppTests.xctest */,
-				1F96B5C02F89BF5200044DB7 /* Codex Switcher iOS AppUITests.xctest */,
+				1F96B5B62F89BF5200044DB7 /* Codex Switcher iOS App Tests.xctest */,
+				1F96B5C02F89BF5200044DB7 /* Codex Switcher iOS App UI Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -365,9 +365,9 @@
 			productReference = 1F96B5A62F89BF5100044DB7 /* Codex Switcher iOS App.app */;
 			productType = "com.apple.product-type.application";
 		};
-		1F96B5B52F89BF5200044DB7 /* Codex Switcher iOS AppTests */ = {
+		1F96B5B52F89BF5200044DB7 /* Codex Switcher iOS App Tests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1F96B5D02F89BF5200044DB7 /* Build configuration list for PBXNativeTarget "Codex Switcher iOS AppTests" */;
+			buildConfigurationList = 1F96B5D02F89BF5200044DB7 /* Build configuration list for PBXNativeTarget "Codex Switcher iOS App Tests" */;
 			buildPhases = (
 				1F96B5B22F89BF5200044DB7 /* Sources */,
 				1F96B5B32F89BF5200044DB7 /* Frameworks */,
@@ -379,18 +379,18 @@
 				1F96B5B82F89BF5200044DB7 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1F96B5B92F89BF5200044DB7 /* Codex Switcher iOS AppTests */,
+				1F96B5B92F89BF5200044DB7 /* Codex Switcher iOS App Tests */,
 			);
-			name = "Codex Switcher iOS AppTests";
+			name = "Codex Switcher iOS App Tests";
 			packageProductDependencies = (
 			);
 			productName = "Codex Switcher iOS AppTests";
-			productReference = 1F96B5B62F89BF5200044DB7 /* Codex Switcher iOS AppTests.xctest */;
+			productReference = 1F96B5B62F89BF5200044DB7 /* Codex Switcher iOS App Tests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		1F96B5BF2F89BF5200044DB7 /* Codex Switcher iOS AppUITests */ = {
+		1F96B5BF2F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1F96B5D12F89BF5200044DB7 /* Build configuration list for PBXNativeTarget "Codex Switcher iOS AppUITests" */;
+			buildConfigurationList = 1F96B5D12F89BF5200044DB7 /* Build configuration list for PBXNativeTarget "Codex Switcher iOS App UI Tests" */;
 			buildPhases = (
 				1F96B5BC2F89BF5200044DB7 /* Sources */,
 				1F96B5BD2F89BF5200044DB7 /* Frameworks */,
@@ -402,13 +402,13 @@
 				1F96B5C22F89BF5200044DB7 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1F96B5C32F89BF5200044DB7 /* Codex Switcher iOS AppUITests */,
+				1F96B5C32F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */,
 			);
-			name = "Codex Switcher iOS AppUITests";
+			name = "Codex Switcher iOS App UI Tests";
 			packageProductDependencies = (
 			);
 			productName = "Codex Switcher iOS AppUITests";
-			productReference = 1F96B5C02F89BF5200044DB7 /* Codex Switcher iOS AppUITests.xctest */;
+			productReference = 1F96B5C02F89BF5200044DB7 /* Codex Switcher iOS App UI Tests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -467,8 +467,8 @@
 				1F87C95F2F8406C9007DED25 /* Codex Switcher UI Tests */,
 				1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */,
 				1F96B5A52F89BF5100044DB7 /* Codex Switcher iOS App */,
-				1F96B5B52F89BF5200044DB7 /* Codex Switcher iOS AppTests */,
-				1F96B5BF2F89BF5200044DB7 /* Codex Switcher iOS AppUITests */,
+				1F96B5B52F89BF5200044DB7 /* Codex Switcher iOS App Tests */,
+				1F96B5BF2F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */,
 			);
 		};
 /* End PBXProject section */
@@ -1211,7 +1211,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1F96B5D02F89BF5200044DB7 /* Build configuration list for PBXNativeTarget "Codex Switcher iOS AppTests" */ = {
+		1F96B5D02F89BF5200044DB7 /* Build configuration list for PBXNativeTarget "Codex Switcher iOS App Tests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1F96B5CA2F89BF5200044DB7 /* Debug */,
@@ -1220,7 +1220,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1F96B5D12F89BF5200044DB7 /* Build configuration list for PBXNativeTarget "Codex Switcher iOS AppUITests" */ = {
+		1F96B5D12F89BF5200044DB7 /* Build configuration list for PBXNativeTarget "Codex Switcher iOS App UI Tests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1F96B5CC2F89BF5200044DB7 /* Debug */,
