@@ -1140,6 +1140,190 @@ struct CodexSwitcherTests {
         )
     }
 
+    @Test func sharedBestAccountCandidateMatchesDescendingRateLimitRanking() {
+        let incomplete = makeSharedAccountRecord(
+            identityKey: "chatgpt:incomplete",
+            name: "Incomplete",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 90,
+            fiveHourLimitUsedPercent: nil
+        )
+        let balanced = makeSharedAccountRecord(
+            identityKey: "chatgpt:balanced",
+            name: "Balanced",
+            sortOrder: 1,
+            sevenDayLimitUsedPercent: 70,
+            fiveHourLimitUsedPercent: 70
+        )
+        let best = makeSharedAccountRecord(
+            identityKey: "chatgpt:best",
+            name: "Best",
+            sortOrder: 2,
+            sevenDayLimitUsedPercent: 90,
+            fiveHourLimitUsedPercent: 70
+        )
+        let lowerMinimum = makeSharedAccountRecord(
+            identityKey: "chatgpt:lower",
+            name: "Lower Minimum",
+            sortOrder: 3,
+            sevenDayLimitUsedPercent: 95,
+            fiveHourLimitUsedPercent: 60
+        )
+
+        let selected = CodexSharedAccountSwitchService.bestRateLimitCandidate(
+            in: [incomplete, balanced, best, lowerMinimum]
+        )
+
+        #expect(selected?.id == best.id)
+    }
+
+    @Test func sharedIntentResolverReturnsCurrentSelectedAndBestAccounts() throws {
+        let current = makeSharedAccountRecord(
+            identityKey: "chatgpt:current",
+            name: "Current",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 65,
+            fiveHourLimitUsedPercent: 60
+        )
+        let selected = makeSharedAccountRecord(
+            identityKey: "chatgpt:selected",
+            name: "Selected",
+            sortOrder: 1,
+            sevenDayLimitUsedPercent: 70,
+            fiveHourLimitUsedPercent: 70
+        )
+        let best = makeSharedAccountRecord(
+            identityKey: "chatgpt:best",
+            name: "Best",
+            sortOrder: 2,
+            sevenDayLimitUsedPercent: 95,
+            fiveHourLimitUsedPercent: 80
+        )
+        let state = makeSharedState(
+            currentAccountID: current.id,
+            selectedAccountID: selected.id,
+            selectedAccountIsLive: true,
+            accounts: [current, selected, best]
+        )
+
+        #expect(try CodexSharedAccountIntentResolver.currentEntity(in: state).id == current.id)
+        #expect(try CodexSharedAccountIntentResolver.selectedEntity(in: state).id == selected.id)
+        #expect(try CodexSharedAccountIntentResolver.bestEntity(in: state).id == best.id)
+    }
+
+    @Test func sharedIntentResolverFallsBackToCurrentAccountWhenSelectionIsNotLive() throws {
+        let current = makeSharedAccountRecord(
+            identityKey: "chatgpt:current",
+            name: "Current",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 65,
+            fiveHourLimitUsedPercent: 60
+        )
+        let selected = makeSharedAccountRecord(
+            identityKey: "chatgpt:selected",
+            name: "Selected",
+            sortOrder: 1,
+            sevenDayLimitUsedPercent: 70,
+            fiveHourLimitUsedPercent: 70
+        )
+        let staleState = makeSharedState(
+            currentAccountID: current.id,
+            selectedAccountID: selected.id,
+            selectedAccountIsLive: false,
+            accounts: [current, selected]
+        )
+
+        #expect(try CodexSharedAccountIntentResolver.selectedEntity(in: staleState).id == current.id)
+    }
+
+    @Test func sharedIntentResolverRanksExactPrefixAndSubstringMatches() throws {
+        let work = makeSharedAccountRecord(
+            identityKey: "chatgpt:work",
+            name: "Work",
+            emailHint: "work@example.com",
+            accountIdentifier: "acct-work",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 90,
+            fiveHourLimitUsedPercent: 90
+        )
+        let workshop = makeSharedAccountRecord(
+            identityKey: "chatgpt:workshop",
+            name: "Workshop",
+            emailHint: "team@example.com",
+            accountIdentifier: "acct-workshop",
+            sortOrder: 1,
+            sevenDayLimitUsedPercent: 80,
+            fiveHourLimitUsedPercent: 80
+        )
+        let night = makeSharedAccountRecord(
+            identityKey: "chatgpt:night",
+            name: "Late Night",
+            emailHint: "night@example.com",
+            accountIdentifier: "acct-night",
+            sortOrder: 2,
+            sevenDayLimitUsedPercent: 70,
+            fiveHourLimitUsedPercent: 70
+        )
+        let state = makeSharedState(accounts: [workshop, night, work])
+
+        let exactMatches = try CodexSharedAccountIntentResolver.matchingEntities(
+            matching: "Work",
+            in: state
+        )
+        #expect(exactMatches.map(\.id) == [work.id, workshop.id])
+        #expect(
+            try CodexSharedAccountIntentResolver.preferredEntity(matching: "work@example.com", in: state).id
+                == work.id
+        )
+        #expect(
+            try CodexSharedAccountIntentResolver.preferredEntity(matching: "night", in: state).id
+                == night.id
+        )
+    }
+
+    @Test func sharedIntentResolverRejectsMissingSelectionAndEmptySearch() {
+        let account = makeSharedAccountRecord(
+            identityKey: "chatgpt:only",
+            name: "Only",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 50,
+            fiveHourLimitUsedPercent: 50
+        )
+        let state = makeSharedState(accounts: [account])
+
+        #expect(throws: CodexSharedIntentLookupError.self) {
+            try CodexSharedAccountIntentResolver.selectedEntity(in: state)
+        }
+
+        #expect(throws: CodexSharedIntentLookupError.self) {
+            try CodexSharedAccountIntentResolver.matchingEntities(matching: "   ", in: state)
+        }
+    }
+
+    @Test func accountEntityQueryReturnsEmptyCollectionsForNormalEmptyStates() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let store = CodexSharedStateStore(baseURL: temporaryDirectory)
+        let query = CodexAccountEntityQuery(store: store)
+
+        try store.save(makeSharedState(accounts: []))
+        let emptySuggestions = try await query.suggestedEntities()
+        #expect(emptySuggestions.isEmpty)
+
+        let account = makeSharedAccountRecord(
+            identityKey: "chatgpt:only",
+            name: "Only",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 50,
+            fiveHourLimitUsedPercent: 50
+        )
+        try store.save(makeSharedState(accounts: [account]))
+
+        let emptySearchMatches = try await query.entities(matching: "   ")
+        let missingMatches = try await query.entities(matching: "missing")
+        #expect(emptySearchMatches.isEmpty)
+        #expect(missingMatches.isEmpty)
+    }
+
     @Test func restoreSortPreferencesUsesStoredValuesAndFallsBackSafely() {
         let controller = makeController(
             authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
@@ -1171,6 +1355,132 @@ struct CodexSwitcherTests {
         let result = await controller.requestNotificationAuthorizationForSettings()
 
         #expect(result == .denied)
+    }
+
+    @Test func sharedStateOnlyPublishesSelectedAccountWhileSelectionContextIsPresented() async throws {
+        let container = try makeInMemoryContainer()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-selected"))
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.captureCurrentAccountNow()
+        let selectedAccount = try #require(fetchAccounts(in: container.mainContext).first)
+
+        controller.setPrimarySelectionContextPresented(true)
+        let liveState = try controller.sharedStateForTesting()
+        #expect(liveState.selectedAccountID == selectedAccount.identityKey)
+        #expect(liveState.selectedAccount?.id == selectedAccount.identityKey)
+
+        controller.setPrimarySelectionContextPresented(false)
+        let hiddenState = try controller.sharedStateForTesting()
+        #expect(hiddenState.selectedAccountID == nil)
+        #expect(hiddenState.selectedAccount == nil)
+    }
+
+    @Test func queuedSharedCommandsAreAcknowledgedOnlyAfterHandling() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
+        try queue.enqueue(CodexSharedAppCommand(action: .captureCurrentAccount))
+
+        let container = try makeInMemoryContainer()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-queued"))
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.processPendingSharedCommands(
+            allowsUnitTestExecution: true,
+            queue: queue
+        )
+
+        let accounts = try fetchAccounts(in: container.mainContext)
+        #expect(accounts.count == 1)
+        let remainingCommands = try queue.load()
+        #expect(remainingCommands.isEmpty)
+    }
+
+    @Test func failedSharedCommandsStayQueuedForRetry() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
+        let queuedCommand = CodexSharedAppCommand(action: .captureCurrentAccount)
+        try queue.enqueue(queuedCommand)
+
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-failed"))
+        await authFileManager.clearLinkedLocation()
+        let controller = makeController(authFileManager: authFileManager)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.processPendingSharedCommands(
+            allowsUnitTestExecution: true,
+            queue: queue
+        )
+
+        let accounts = try fetchAccounts(in: container.mainContext)
+        #expect(accounts.isEmpty)
+        #expect(try queue.load() == [queuedCommand])
+    }
+
+    @Test func sharedCommandProcessingRepeatsWhenNewCommandsArriveMidPass() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
+        try queue.enqueue(CodexSharedAppCommand(action: .captureCurrentAccount))
+
+        let container = try makeInMemoryContainer()
+        let authFileManager = ReentrantQueueingAuthFileManager(
+            initialContents: makeChatGPTAuthJSON(accountID: "acct-first"),
+            queuedContents: makeChatGPTAuthJSON(accountID: "acct-second"),
+            queue: queue
+        )
+        let controller = makeController(authFileManager: authFileManager)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        authFileManager.controller = controller
+
+        await controller.processPendingSharedCommands(
+            allowsUnitTestExecution: true,
+            queue: queue
+        )
+
+        try await waitUntil(iterations: 200, sleepMilliseconds: 5) {
+            let accountCount = await MainActor.run {
+                (try? fetchAccounts(in: container.mainContext).count) ?? 0
+            }
+            let isQueueEmpty = (try? queue.load().isEmpty) == true
+            return accountCount == 2 && isQueueEmpty
+        }
+    }
+
+    @Test func quitCommandDrainsLoadedCommandsBeforeTerminating() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
+        try queue.enqueue(CodexSharedAppCommand(action: .quitApplication))
+        try queue.enqueue(CodexSharedAppCommand(action: .captureCurrentAccount))
+
+        let container = try makeInMemoryContainer()
+        let terminationRecorder = TerminationRecorder()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-after-quit")),
+            terminateApplication: {
+                Task {
+                    await terminationRecorder.recordTermination()
+                }
+            }
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.processPendingSharedCommands(
+            allowsUnitTestExecution: true,
+            queue: queue
+        )
+
+        let accounts = try fetchAccounts(in: container.mainContext)
+        #expect(accounts.count == 1)
+        #expect(try queue.load().isEmpty)
+        try await waitUntil {
+            await terminationRecorder.terminationCount() == 1
+        }
     }
 
     @Test func menuBarIconOptionResolvesUnknownStoredValueToDefault() {
@@ -1531,12 +1841,13 @@ struct CodexSwitcherTests {
 
 @MainActor
 private func makeController(
-    authFileManager: FakeAuthFileManager,
+    authFileManager: any AuthFileManaging,
     secretStore: FakeSecretStore = FakeSecretStore(),
     notificationManager: FakeNotificationManager = FakeNotificationManager(),
     rateLimitProvider: CodexRateLimitProviding = FakeRateLimitProvider(),
     lowPowerModeProvider: @escaping () -> Bool = { false },
     batteryChargePercentProvider: @escaping () -> Int? = { nil },
+    terminateApplication: @escaping () -> Void = {},
     autopilotEnabled: Bool = false
 ) -> AppController {
     AppController(
@@ -1546,6 +1857,7 @@ private func makeController(
         rateLimitProvider: rateLimitProvider,
         lowPowerModeProvider: lowPowerModeProvider,
         batteryChargePercentProvider: batteryChargePercentProvider,
+        terminateApplication: terminateApplication,
         autopilotEnabled: autopilotEnabled
     )
 }
@@ -1563,6 +1875,56 @@ private func makeInMemoryContainer() throws -> ModelContainer {
 
 private func fetchAccounts(in modelContext: ModelContext) throws -> [StoredAccount] {
     try modelContext.fetch(FetchDescriptor<StoredAccount>())
+}
+
+private func makeSharedAccountRecord(
+    identityKey: String,
+    name: String,
+    emailHint: String? = nil,
+    accountIdentifier: String? = nil,
+    sortOrder: Double,
+    sevenDayLimitUsedPercent: Int?,
+    fiveHourLimitUsedPercent: Int?
+) -> SharedCodexAccountRecord {
+    SharedCodexAccountRecord(
+        id: identityKey,
+        name: name,
+        iconSystemName: "key.fill",
+        emailHint: emailHint,
+        accountIdentifier: accountIdentifier,
+        authModeRaw: "chatgpt",
+        lastLoginAt: nil,
+        sevenDayLimitUsedPercent: sevenDayLimitUsedPercent,
+        fiveHourLimitUsedPercent: fiveHourLimitUsedPercent,
+        rateLimitsObservedAt: nil,
+        sortOrder: sortOrder,
+        authFileContents: nil
+    )
+}
+
+private func makeSharedState(
+    currentAccountID: String? = nil,
+    selectedAccountID: String? = nil,
+    selectedAccountIsLive: Bool? = nil,
+    accounts: [SharedCodexAccountRecord]
+) -> SharedCodexState {
+    SharedCodexState(
+        schemaVersion: SharedCodexState.currentSchemaVersion,
+        authState: .ready,
+        linkedFolderPath: "/tmp/.codex",
+        currentAccountID: currentAccountID,
+        selectedAccountID: selectedAccountID,
+        selectedAccountIsLive: selectedAccountIsLive ?? (selectedAccountID != nil),
+        accounts: accounts,
+        updatedAt: .now
+    )
+}
+
+private func makeTemporaryDirectory() throws -> URL {
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("CodexSwitcherTests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    return directoryURL
 }
 
 private func makeChatGPTAuthJSON(
@@ -1670,6 +2032,7 @@ private struct TestTimeoutError: Error {}
 
 private func waitUntil(
     iterations: Int = 400,
+    sleepMilliseconds: UInt64 = 0,
     condition: @escaping @Sendable () async -> Bool
 ) async throws {
     for _ in 0..<iterations {
@@ -1677,7 +2040,11 @@ private func waitUntil(
             return
         }
 
-        await Task.yield()
+        if sleepMilliseconds == 0 {
+            await Task.yield()
+        } else {
+            try? await Task.sleep(nanoseconds: sleepMilliseconds * 1_000_000)
+        }
     }
 
     throw TestTimeoutError()
@@ -1785,6 +2152,8 @@ actor FakeAuthFileManager: AuthFileManaging {
     }
 
     func readAuthFile() async throws -> AuthFileReadResult {
+        let currentContents = self.currentContents
+
         if let readError {
             throw readError
         }
@@ -1920,5 +2289,94 @@ final class FakeNotificationManager: AccountSwitchNotifying {
 
     func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult {
         authorizationRequestResult
+    }
+}
+
+actor TerminationRecorder {
+    private var count = 0
+
+    func recordTermination() {
+        count += 1
+    }
+
+    func terminationCount() -> Int {
+        count
+    }
+}
+
+@MainActor
+final class ReentrantQueueingAuthFileManager: AuthFileManaging {
+    weak var controller: AppController?
+
+    private var currentContents: String
+    private let queuedContents: String
+    private let queue: CodexSharedAppCommandQueue
+    private var linkedLocationValue: AuthLinkedLocation?
+    private var hasQueuedAdditionalCommand = false
+    private var onChange: (@Sendable () -> Void)?
+
+    init(
+        initialContents: String,
+        queuedContents: String,
+        queue: CodexSharedAppCommandQueue,
+        linkedLocation: AuthLinkedLocation = AuthLinkedLocation(
+            folderURL: URL(fileURLWithPath: "/tmp/.codex", isDirectory: true),
+            credentialStoreHint: .file
+        )
+    ) {
+        self.currentContents = initialContents
+        self.queuedContents = queuedContents
+        self.queue = queue
+        self.linkedLocationValue = linkedLocation
+    }
+
+    func linkedLocation() async -> AuthLinkedLocation? {
+        linkedLocationValue
+    }
+
+    func linkLocation(_ selectedURL: URL) async throws -> AuthLinkedLocation {
+        let folderURL = selectedURL.hasDirectoryPath
+            ? selectedURL
+            : selectedURL.deletingLastPathComponent()
+        let location = AuthLinkedLocation(folderURL: folderURL, credentialStoreHint: .file)
+        linkedLocationValue = location
+        return location
+    }
+
+    func clearLinkedLocation() async {
+        linkedLocationValue = nil
+    }
+
+    func readAuthFile() async throws -> AuthFileReadResult {
+        guard let linkedLocationValue else {
+            throw AuthFileAccessError.accessRequired
+        }
+
+        let currentContents = self.currentContents
+        if !hasQueuedAdditionalCommand {
+            hasQueuedAdditionalCommand = true
+            self.currentContents = queuedContents
+            try? queue.enqueue(CodexSharedAppCommand(action: .captureCurrentAccount))
+            if let controller {
+                controller.requestPendingSharedCommandsProcessing(
+                    allowsUnitTestExecution: true,
+                    queue: queue
+                )
+            }
+        }
+
+        return AuthFileReadResult(url: linkedLocationValue.authFileURL, contents: currentContents)
+    }
+
+    func writeAuthFile(_ contents: String) async throws {
+        guard linkedLocationValue != nil else {
+            throw AuthFileAccessError.accessRequired
+        }
+
+        currentContents = contents
+    }
+
+    func startMonitoring(_ onChange: @escaping @Sendable () -> Void) async {
+        self.onChange = onChange
     }
 }

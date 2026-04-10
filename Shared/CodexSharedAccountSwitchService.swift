@@ -14,6 +14,7 @@ import Darwin
 enum CodexSharedSwitchError: LocalizedError {
     case accountSelectionRequired
     case accountNotFound(String)
+    case noBestAccountAvailable
     case missingStoredSnapshot(String)
     case invalidStoredSnapshot(String)
     case missingBookmark
@@ -30,6 +31,8 @@ enum CodexSharedSwitchError: LocalizedError {
             return "Select an account first."
         case let .accountNotFound(identityKey):
             return "The saved account (\(identityKey)) is no longer available."
+        case .noBestAccountAvailable:
+            return "No saved account currently has both 5h and 7d rate limits available for ranking."
         case let .missingStoredSnapshot(accountName):
             return "Codex Switcher no longer has a saved auth snapshot for \(accountName)."
         case let .invalidStoredSnapshot(accountName):
@@ -65,6 +68,27 @@ enum CodexSharedSwitchError: LocalizedError {
     }
 }
 
+enum CodexSharedAccountSwitchOutcome: Sendable, Equatable {
+    case switched(SharedCodexAccountRecord)
+    case alreadyCurrent(SharedCodexAccountRecord)
+
+    nonisolated var account: SharedCodexAccountRecord {
+        switch self {
+        case let .switched(account), let .alreadyCurrent(account):
+            account
+        }
+    }
+
+    nonisolated var didChangeAccount: Bool {
+        switch self {
+        case .switched:
+            true
+        case .alreadyCurrent:
+            false
+        }
+    }
+}
+
 struct CodexSharedAccountSwitchService: Sendable {
     private let stateStore: CodexSharedStateStore
     private let bookmarkStore: CodexSharedBookmarkStore
@@ -84,17 +108,12 @@ struct CodexSharedAccountSwitchService: Sendable {
     /// process. The service never touches SwiftData directly; it only consumes
     /// the app-prepared App Group snapshot and the shared security-scoped
     /// bookmark so extensions stay lightweight and deterministic.
-    nonisolated func switchToAccount(identityKey: String) throws -> SharedCodexAccountRecord {
+    nonisolated func switchToAccount(identityKey: String) throws -> CodexSharedAccountSwitchOutcome {
         do {
-            let switchedAccount = try lock.withExclusiveAccess {
+            let outcome = try lock.withExclusiveAccess {
                 try performSwitch(identityKey: identityKey)
             }
-            CodexSharedSurfaceReloader.reloadAll()
-            CodexSharedSwitchFeedback.postSwitchSignal(
-                identityKey: switchedAccount.id,
-                accountName: switchedAccount.name
-            )
-            return switchedAccount
+            return finalizeSwitchOutcome(outcome)
         } catch let error as CodexSharedSwitchError {
             try? persistFailureState(for: error)
             CodexSharedSurfaceReloader.reloadAll()
@@ -102,8 +121,44 @@ struct CodexSharedAccountSwitchService: Sendable {
         }
     }
 
-    private nonisolated func performSwitch(identityKey: String) throws -> SharedCodexAccountRecord {
-        var state = try stateStore.load()
+    nonisolated func switchToBestAccount() throws -> CodexSharedAccountSwitchOutcome {
+        do {
+            let outcome = try lock.withExclusiveAccess {
+                let state = try stateStore.load()
+                guard let bestAccount = Self.bestRateLimitCandidate(in: state.accounts) else {
+                    throw CodexSharedSwitchError.noBestAccountAvailable
+                }
+
+                return try performSwitch(identityKey: bestAccount.id, initialState: state)
+            }
+            return finalizeSwitchOutcome(outcome)
+        } catch let error as CodexSharedSwitchError {
+            try? persistFailureState(for: error)
+            CodexSharedSurfaceReloader.reloadAll()
+            throw error
+        }
+    }
+
+    private nonisolated func finalizeSwitchOutcome(
+        _ outcome: CodexSharedAccountSwitchOutcome
+    ) -> CodexSharedAccountSwitchOutcome {
+        CodexSharedSurfaceReloader.reloadAll()
+
+        if outcome.didChangeAccount {
+            CodexSharedSwitchFeedback.postSwitchSignal(
+                identityKey: outcome.account.id,
+                accountName: outcome.account.name
+            )
+        }
+
+        return outcome
+    }
+
+    private nonisolated func performSwitch(
+        identityKey: String,
+        initialState: SharedCodexState? = nil
+    ) throws -> CodexSharedAccountSwitchOutcome {
+        var state = try initialState ?? stateStore.load()
 
         guard state.authState.canAttemptSwitch else {
             throw CodexSharedSwitchError.unsupportedAuthState(state.authState)
@@ -123,9 +178,19 @@ struct CodexSharedAccountSwitchService: Sendable {
         }
 
         let folderURL = try resolveLinkedFolderURL()
+        var didWriteAuthFile = false
         try withAuthorizedFolder(folderURL) { authorizedFolderURL in
             let authFileURL = authorizedFolderURL.appending(path: "auth.json", directoryHint: .notDirectory)
+
+            if FileManager.default.fileExists(atPath: authFileURL.path) {
+                let existingContents = try coordinatedRead(of: authFileURL)
+                if existingContents == authFileContents {
+                    return
+                }
+            }
+
             try coordinatedWrite(authFileContents, to: authFileURL)
+            didWriteAuthFile = true
 
             let verifiedContents = try coordinatedRead(of: authFileURL)
             let verifiedSnapshot = try parseStoredSnapshot(contents: verifiedContents, accountName: account.name)
@@ -145,7 +210,7 @@ struct CodexSharedAccountSwitchService: Sendable {
         state.updatedAt = .now
         state.accounts = state.accounts.map { existingAccount in
             var updatedAccount = existingAccount
-            if updatedAccount.id == identityKey {
+            if didWriteAuthFile, updatedAccount.id == identityKey {
                 updatedAccount.lastLoginAt = .now
             }
 
@@ -153,7 +218,7 @@ struct CodexSharedAccountSwitchService: Sendable {
         }
         try stateStore.save(state)
 
-        return account
+        return didWriteAuthFile ? .switched(account) : .alreadyCurrent(account)
     }
 
     private nonisolated func parseStoredSnapshot(contents: String, accountName: String) throws -> SharedCodexAuthSnapshot {
@@ -285,6 +350,7 @@ struct CodexSharedAccountSwitchService: Sendable {
             state.authState = authState
         case .accountSelectionRequired,
              .accountNotFound,
+             .noBestAccountAvailable,
              .missingStoredSnapshot,
              .invalidStoredSnapshot,
              .unreadable,
@@ -295,5 +361,79 @@ struct CodexSharedAccountSwitchService: Sendable {
 
         state.updatedAt = .now
         try stateStore.save(state)
+    }
+
+    nonisolated static func bestRateLimitCandidate(
+        in accounts: [SharedCodexAccountRecord]
+    ) -> SharedCodexAccountRecord? {
+        accounts
+            .sorted { lhs, rhs in
+                if areEquivalentForRateLimitSort(lhs, rhs) {
+                    return lhs.sortOrder < rhs.sortOrder
+                }
+
+                return rateLimitSortComesBefore(lhs, rhs)
+            }
+            .first(where: { rateLimitSortMetrics(for: $0).isComplete })
+    }
+
+    private nonisolated static func rateLimitSortComesBefore(
+        _ lhs: SharedCodexAccountRecord,
+        _ rhs: SharedCodexAccountRecord
+    ) -> Bool {
+        let lhsMetrics = rateLimitSortMetrics(for: lhs)
+        let rhsMetrics = rateLimitSortMetrics(for: rhs)
+
+        if lhsMetrics.isComplete != rhsMetrics.isComplete {
+            return lhsMetrics.isComplete
+        }
+
+        if lhsMetrics.primary != rhsMetrics.primary {
+            return lhsMetrics.primary > rhsMetrics.primary
+        }
+
+        if lhsMetrics.secondary != rhsMetrics.secondary {
+            return lhsMetrics.secondary > rhsMetrics.secondary
+        }
+
+        return lhs.sortOrder < rhs.sortOrder
+    }
+
+    private nonisolated static func areEquivalentForRateLimitSort(
+        _ lhs: SharedCodexAccountRecord,
+        _ rhs: SharedCodexAccountRecord
+    ) -> Bool {
+        let lhsMetrics = rateLimitSortMetrics(for: lhs)
+        let rhsMetrics = rateLimitSortMetrics(for: rhs)
+        return lhsMetrics.isComplete == rhsMetrics.isComplete
+            && lhsMetrics.primary == rhsMetrics.primary
+            && lhsMetrics.secondary == rhsMetrics.secondary
+    }
+
+    private nonisolated static func rateLimitSortMetrics(
+        for account: SharedCodexAccountRecord
+    ) -> (isComplete: Bool, primary: Int, secondary: Int) {
+        let normalizedValues = normalizedRateLimitSortValues(for: account)
+        return (
+            normalizedValues.isComplete,
+            normalizedValues.values.min() ?? 0,
+            normalizedValues.values.max() ?? 0
+        )
+    }
+
+    private nonisolated static func normalizedRateLimitSortValues(
+        for account: SharedCodexAccountRecord
+    ) -> (isComplete: Bool, values: [Int]) {
+        guard let fiveHourRemainingPercent = account.fiveHourLimitUsedPercent,
+              let sevenDayRemainingPercent = account.sevenDayLimitUsedPercent
+        else {
+            return (false, [0, 0])
+        }
+
+        return (
+            true,
+            [fiveHourRemainingPercent, sevenDayRemainingPercent]
+                .map { min(max($0, 0), 100) }
+        )
     }
 }

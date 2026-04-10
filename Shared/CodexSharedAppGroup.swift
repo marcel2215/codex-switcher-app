@@ -11,6 +11,7 @@ enum CodexSharedAppGroup {
     nonisolated static let identifier = "group.com.marcel2215.codexswitcher"
     nonisolated static let stateFilename = "SharedCodexState.json"
     nonisolated static let bookmarkFilename = "LinkedCodexFolder.bookmark"
+    nonisolated static let appCommandFilename = "PendingCodexAppCommands.json"
     nonisolated static let lockFilename = "CodexAccountSwitch.lock"
 
     nonisolated static func containerURL(fileManager: FileManager = .default) throws -> URL {

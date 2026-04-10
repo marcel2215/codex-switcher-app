@@ -45,12 +45,17 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
 }
 
 nonisolated struct SharedCodexState: Codable, Sendable {
-    nonisolated static let currentSchemaVersion = 1
+    nonisolated static let currentSchemaVersion = 3
 
     var schemaVersion: Int
     var authState: SharedCodexAuthState
     var linkedFolderPath: String?
     var currentAccountID: String?
+    var selectedAccountID: String?
+    /// Only treat `selectedAccountID` as meaningful when the main account list
+    /// is currently on-screen. Older snapshots omit this field, which safely
+    /// decodes as nil and therefore disables stale "selected account" results.
+    var selectedAccountIsLive: Bool?
     var accounts: [SharedCodexAccountRecord]
     var updatedAt: Date
 
@@ -59,11 +64,29 @@ nonisolated struct SharedCodexState: Codable, Sendable {
         authState: .unlinked,
         linkedFolderPath: nil,
         currentAccountID: nil,
+        selectedAccountID: nil,
+        selectedAccountIsLive: false,
         accounts: [],
         updatedAt: .distantPast
     )
 
     nonisolated func account(withIdentityKey identityKey: String) -> SharedCodexAccountRecord? {
         accounts.first(where: { $0.id == identityKey })
+    }
+
+    nonisolated var currentAccount: SharedCodexAccountRecord? {
+        guard let currentAccountID else {
+            return nil
+        }
+
+        return account(withIdentityKey: currentAccountID)
+    }
+
+    nonisolated var selectedAccount: SharedCodexAccountRecord? {
+        guard (selectedAccountIsLive ?? false), let selectedAccountID else {
+            return nil
+        }
+
+        return account(withIdentityKey: selectedAccountID)
     }
 }

@@ -176,6 +176,12 @@ struct ContentView: View {
         .task(id: undoManagerTaskID) {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
         }
+        .onAppear {
+            controller.setPrimarySelectionContextPresented(true)
+        }
+        .onDisappear {
+            controller.setPrimarySelectionContextPresented(false)
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             controller.setApplicationActive(true)
         }

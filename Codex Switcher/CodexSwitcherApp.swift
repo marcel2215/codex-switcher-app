@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import AppIntents
 
 @main
 struct CodexSwitcherApp: App {
@@ -19,17 +20,23 @@ struct CodexSwitcherApp: App {
         CodexSharedPreferenceKey.autopilotEnabled,
         store: CodexSharedPreferences.userDefaults
     ) private var autopilotEnabled = CodexSharedPreferenceDefaults.autopilotEnabled
-    @AppStorage(AppPreferenceKey.showMenuBarExtra) private var showMenuBarExtra = AppPreferenceDefaults.showMenuBarExtra
+    @AppStorage(
+        CodexSharedPreferenceKey.showMenuBarExtra,
+        store: CodexSharedPreferences.userDefaults
+    ) private var showMenuBarExtra = CodexSharedPreferenceDefaults.showMenuBarExtra
     @AppStorage(AppPreferenceKey.menuBarIconSystemName) private var persistedMenuBarIconSystemName = AppPreferenceDefaults.menuBarIconSystemName
     @AppStorage(AppPreferenceKey.sortCriterion) private var persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
     @AppStorage(AppPreferenceKey.sortDirection) private var persistedSortDirectionRawValue = AppPreferenceDefaults.sortDirectionRawValue
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
     @State private var controller: AppController
+    @State private var sharedPreferenceObservationTask: Task<Void, Never>?
 
     private let sharedModelContainer: ModelContainer?
     private let storageRecoveryMessage: String?
 
     init() {
+        CodexSharedPreferences.migrateLegacyMenuBarPreferenceIfNeeded()
+        CodexSwitcherAppShortcuts.updateAppShortcutParameters()
         let bootstrap = AppBootstrap.make()
         self.sharedModelContainer = bootstrap.modelContainer
         self.storageRecoveryMessage = bootstrap.storageRecoveryMessage
@@ -47,7 +54,7 @@ struct CodexSwitcherApp: App {
         Window("Codex Switcher", id: "main") {
             rootContentView
                 .task {
-                    applyRuntimePreferences()
+                    await performAppStartupTasksIfNeeded()
                 }
         }
         .defaultSize(width: 620, height: 720)
@@ -74,7 +81,7 @@ struct CodexSwitcherApp: App {
             )
             .frame(width: 520, height: 590)
             .task {
-                applyRuntimePreferences()
+                await performAppStartupTasksIfNeeded()
             }
         }
     }
@@ -99,14 +106,14 @@ struct CodexSwitcherApp: App {
                         .modelContainer(sharedModelContainer)
                 }
                     .task {
-                        applyRuntimePreferences()
+                        await performAppStartupTasksIfNeeded()
                     }
             } else {
                 MenuBarStorageRecoveryView(
                     message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database."
                 )
                 .task {
-                    applyRuntimePreferences()
+                    await performAppStartupTasksIfNeeded()
                 }
             }
         }
@@ -160,7 +167,7 @@ struct CodexSwitcherApp: App {
     private func resetStoredSettingsToDefaults() {
         showNotifications = CodexSharedPreferenceDefaults.notificationsEnabled
         autopilotBinding.wrappedValue = CodexSharedPreferenceDefaults.autopilotEnabled
-        showMenuBarExtraBinding.wrappedValue = AppPreferenceDefaults.showMenuBarExtra
+        showMenuBarExtraBinding.wrappedValue = CodexSharedPreferenceDefaults.showMenuBarExtra
         menuBarIconBinding.wrappedValue = MenuBarIconOption.defaultOption
         persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
         persistedSortDirectionRawValue = AppPreferenceDefaults.sortDirectionRawValue
@@ -170,10 +177,29 @@ struct CodexSwitcherApp: App {
         )
     }
 
+    private func configureControllerIfPossible() {
+        guard let sharedModelContainer else {
+            return
+        }
+
+        controller.configure(modelContext: sharedModelContainer.mainContext, undoManager: nil)
+    }
+
+    private func performAppStartupTasksIfNeeded() async {
+        guard !AppRuntimeEnvironment.isRunningUnitTests else {
+            return
+        }
+
+        configureControllerIfPossible()
+        startSharedPreferenceObservationIfNeeded()
+        applyRuntimePreferences()
+        await controller.processPendingSharedCommands()
+    }
+
     private var areAppPreferencesAtDefaults: Bool {
         showNotifications == CodexSharedPreferenceDefaults.notificationsEnabled
             && autopilotEnabled == CodexSharedPreferenceDefaults.autopilotEnabled
-            && showMenuBarExtra == AppPreferenceDefaults.showMenuBarExtra
+            && showMenuBarExtra == CodexSharedPreferenceDefaults.showMenuBarExtra
             && persistedMenuBarIconSystemName == AppPreferenceDefaults.menuBarIconSystemName
             && persistedSortCriterionRawValue == AppPreferenceDefaults.sortCriterionRawValue
             && persistedSortDirectionRawValue == AppPreferenceDefaults.sortDirectionRawValue
@@ -185,6 +211,30 @@ struct CodexSwitcherApp: App {
             menuBarEnabled: showMenuBarExtra,
             autopilotEnabled: autopilotEnabled
         )
+    }
+
+    private func startSharedPreferenceObservationIfNeeded() {
+        guard sharedPreferenceObservationTask == nil else {
+            return
+        }
+
+        sharedPreferenceObservationTask = Task { @MainActor in
+            let notifications = DistributedNotificationCenter.default().notifications(
+                named: CodexSharedPreferenceFeedback.didChangePreferencesNotification,
+                object: nil
+            )
+
+            for await _ in notifications {
+                synchronizeRuntimePreferencesFromSharedStore()
+            }
+        }
+    }
+
+    private func synchronizeRuntimePreferencesFromSharedStore() {
+        showNotifications = CodexSharedPreferences.notificationsEnabled
+        autopilotEnabled = CodexSharedPreferences.autopilotEnabled
+        showMenuBarExtra = CodexSharedPreferences.showMenuBarExtra
+        applyRuntimePreferences()
     }
 
     @ViewBuilder
@@ -439,8 +489,9 @@ private struct SettingsView: View {
     let onResetSettings: () -> Void
     @State private var isShowingLocationPicker = false
     @State private var isUpdatingNotificationsPreference = false
-    @State private var launchAtLoginState = LaunchAtLoginState.disabled
+    @State private var launchAtLoginState = CodexSharedLaunchAtLoginState.disabled
     @State private var presentedSettingsAlert: SettingsAlert?
+    @State private var settingsChangeObservationTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -545,7 +596,12 @@ private struct SettingsView: View {
         .formStyle(.grouped)
         .padding(20)
         .task {
-            launchAtLoginState = LaunchAtLoginService.currentState()
+            launchAtLoginState = CodexSharedLaunchAtLoginService.currentState()
+            startSettingsChangeObservationIfNeeded()
+        }
+        .onDisappear {
+            settingsChangeObservationTask?.cancel()
+            settingsChangeObservationTask = nil
         }
         .alert(item: $presentedSettingsAlert) { alert in
             switch alert {
@@ -661,13 +717,30 @@ private struct SettingsView: View {
 
     private func updateLaunchAtLogin(isEnabled: Bool) {
         do {
-            launchAtLoginState = try LaunchAtLoginService.setEnabled(isEnabled)
+            launchAtLoginState = try CodexSharedLaunchAtLoginService.setEnabled(isEnabled)
         } catch {
-            launchAtLoginState = LaunchAtLoginService.currentState()
+            launchAtLoginState = CodexSharedLaunchAtLoginService.currentState()
             presentedSettingsAlert = .error(
                 title: "Couldn't Update Launch at Login",
-                message: LaunchAtLoginService.userFacingMessage(for: error)
+                message: CodexSharedLaunchAtLoginService.userFacingMessage(for: error)
             )
+        }
+    }
+
+    private func startSettingsChangeObservationIfNeeded() {
+        guard settingsChangeObservationTask == nil else {
+            return
+        }
+
+        settingsChangeObservationTask = Task { @MainActor in
+            let notifications = DistributedNotificationCenter.default().notifications(
+                named: CodexSharedPreferenceFeedback.didChangePreferencesNotification,
+                object: nil
+            )
+
+            for await _ in notifications {
+                launchAtLoginState = CodexSharedLaunchAtLoginService.currentState()
+            }
         }
     }
 }

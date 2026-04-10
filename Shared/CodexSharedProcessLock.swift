@@ -12,8 +12,15 @@ import Darwin
 #endif
 
 struct CodexSharedProcessLock: Sendable {
+    private let baseURL: URL?
+
+    nonisolated init(baseURL: URL? = nil) {
+        self.baseURL = baseURL
+    }
+
     nonisolated func withExclusiveAccess<T>(_ body: () throws -> T) throws -> T {
-        let lockURL = try CodexSharedAppGroup.containerURL()
+        let containerURL = try baseURL ?? CodexSharedAppGroup.containerURL()
+        let lockURL = containerURL
             .appending(path: CodexSharedAppGroup.lockFilename, directoryHint: .notDirectory)
 
         if !FileManager.default.fileExists(atPath: lockURL.path) {

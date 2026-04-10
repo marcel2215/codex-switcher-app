@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import AppIntents
 import Foundation
 import IOKit.ps
 import Observation
@@ -34,8 +35,17 @@ final class AppController {
     private nonisolated static let autopilotSessionQuietWindow: TimeInterval = 45
     private nonisolated static let autopilotTaskTriggeredMinimumGap: TimeInterval = 90
     private nonisolated static let autopilotWakeDelay: TimeInterval = 0
+    private nonisolated static let mainApplicationBundleIdentifier = "com.marcel2215.codexswitcher"
 
-    var selection: Set<UUID> = []
+    var selection: Set<UUID> = [] {
+        didSet {
+            guard selection != oldValue else {
+                return
+            }
+
+            publishSharedState(immediate: true)
+        }
+    }
     var searchText = ""
     var sortCriterion: AccountSortCriterion = .dateAdded
     var sortDirection: SortDirection = .ascending
@@ -53,6 +63,7 @@ final class AppController {
     @ObservationIgnored private let sessionRateLimitReader: CodexSessionRateLimitReader
     @ObservationIgnored private let lowPowerModeProvider: () -> Bool
     @ObservationIgnored private let batteryChargePercentProvider: () -> Int?
+    @ObservationIgnored private let terminateApplication: () -> Void
     @ObservationIgnored private let logger: Logger
     @ObservationIgnored private let startupAlert: UserFacingAlert?
 
@@ -65,6 +76,7 @@ final class AppController {
     @ObservationIgnored private var switchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSwitchOperationID: UUID?
     @ObservationIgnored private var remoteSwitchObservationTask: Task<Void, Never>?
+    @ObservationIgnored private var sharedCommandObservationTask: Task<Void, Never>?
     @ObservationIgnored private var systemStateObservationTasks: [Task<Void, Never>] = []
     @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitPollingTask: Task<Void, Never>?
@@ -78,6 +90,7 @@ final class AppController {
     @ObservationIgnored private var isApplicationActive = false
     @ObservationIgnored private var isMenuBarPresented = false
     @ObservationIgnored private var isAutopilotEnabled = false
+    @ObservationIgnored private var isPrimarySelectionContextPresented = false
     @ObservationIgnored private var isSystemSleeping = false
     @ObservationIgnored private var areScreensSleeping = false
     @ObservationIgnored private var nextAutopilotEvaluationAt: Date?
@@ -85,6 +98,8 @@ final class AppController {
     @ObservationIgnored private var lastAutopilotEvaluationAt: Date?
     @ObservationIgnored private var lastObservedSessionActivityAt: Date?
     @ObservationIgnored private var lastHandledSessionActivityAt: Date?
+    @ObservationIgnored private var isProcessingSharedCommands = false
+    @ObservationIgnored private var shouldProcessSharedCommandsAgain = false
 
     init(
         authFileManager: AuthFileManaging,
@@ -97,6 +112,7 @@ final class AppController {
         bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "CodexSwitcher",
         lowPowerModeProvider: @escaping () -> Bool = AppController.defaultLowPowerModeProvider,
         batteryChargePercentProvider: @escaping () -> Int? = AppController.defaultBatteryChargePercentProvider,
+        terminateApplication: @escaping () -> Void = { NSApp.terminate(nil) },
         autopilotEnabled: Bool = false
     ) {
         self.authFileManager = authFileManager
@@ -106,6 +122,7 @@ final class AppController {
         self.sessionRateLimitReader = sessionRateLimitReader
         self.lowPowerModeProvider = lowPowerModeProvider
         self.batteryChargePercentProvider = batteryChargePercentProvider
+        self.terminateApplication = terminateApplication
         self.startupAlert = startupAlert
         self.modelContainer = modelContainer
         self.isAutopilotEnabled = autopilotEnabled
@@ -119,6 +136,7 @@ final class AppController {
         rateLimitPollingTask?.cancel()
         autopilotTask?.cancel()
         remoteSwitchObservationTask?.cancel()
+        sharedCommandObservationTask?.cancel()
         systemStateObservationTasks.forEach { $0.cancel() }
     }
 
@@ -142,6 +160,9 @@ final class AppController {
 
         hasConfiguredInitialState = true
         startObservingRemoteSwitchesIfNeeded()
+        if !Self.isRunningMainApplicationUnitTests {
+            startObservingSharedCommandsIfNeeded()
+        }
         startObservingSystemStateIfNeeded()
 
         if let startupAlert {
@@ -156,8 +177,13 @@ final class AppController {
             await self.reconcileStoredSnapshotsIfNeeded()
             await self.refreshAuthState(showUnexpectedErrors: false)
             self.reconcileDisplayOnlyFieldsIfNeeded()
-            self.publishSharedState()
+            if !Self.isRunningMainApplicationUnitTests {
+                self.publishSharedState()
+            }
             self.initializationTask = nil
+            if !Self.isRunningMainApplicationUnitTests {
+                await self.processPendingSharedCommands()
+            }
         }
         self.initializationTask = initializationTask
 
@@ -296,6 +322,18 @@ final class AppController {
         if isRateLimitSurfaceActive {
             requestImmediateRateLimitRefreshForVisibleAccounts()
         }
+    }
+
+    /// The "selected account" App Intent should only reflect a live account-list
+    /// selection, not whichever row happened to be selected the last time the
+    /// window was open. The main list view toggles this as it appears/disappears.
+    func setPrimarySelectionContextPresented(_ isPresented: Bool) {
+        guard isPrimarySelectionContextPresented != isPresented else {
+            return
+        }
+
+        isPrimarySelectionContextPresented = isPresented
+        publishSharedState(immediate: true)
     }
 
     func setRateLimitVisibility(_ isVisible: Bool, for identityKey: String) {
@@ -535,7 +573,8 @@ final class AppController {
         moveAccount(withID: selectedID, to: destinationIndex, visibleAccounts: visibleAccounts)
     }
 
-    func captureCurrentAccountNow() async {
+    @discardableResult
+    func captureCurrentAccountNow(allowsInteractiveRecovery: Bool = true) async -> Bool {
         await waitForInitializationIfNeeded()
 
         do {
@@ -575,12 +614,15 @@ final class AppController {
             authAccessState = .ready(linkedFolder: readResult.url.deletingLastPathComponent())
             publishSharedState()
             requestImmediateRateLimitRefresh(for: snapshot.identityKey)
+            return true
         } catch {
             await handleExpectedAuthOperationError(
                 error,
                 title: "Couldn't Save Account",
-                retryAction: .captureCurrentAccount
+                retryAction: .captureCurrentAccount,
+                allowsInteractiveRecovery: allowsInteractiveRecovery
             )
+            return false
         }
     }
 
@@ -669,16 +711,20 @@ final class AppController {
         }
     }
 
-    func removeAccountsNow(withIDs ids: Set<UUID>) async {
+    @discardableResult
+    func removeAccountsNow(withIDs ids: Set<UUID>, allowsInteractiveRecovery: Bool = true) async -> Bool {
         await waitForInitializationIfNeeded()
 
         guard !ids.isEmpty else {
-            return
+            return true
         }
 
         do {
             let modelContext = try requireModelContext()
             let accountsToDelete = try fetchAccounts().filter { ids.contains($0.id) }
+            guard !accountsToDelete.isEmpty else {
+                return true
+            }
             let deletedIdentityKeys = Set(
                 accountsToDelete
                     .map(\.identityKey)
@@ -706,8 +752,15 @@ final class AppController {
 
             try modelContext.save()
             publishSharedState()
+            return true
         } catch {
+            guard allowsInteractiveRecovery else {
+                logger.error("Couldn't remove account(s): \(String(describing: error), privacy: .private)")
+                return false
+            }
+
             present(error, title: "Couldn't Remove Account")
+            return false
         }
     }
 
@@ -834,6 +887,181 @@ final class AppController {
                     await self.refreshAuthState(showUnexpectedErrors: false)
                 }
             }
+        }
+    }
+
+    func processPendingSharedCommands(
+        allowsUnitTestExecution: Bool = false,
+        queue: CodexSharedAppCommandQueue = CodexSharedAppCommandQueue()
+    ) async {
+        guard allowsUnitTestExecution || !Self.isRunningMainApplicationUnitTests else {
+            return
+        }
+
+        await waitForInitializationIfNeeded()
+
+        guard !isProcessingSharedCommands else {
+            // Multiple distributed notifications can arrive while one pass is
+            // already awaiting app-owned work. Record that we owe the queue
+            // another pass instead of dropping the later signal on the floor.
+            shouldProcessSharedCommandsAgain = true
+            return
+        }
+
+        isProcessingSharedCommands = true
+        defer {
+            isProcessingSharedCommands = false
+            shouldProcessSharedCommandsAgain = false
+        }
+
+        var shouldTerminateAfterDraining = false
+
+        while true {
+            shouldProcessSharedCommandsAgain = false
+
+            let commands: [CodexSharedAppCommand]
+            do {
+                commands = try queue.load()
+            } catch {
+                logger.error("Couldn't load pending shared app commands: \(String(describing: error), privacy: .private)")
+                return
+            }
+
+            guard !commands.isEmpty else {
+                // A command can be enqueued after we observe an empty queue but
+                // before this pass fully exits. In that edge case, an
+                // in-flight wakeup request marks another pass as pending.
+                guard !shouldProcessSharedCommandsAgain else {
+                    continue
+                }
+                break
+            }
+
+            for command in commands {
+                let outcome = await handleSharedAppCommand(command)
+                guard outcome.shouldAcknowledge else {
+                    continue
+                }
+
+                do {
+                    try queue.removeCommand(id: command.id)
+                    if outcome.shouldTerminateAfterAcknowledgement {
+                        shouldTerminateAfterDraining = true
+                    }
+                } catch {
+                    logger.error(
+                        "Couldn't acknowledge shared app command \(command.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
+                    )
+                }
+            }
+
+            // Always re-check the persisted queue after each handled batch.
+            // Commands can be appended while we are awaiting app-owned work,
+            // and relying only on a separate wakeup signal can still strand
+            // them if that signal is delayed or coalesced away.
+        }
+
+        if shouldTerminateAfterDraining {
+            terminateApplication()
+        }
+    }
+
+    /// Coalesce command-queue wakeups through one entrypoint so callers can
+    /// safely request another pass without needing to know whether a pass is
+    /// already active. If the processor is already running, this only marks
+    /// that another queue scan is needed after the current pass finishes.
+    func requestPendingSharedCommandsProcessing(
+        allowsUnitTestExecution: Bool = false,
+        queue: CodexSharedAppCommandQueue = CodexSharedAppCommandQueue()
+    ) {
+        if isProcessingSharedCommands {
+            shouldProcessSharedCommandsAgain = true
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.processPendingSharedCommands(
+                allowsUnitTestExecution: allowsUnitTestExecution,
+                queue: queue
+            )
+        }
+    }
+
+    private func startObservingSharedCommandsIfNeeded() {
+        guard sharedCommandObservationTask == nil else {
+            return
+        }
+
+        sharedCommandObservationTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            let notifications = DistributedNotificationCenter.default().notifications(
+                named: CodexSharedAppCommandSignal.didEnqueueCommandNotification,
+                object: nil
+            )
+
+            for await _ in notifications {
+                self.requestPendingSharedCommandsProcessing()
+            }
+        }
+    }
+
+    private struct SharedAppCommandHandlingOutcome: Equatable {
+        let shouldAcknowledge: Bool
+        let shouldTerminateAfterAcknowledgement: Bool
+
+        static let handled = SharedAppCommandHandlingOutcome(
+            shouldAcknowledge: true,
+            shouldTerminateAfterAcknowledgement: false
+        )
+        static let retryLater = SharedAppCommandHandlingOutcome(
+            shouldAcknowledge: false,
+            shouldTerminateAfterAcknowledgement: false
+        )
+        static let handledAndTerminate = SharedAppCommandHandlingOutcome(
+            shouldAcknowledge: true,
+            shouldTerminateAfterAcknowledgement: true
+        )
+    }
+
+    private func handleSharedAppCommand(_ command: CodexSharedAppCommand) async -> SharedAppCommandHandlingOutcome {
+        switch command.action {
+        case .captureCurrentAccount:
+            return await captureCurrentAccountNow(allowsInteractiveRecovery: false)
+                ? .handled
+                : .retryLater
+
+        case .removeAccount:
+            guard
+                let identityKey = command.accountIdentityKey,
+                !identityKey.isEmpty
+            else {
+                return .handled
+            }
+
+            do {
+                guard let account = try fetchAccounts().first(where: { $0.identityKey == identityKey }) else {
+                    return .handled
+                }
+
+                return await removeAccountsNow(withIDs: [account.id], allowsInteractiveRecovery: false)
+                    ? .handled
+                    : .retryLater
+            } catch {
+                logger.error(
+                    "Couldn't remove shared-command account \(identityKey, privacy: .public): \(String(describing: error), privacy: .private)"
+                )
+                return .retryLater
+            }
+
+        case .quitApplication:
+            return .handledAndTerminate
         }
     }
 
@@ -2188,7 +2416,11 @@ final class AppController {
         accounts.sorted(by: sortComparator)
     }
 
-    private func publishSharedState() {
+    private func publishSharedState(immediate: Bool = false) {
+        guard !Self.isRunningMainApplicationUnitTests else {
+            return
+        }
+
         let sharedState: SharedCodexState
         do {
             sharedState = try makeSharedState()
@@ -2200,9 +2432,14 @@ final class AppController {
         sharedStatePublishTask?.cancel()
         sharedStatePublishTask = Task.detached(priority: .utility) {
             do {
-                try? await Task.sleep(for: .milliseconds(150))
-                try Task.checkCancellation()
+                if !immediate {
+                    try? await Task.sleep(for: .milliseconds(150))
+                    try Task.checkCancellation()
+                }
                 try CodexSharedStateStore().save(sharedState)
+                await MainActor.run {
+                    CodexSwitcherAppShortcuts.updateAppShortcutParameters()
+                }
                 CodexSharedSurfaceReloader.reloadAll()
             } catch is CancellationError {
                 return
@@ -2242,9 +2479,32 @@ final class AppController {
             authState: SharedCodexAuthState(authAccessState: authAccessState),
             linkedFolderPath: linkedFolderPath,
             currentAccountID: activeIdentityKey,
+            selectedAccountID: selectedSharedAccountIdentityKey(from: allAccounts),
+            selectedAccountIsLive: isPrimarySelectionContextPresented,
             accounts: sharedAccounts,
             updatedAt: .now
         )
+    }
+
+    private func selectedSharedAccountIdentityKey(from accounts: [StoredAccount]) -> String? {
+        guard isPrimarySelectionContextPresented else {
+            return nil
+        }
+
+        guard selection.count == 1, let selectedID = selection.first else {
+            return nil
+        }
+
+        return accounts.first(where: { $0.id == selectedID })?.identityKey
+    }
+
+    func sharedStateForTesting() throws -> SharedCodexState {
+        try makeSharedState()
+    }
+
+    private nonisolated static var isRunningMainApplicationUnitTests: Bool {
+        Bundle.main.bundleIdentifier == mainApplicationBundleIdentifier
+            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     private func fetchAccounts() throws -> [StoredAccount] {
