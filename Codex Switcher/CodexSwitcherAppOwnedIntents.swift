@@ -142,6 +142,76 @@ struct GetCurrentAccountIntent: AppIntent {
     }
 }
 
+struct GetCurrentCodexRateLimitsIntent: AppIntent {
+    static let title: LocalizedStringResource = "Get Current Codex Rate Limits"
+    static let description = IntentDescription(
+        "Returns the latest saved 5h and 7d remaining rate limits for the current Codex account."
+    )
+    static let supportedModes: IntentModes = .background
+
+    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexAccountEntity> & ProvidesDialog {
+        let state = try CodexSharedAccountIntentResolver.loadState()
+        let account = try CodexSharedAccountIntentResolver.currentEntity(in: state)
+
+        return .result(
+            value: account,
+            dialog: rateLimitDialog(for: account, prefix: "Current account")
+        )
+    }
+}
+
+struct GetCodexAccountRateLimitsIntent: AppIntent {
+    static let title: LocalizedStringResource = "Get Codex Account Rate Limits"
+    static let description = IntentDescription(
+        "Returns the latest saved 5h and 7d remaining rate limits for one saved Codex account."
+    )
+    static let supportedModes: IntentModes = .background
+
+    @Parameter(
+        title: "Account",
+        requestValueDialog: IntentDialog("Which Codex account should I get rate limits for?")
+    )
+    var account: CodexAccountEntity
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Get rate limits for \(\.$account)")
+    }
+
+    init() {}
+
+    init(account: CodexAccountEntity) {
+        self.account = account
+    }
+
+    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexAccountEntity> & ProvidesDialog {
+        let state = try CodexSharedAccountIntentResolver.loadState()
+        let refreshedAccount = try resolveLiveAccountEntity(for: account, in: state)
+
+        return .result(
+            value: refreshedAccount,
+            dialog: rateLimitDialog(for: refreshedAccount, prefix: "Rate limits")
+        )
+    }
+}
+
+struct GetBestCodexRateLimitsIntent: AppIntent {
+    static let title: LocalizedStringResource = "Get Best Codex Rate Limits"
+    static let description = IntentDescription(
+        "Returns the latest saved rate limits for the account with the most remaining headroom."
+    )
+    static let supportedModes: IntentModes = .background
+
+    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexAccountEntity> & ProvidesDialog {
+        let state = try CodexSharedAccountIntentResolver.loadState()
+        let account = try CodexSharedAccountIntentResolver.bestEntity(in: state)
+
+        return .result(
+            value: account,
+            dialog: rateLimitDialog(for: account, prefix: "Best available account")
+        )
+    }
+}
+
 struct GetAllAccountsIntent: AppIntent {
     static let title: LocalizedStringResource = "Get All Codex Accounts"
     static let description = IntentDescription("Returns all saved Codex accounts.")
@@ -425,4 +495,37 @@ private nonisolated func awaitQueuedCommandResult(
     try CodexSharedAppCommandQueue().enqueue(command)
     CodexSharedAppCommandSignal.postCommandQueuedSignal()
     return try await resultStore.waitForResult(commandID: command.id)
+}
+
+private nonisolated func resolveLiveAccountEntity(
+    for parameter: CodexAccountEntity,
+    in state: SharedCodexState
+) throws -> CodexAccountEntity {
+    if let refreshedAccount = CodexSharedAccountIntentResolver.entity(withIdentityKey: parameter.id, in: state) {
+        return refreshedAccount
+    }
+
+    throw CodexSharedIntentLookupError.noMatchingAccount(parameter.name)
+}
+
+private nonisolated func rateLimitDialog(
+    for account: CodexAccountEntity,
+    prefix: String
+) -> IntentDialog {
+    let message = [
+        "\(prefix): \"\(account.name)\".",
+        "7-day remaining: \(formattedRemainingPercent(account.sevenDayLimitUsedPercent)).",
+        "5-hour remaining: \(formattedRemainingPercent(account.fiveHourLimitUsedPercent)).",
+    ]
+    .joined(separator: " ")
+
+    return IntentDialog(stringLiteral: message)
+}
+
+private nonisolated func formattedRemainingPercent(_ value: Int?) -> String {
+    guard let value else {
+        return "unknown"
+    }
+
+    return "\(min(max(value, 0), 100))%"
 }
