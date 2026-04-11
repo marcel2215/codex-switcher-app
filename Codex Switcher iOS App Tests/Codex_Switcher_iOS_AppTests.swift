@@ -170,6 +170,7 @@ private func makeHarness(accounts: [StoredAccount]) throws -> TestHarness {
     try modelContext.save()
 
     return TestHarness(
+        modelContainer: modelContainer,
         modelContext: modelContext,
         controller: IOSAccountsController()
     )
@@ -198,6 +199,7 @@ private func makeAccount(
 }
 
 private struct TestHarness {
+    let modelContainer: ModelContainer
     let modelContext: ModelContext
     let controller: IOSAccountsController
 }

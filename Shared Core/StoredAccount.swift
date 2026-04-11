@@ -22,6 +22,10 @@ final class StoredAccount {
     // shared keychain and clear this value so SwiftData/CloudKit only carry
     // metadata, not the raw auth.json contents.
     var authFileContents: String?
+    // CloudKit-synced minimal credential payload for live rate-limit fetches.
+    // This intentionally stores only the small usage-API credential export,
+    // never the full auth.json snapshot used on macOS for account switching.
+    var syncedRateLimitCredentialJSON: String?
     var hasLocalSnapshot: Bool = false
     var authModeRaw: String = "chatgpt"
     var emailHint: String?
@@ -44,6 +48,7 @@ final class StoredAccount {
         lastLoginAt: Date? = nil,
         customOrder: Double,
         authFileContents: String? = nil,
+        syncedRateLimitCredentialJSON: String? = nil,
         hasLocalSnapshot: Bool = false,
         authModeRaw: String,
         emailHint: String? = nil,
@@ -61,6 +66,7 @@ final class StoredAccount {
         self.lastLoginAt = lastLoginAt
         self.customOrder = customOrder
         self.authFileContents = authFileContents
+        self.syncedRateLimitCredentialJSON = syncedRateLimitCredentialJSON
         self.hasLocalSnapshot = hasLocalSnapshot
         self.authModeRaw = authModeRaw
         self.emailHint = emailHint
@@ -70,5 +76,48 @@ final class StoredAccount {
         self.rateLimitsObservedAt = rateLimitsObservedAt
         self.rateLimitDisplayVersion = rateLimitDisplayVersion
         self.iconSystemName = iconSystemName
+    }
+}
+
+extension StoredAccount {
+    /// Returns the CloudKit-synced live-fetch credential when it decodes cleanly
+    /// and still belongs to the expected identity. Callers must tolerate `nil`
+    /// and fall back to another source instead of assuming this payload exists.
+    func syncedRateLimitCredential(matching identityKey: String? = nil) -> SyncedRateLimitCredential? {
+        guard let syncedRateLimitCredentialJSON, !syncedRateLimitCredentialJSON.isEmpty else {
+            return nil
+        }
+
+        guard let credential = try? SyncedRateLimitCredential.decode(jsonString: syncedRateLimitCredentialJSON) else {
+            return nil
+        }
+
+        guard let identityKey else {
+            return credential
+        }
+
+        let normalizedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedIdentityKey.isEmpty, credential.identityKey == normalizedIdentityKey else {
+            return nil
+        }
+
+        return credential
+    }
+
+    @discardableResult
+    func updateSyncedRateLimitCredential(_ credential: SyncedRateLimitCredential?) -> Bool {
+        let newValue: String?
+        if let credential {
+            newValue = try? credential.encodedJSONString()
+        } else {
+            newValue = nil
+        }
+
+        guard syncedRateLimitCredentialJSON != newValue else {
+            return false
+        }
+
+        syncedRateLimitCredentialJSON = newValue
+        return true
     }
 }

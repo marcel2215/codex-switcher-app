@@ -25,9 +25,11 @@ struct AccountsRootView: View {
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var accounts: [StoredAccount]
 
     @State private var controller = IOSAccountsController()
+    @State private var rateLimitRefreshController = IOSRateLimitRefreshController()
     @State private var selectedAccountID: UUID?
     @State private var showingSettings = false
     @State private var accountPendingDeletion: StoredAccount?
@@ -111,6 +113,9 @@ struct AccountsRootView: View {
                 sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
                 sortDirectionRawValue: sortPreferences.sortDirectionRawValue
             )
+            rateLimitRefreshController.configure(modelContext: modelContext)
+            rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
+            rateLimitRefreshController.setScenePhase(scenePhase)
         }
         .onChange(of: controller.sortCriterion) { _, newValue in
             sortPreferences.persist(
@@ -141,10 +146,16 @@ struct AccountsRootView: View {
                 selectedAccountID = nil
             }
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            rateLimitRefreshController.setScenePhase(newPhase)
+        }
         .onChange(of: accounts.map(\.id)) { _, ids in
             if let selectedAccountID, !ids.contains(selectedAccountID) {
                 self.selectedAccountID = nil
             }
+        }
+        .onChange(of: accounts.map(\.identityKey)) { _, identityKeys in
+            rateLimitRefreshController.reconcileKnownIdentityKeys(identityKeys)
         }
         .sheet(isPresented: $showingSettings) {
             NavigationStack {
@@ -188,6 +199,12 @@ struct AccountsRootView: View {
                     NavigationLink(value: account.id) {
                         IOSAccountRow(account: account)
                     }
+                    .onAppear {
+                        rateLimitRefreshController.setVisible(true, for: account.identityKey)
+                    }
+                    .onDisappear {
+                        rateLimitRefreshController.setVisible(false, for: account.identityKey)
+                    }
                 }
             }
         }
@@ -202,6 +219,12 @@ struct AccountsRootView: View {
                 accountRows { account in
                     IOSAccountRow(account: account)
                         .tag(account.id)
+                        .onAppear {
+                            rateLimitRefreshController.setVisible(true, for: account.identityKey)
+                        }
+                        .onDisappear {
+                            rateLimitRefreshController.setVisible(false, for: account.identityKey)
+                        }
                 }
             }
         }
@@ -268,6 +291,13 @@ struct AccountsRootView: View {
                 accountPendingDeletion = account
             }
         )
+        .task(id: account.identityKey) {
+            rateLimitRefreshController.setSelected(identityKey: account.identityKey)
+            rateLimitRefreshController.refreshNow(for: account.identityKey)
+        }
+        .onDisappear {
+            rateLimitRefreshController.setSelected(identityKey: nil)
+        }
     }
 
     @ViewBuilder

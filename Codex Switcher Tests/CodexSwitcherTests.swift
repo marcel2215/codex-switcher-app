@@ -66,9 +66,11 @@ struct CodexSwitcherTests {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
         let secretStore = FakeSecretStore()
+        let syncedRateLimitCredentialStore = FakeSyncedRateLimitCredentialStore()
         let controller = makeController(
             authFileManager: authFileManager,
-            secretStore: secretStore
+            secretStore: secretStore,
+            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
         )
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
@@ -85,6 +87,7 @@ struct CodexSwitcherTests {
         #expect(account.authFileContents == nil)
         #expect(account.hasLocalSnapshot)
         #expect(await secretStore.secret(forIdentityKey: account.identityKey) == makeChatGPTAuthJSON(accountID: "acct-123"))
+        #expect(await syncedRateLimitCredentialStore.containsCredential(forIdentityKey: account.identityKey))
     }
 
     @Test func captureFallsBackToGeneratedNameWhenEmailUnknown() async throws {
@@ -155,9 +158,11 @@ struct CodexSwitcherTests {
     @Test func storedSnapshotsStaySyncedAndBackfillTheLocalKeychainCache() async throws {
         let container = try makeInMemoryContainer()
         let secretStore = FakeSecretStore()
+        let syncedRateLimitCredentialStore = FakeSyncedRateLimitCredentialStore()
         let controller = makeController(
             authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-current")),
-            secretStore: secretStore
+            secretStore: secretStore,
+            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
         )
 
         let legacyContents = makeChatGPTAuthJSON(accountID: "acct-legacy")
@@ -183,6 +188,7 @@ struct CodexSwitcherTests {
         #expect(migratedAccount.authFileContents == nil)
         #expect(migratedAccount.hasLocalSnapshot)
         #expect(await secretStore.secret(forIdentityKey: migratedAccount.identityKey) == legacyContents)
+        #expect(await syncedRateLimitCredentialStore.containsCredential(forIdentityKey: migratedAccount.identityKey))
     }
 
     @Test func refreshMarksUnsupportedCredentialStoresInline() async throws {
@@ -1559,9 +1565,11 @@ struct CodexSwitcherTests {
     @Test func removeAllAccountsDeletesSavedAccountsAndSecrets() async throws {
         let container = try makeInMemoryContainer()
         let secretStore = FakeSecretStore()
+        let syncedRateLimitCredentialStore = FakeSyncedRateLimitCredentialStore()
         let controller = makeController(
             authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")),
-            secretStore: secretStore
+            secretStore: secretStore,
+            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
         )
 
         let firstAccount = makeStoredAccount(name: "Work", customOrder: 0, accountID: "acct-work")
@@ -1573,6 +1581,28 @@ struct CodexSwitcherTests {
 
         try await secretStore.saveSecret("work-secret", for: firstAccount.id)
         try await secretStore.saveSecret("personal-secret", for: secondAccount.id)
+        try await syncedRateLimitCredentialStore.save(
+            SyncedRateLimitCredential(
+                credentials: CodexRateLimitCredentials(
+                    identityKey: firstAccount.identityKey,
+                    authMode: .chatgpt,
+                    accountID: "acct-work",
+                    accessToken: "token-work",
+                    idToken: nil
+                )
+            )
+        )
+        try await syncedRateLimitCredentialStore.save(
+            SyncedRateLimitCredential(
+                credentials: CodexRateLimitCredentials(
+                    identityKey: secondAccount.identityKey,
+                    authMode: .chatgpt,
+                    accountID: "acct-personal",
+                    accessToken: "token-personal",
+                    idToken: nil
+                )
+            )
+        )
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
         await controller.removeAllAccountsNow()
@@ -1580,6 +1610,8 @@ struct CodexSwitcherTests {
         #expect(try fetchAccounts(in: container.mainContext).isEmpty)
         #expect(await secretStore.secret(forIdentityKey: firstAccount.identityKey) == nil)
         #expect(await secretStore.secret(forIdentityKey: secondAccount.identityKey) == nil)
+        #expect(await syncedRateLimitCredentialStore.containsCredential(forIdentityKey: firstAccount.identityKey) == false)
+        #expect(await syncedRateLimitCredentialStore.containsCredential(forIdentityKey: secondAccount.identityKey) == false)
     }
 
     @Test func removalShortcutSupportsDeleteWithExpectedModifiersOnly() {
@@ -1790,10 +1822,10 @@ struct CodexSwitcherTests {
             urlSession: urlSession
         )
 
-        let snapshot = await provider.fetchSnapshot(
+        let outcome = await provider.fetchSnapshot(
             for: CodexRateLimitRequest(
                 identityKey: identityKey,
-                authFileContents: rawContents,
+                credentials: try CodexAuthFile.parseRateLimitCredentials(contents: rawContents),
                 linkedLocation: nil,
                 isCurrentAccount: false
             )
@@ -1801,11 +1833,16 @@ struct CodexSwitcherTests {
 
         #expect(MockURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer \(accessToken)")
         #expect(MockURLProtocol.lastRequest?.value(forHTTPHeaderField: "ChatGPT-Account-Id") == "acct-remote")
-        #expect(snapshot?.source == .remoteUsageAPI)
-        #expect(snapshot?.fiveHourRemainingPercent == 66)
-        #expect(snapshot?.sevenDayRemainingPercent == 7)
-        #expect(snapshot?.fiveHourResetsAt == Date(timeIntervalSince1970: TimeInterval(fiveHourReset)))
-        #expect(snapshot?.sevenDayResetsAt == Date(timeIntervalSince1970: TimeInterval(sevenDayReset)))
+        guard case let .success(snapshot) = outcome else {
+            Issue.record("Expected a successful remote rate-limit snapshot fetch.")
+            return
+        }
+
+        #expect(snapshot.source == .remoteUsageAPI)
+        #expect(snapshot.fiveHourRemainingPercent == 66)
+        #expect(snapshot.sevenDayRemainingPercent == 7)
+        #expect(snapshot.fiveHourResetsAt == Date(timeIntervalSince1970: TimeInterval(fiveHourReset)))
+        #expect(snapshot.sevenDayResetsAt == Date(timeIntervalSince1970: TimeInterval(sevenDayReset)))
     }
 
     @Test func iconCatalogOffersExpandedChoicesAndKeepsKeyDefault() throws {
@@ -1903,6 +1940,7 @@ struct CodexSwitcherTests {
 private func makeController(
     authFileManager: any AuthFileManaging,
     secretStore: FakeSecretStore = FakeSecretStore(),
+    syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore = FakeSyncedRateLimitCredentialStore(),
     notificationManager: FakeNotificationManager = FakeNotificationManager(),
     rateLimitProvider: CodexRateLimitProviding = FakeRateLimitProvider(),
     lowPowerModeProvider: @escaping () -> Bool = { false },
@@ -1913,6 +1951,7 @@ private func makeController(
     AppController(
         authFileManager: authFileManager,
         secretStore: secretStore,
+        syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
         notificationManager: notificationManager,
         rateLimitProvider: rateLimitProvider,
         lowPowerModeProvider: lowPowerModeProvider,
@@ -2368,17 +2407,21 @@ final class FakeSecretStore: @unchecked Sendable, AccountSnapshotStoring {
 }
 
 actor FakeRateLimitProvider: CodexRateLimitProviding {
-    private var snapshots: [String: CodexRateLimitSnapshot] = [:]
+    private var outcomes: [String: CodexRateLimitFetchOutcome] = [:]
     private var capturedIdentityKeys: [String] = []
 
-    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitSnapshot? {
-        let identityKey = await MainActor.run { request.identityKey }
+    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchOutcome {
+        let identityKey = request.identityKey
         capturedIdentityKeys.append(identityKey)
-        return snapshots[identityKey]
+        return outcomes[identityKey] ?? .failure(.missingCredentials)
     }
 
     func setSnapshot(_ snapshot: CodexRateLimitSnapshot, for identityKey: String) {
-        snapshots[identityKey] = snapshot
+        outcomes[identityKey] = .success(snapshot)
+    }
+
+    func setFailure(_ failure: CodexRateLimitFetchFailure, for identityKey: String) {
+        outcomes[identityKey] = .failure(failure)
     }
 
     func requestCount(for identityKey: String) -> Int {
@@ -2391,6 +2434,51 @@ actor FakeRateLimitProvider: CodexRateLimitProviding {
 
     func resetRequests() {
         capturedIdentityKeys.removeAll()
+    }
+}
+
+final class FakeSyncedRateLimitCredentialStore: @unchecked Sendable, SyncedRateLimitCredentialStoring {
+    private let lock = NSLock()
+    private var credentialsByIdentityKey: [String: SyncedRateLimitCredential] = [:]
+
+    func save(_ credential: SyncedRateLimitCredential) async throws {
+        withLock {
+            credentialsByIdentityKey[credential.identityKey] = credential
+        }
+    }
+
+    func load(forIdentityKey identityKey: String) async throws -> SyncedRateLimitCredential {
+        try withLock {
+            guard let credential = credentialsByIdentityKey[identityKey] else {
+                throw SyncedRateLimitCredentialStoreError.missingCredential
+            }
+
+            return credential
+        }
+    }
+
+    func delete(forIdentityKey identityKey: String) async throws {
+        withLock {
+            credentialsByIdentityKey.removeValue(forKey: identityKey)
+        }
+    }
+
+    func containsCredential(forIdentityKey identityKey: String) async -> Bool {
+        withLock {
+            credentialsByIdentityKey[identityKey] != nil
+        }
+    }
+
+    func credential(forIdentityKey identityKey: String) async -> SyncedRateLimitCredential? {
+        withLock {
+            credentialsByIdentityKey[identityKey]
+        }
+    }
+
+    private func withLock<T>(_ body: () throws -> T) rethrows -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body()
     }
 }
 

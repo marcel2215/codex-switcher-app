@@ -17,6 +17,7 @@ final class RemoteAccountDeletionCleanup {
 
     private let modelContainer: ModelContainer
     private let secretStore: AccountSnapshotStoring
+    private let syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring
     private let logger: Logger
     private let userDefaults: UserDefaults
 
@@ -25,11 +26,13 @@ final class RemoteAccountDeletionCleanup {
     init(
         modelContainer: ModelContainer,
         secretStore: AccountSnapshotStoring,
+        syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring,
         logger: Logger,
         userDefaults: UserDefaults = .standard
     ) {
         self.modelContainer = modelContainer
         self.secretStore = secretStore
+        self.syncedRateLimitCredentialStore = syncedRateLimitCredentialStore
         self.logger = logger
         self.userDefaults = userDefaults
     }
@@ -92,6 +95,7 @@ final class RemoteAccountDeletionCleanup {
 
         for identityKey in deletedIdentityKeys where !remainingIdentityKeys.contains(identityKey) {
             try await secretStore.deleteSnapshot(forIdentityKey: identityKey)
+            try await syncedRateLimitCredentialStore.delete(forIdentityKey: identityKey)
         }
     }
 

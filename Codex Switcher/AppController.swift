@@ -24,7 +24,6 @@ struct UserFacingAlert: Identifiable, Equatable {
 @Observable
 @MainActor
 final class AppController {
-    private nonisolated static let currentRateLimitDisplayVersion = 1
     private nonisolated static let batterySaverRefreshPauseThreshold = 15
     private nonisolated static let currentAccountRateLimitRefreshInterval: TimeInterval = 60
     private nonisolated static let visibleAccountRateLimitRefreshInterval: TimeInterval = 5 * 60
@@ -80,6 +79,7 @@ final class AppController {
 
     @ObservationIgnored private let authFileManager: AuthFileManaging
     @ObservationIgnored private let secretStore: AccountSnapshotStoring
+    @ObservationIgnored private let syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring
     @ObservationIgnored private let notificationManager: AccountSwitchNotifying
     @ObservationIgnored private let rateLimitProvider: CodexRateLimitProviding
     @ObservationIgnored private let sessionRateLimitReader: CodexSessionRateLimitReader
@@ -96,6 +96,7 @@ final class AppController {
     @ObservationIgnored private var hasStartedObservingSystemState = false
     @ObservationIgnored private var pendingLocationAction: PendingLocationAction?
     @ObservationIgnored private var initializationTask: Task<Void, Never>?
+    @ObservationIgnored private var startupSyncedCredentialExportTask: Task<Void, Never>?
     @ObservationIgnored private var switchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSwitchOperationID: UUID?
     @ObservationIgnored nonisolated(unsafe) private var remoteSwitchObserver: NSObjectProtocol?
@@ -127,6 +128,7 @@ final class AppController {
     init(
         authFileManager: AuthFileManaging,
         secretStore: AccountSnapshotStoring,
+        syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore(),
         notificationManager: AccountSwitchNotifying,
         rateLimitProvider: CodexRateLimitProviding = CodexRateLimitProvider(),
         sessionRateLimitReader: CodexSessionRateLimitReader = CodexSessionRateLimitReader(),
@@ -140,6 +142,7 @@ final class AppController {
     ) {
         self.authFileManager = authFileManager
         self.secretStore = secretStore
+        self.syncedRateLimitCredentialStore = syncedRateLimitCredentialStore
         self.notificationManager = notificationManager
         self.rateLimitProvider = rateLimitProvider
         self.sessionRateLimitReader = sessionRateLimitReader
@@ -154,6 +157,7 @@ final class AppController {
             self.remoteDeletionCleanup = RemoteAccountDeletionCleanup(
                 modelContainer: modelContainer,
                 secretStore: secretStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
                 logger: Logger(subsystem: bundleIdentifier, category: "RemoteDeletionCleanup")
             )
         }
@@ -161,6 +165,7 @@ final class AppController {
 
     deinit {
         initializationTask?.cancel()
+        startupSyncedCredentialExportTask?.cancel()
         switchTask?.cancel()
         sharedStatePublishTask?.cancel()
         rateLimitPollingTask?.cancel()
@@ -187,6 +192,7 @@ final class AppController {
             remoteDeletionCleanup = RemoteAccountDeletionCleanup(
                 modelContainer: modelContainer,
                 secretStore: secretStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
                 logger: Logger(
                     subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
                     category: "RemoteDeletionCleanup"
@@ -222,6 +228,7 @@ final class AppController {
             await self.reconcileStoredSnapshotsIfNeeded()
             await self.refreshAuthState(showUnexpectedErrors: false)
             self.reconcileDisplayOnlyFieldsIfNeeded()
+            self.scheduleStartupSyncedCredentialExportIfNeeded()
             await self.remoteDeletionCleanup?.consumeHistoryIfNeeded()
             if !Self.isRunningMainApplicationUnitTests {
                 self.publishSharedState()
@@ -790,6 +797,7 @@ final class AppController {
             for account in accountsToDelete {
                 if !remainingIdentityKeys.contains(account.identityKey) {
                     try? await secretStore.deleteSnapshot(forIdentityKey: account.identityKey)
+                    try? await syncedRateLimitCredentialStore.delete(forIdentityKey: account.identityKey)
                 }
                 modelContext.delete(account)
             }
@@ -1974,7 +1982,7 @@ final class AppController {
                     didChange = true
                 }
 
-                if account.rateLimitDisplayVersion != Self.currentRateLimitDisplayVersion {
+                if account.rateLimitDisplayVersion != RateLimitAccountUpdater.currentDisplayVersion {
                     if let sevenDayUsedPercent = account.sevenDayLimitUsedPercent {
                         account.sevenDayLimitUsedPercent = 100 - min(max(sevenDayUsedPercent, 0), 100)
                         didChange = true
@@ -1985,7 +1993,7 @@ final class AppController {
                         didChange = true
                     }
 
-                    account.rateLimitDisplayVersion = Self.currentRateLimitDisplayVersion
+                    account.rateLimitDisplayVersion = RateLimitAccountUpdater.currentDisplayVersion
                     didChange = true
                 }
             }
@@ -1995,6 +2003,41 @@ final class AppController {
             }
         } catch {
             present(error, title: "Couldn't Refresh Saved Accounts")
+        }
+    }
+
+    private func scheduleStartupSyncedCredentialExportIfNeeded() {
+        startupSyncedCredentialExportTask?.cancel()
+        startupSyncedCredentialExportTask = Task(priority: .utility) { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.exportSyncedRateLimitCredentialsForAllStoredAccounts()
+            self.startupSyncedCredentialExportTask = nil
+        }
+    }
+
+    private func exportSyncedRateLimitCredentialsForAllStoredAccounts() async {
+        do {
+            var didChange = false
+            for account in try fetchAccounts() {
+                guard let snapshotContents = await bestAvailableSnapshotContents(for: account) else {
+                    continue
+                }
+
+                didChange = await exportSyncedRateLimitCredentialIfPossible(
+                    from: snapshotContents,
+                    expectedIdentityKey: account.identityKey,
+                    on: account
+                ) || didChange
+            }
+
+            if didChange {
+                try requireModelContext().save()
+            }
+        } catch {
+            logger.error("Couldn't export synced rate-limit credentials at startup: \(String(describing: error), privacy: .private)")
         }
     }
 
@@ -2239,6 +2282,11 @@ final class AppController {
                     syncedContents,
                     forIdentityKey: migratedSnapshot.identityKey
                 )
+                didChange = await exportSyncedRateLimitCredentialIfPossible(
+                    from: syncedContents,
+                    expectedIdentityKey: migratedSnapshot.identityKey,
+                    on: account
+                ) || didChange
                 account.authFileContents = nil
                 didChange = true
             } catch {
@@ -2255,6 +2303,13 @@ final class AppController {
                     fromLegacyAccountID: account.id,
                     toIdentityKey: normalizedIdentityKey
                 ) {
+                    if let migratedContents = try? await secretStore.loadSnapshot(forIdentityKey: normalizedIdentityKey) {
+                        didChange = await exportSyncedRateLimitCredentialIfPossible(
+                            from: migratedContents,
+                            expectedIdentityKey: normalizedIdentityKey,
+                            on: account
+                        ) || didChange
+                    }
                     didChange = true
                 }
             } catch {
@@ -2293,13 +2348,113 @@ final class AppController {
         }
     }
 
+    private func bestAvailableRateLimitCredentials(for account: StoredAccount) async -> CodexRateLimitCredentials? {
+        guard let snapshotContents = await bestAvailableSnapshotContents(for: account) else {
+            return nil
+        }
+
+        do {
+            return try CodexAuthFile.parseRateLimitCredentials(contents: snapshotContents)
+        } catch {
+            logger.error(
+                "Couldn't parse rate-limit credentials for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
+            )
+            return nil
+        }
+    }
+
+    @discardableResult
+    private func exportSyncedRateLimitCredentialIfPossible(
+        from rawContents: String,
+        expectedIdentityKey: String,
+        on account: StoredAccount? = nil
+    ) async -> Bool {
+        let normalizedIdentityKey = expectedIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedIdentityKey.isEmpty else {
+            return false
+        }
+
+        do {
+            let credentials = try CodexAuthFile.parseRateLimitCredentials(contents: rawContents)
+
+            guard
+                credentials.identityKey == normalizedIdentityKey,
+                credentials.authMode != .apiKey,
+                credentials.accessToken?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            else {
+                let didChange = account?.updateSyncedRateLimitCredential(nil) ?? false
+
+                do {
+                    try await syncedRateLimitCredentialStore.delete(forIdentityKey: normalizedIdentityKey)
+                } catch {
+                    logger.error(
+                        "Couldn't delete synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
+                    )
+                }
+
+                return didChange
+            }
+
+            let syncedCredential = try SyncedRateLimitCredential(credentials: credentials)
+            let didChange = account?.updateSyncedRateLimitCredential(syncedCredential) ?? false
+
+            do {
+                try await syncedRateLimitCredentialStore.save(syncedCredential)
+            } catch {
+                logger.error(
+                    "Couldn't save synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
+                )
+            }
+
+            return didChange
+        } catch {
+            logger.error(
+                "Couldn't export synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
+            )
+            return false
+        }
+    }
+
+    private func deleteSyncedRateLimitCredentialIfUnused(
+        identityKey: String,
+        excludingAccountIDs: Set<UUID> = []
+    ) async {
+        let normalizedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedIdentityKey.isEmpty else {
+            return
+        }
+
+        do {
+            let remainingIdentityKeys = Set(
+                try fetchAccounts()
+                    .filter { !excludingAccountIDs.contains($0.id) }
+                    .map(\.identityKey)
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            )
+
+            guard !remainingIdentityKeys.contains(normalizedIdentityKey) else {
+                return
+            }
+
+            try await syncedRateLimitCredentialStore.delete(forIdentityKey: normalizedIdentityKey)
+        } catch {
+            logger.error(
+                "Couldn't delete synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
+            )
+        }
+    }
+
     private func storeSnapshot(
         _ snapshot: CodexAuthSnapshot,
         rateLimitObservation: CodexRateLimitObservation? = nil,
         on account: StoredAccount
     ) async throws -> Bool {
+        let previousIdentityKey = account.identityKey
         let metadataChanged = update(account: account, from: snapshot)
-        let rateLimitsChanged = update(account: account, from: rateLimitObservation)
+        let rateLimitsChanged = rateLimitObservation.map {
+            RateLimitAccountUpdater.apply($0, identityKey: snapshot.identityKey, to: account)
+        } ?? false
         let existingContents = try? await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
         let needsSnapshotWrite = existingContents != snapshot.rawContents || !account.hasLocalSnapshot
 
@@ -2307,7 +2462,20 @@ final class AppController {
             try await secretStore.saveSnapshot(snapshot.rawContents, forIdentityKey: account.identityKey)
         }
 
-        var didChange = metadataChanged || rateLimitsChanged || needsSnapshotWrite
+        let syncedCredentialChanged = await exportSyncedRateLimitCredentialIfPossible(
+            from: snapshot.rawContents,
+            expectedIdentityKey: snapshot.identityKey,
+            on: account
+        )
+
+        if previousIdentityKey != snapshot.identityKey {
+            await deleteSyncedRateLimitCredentialIfUnused(
+                identityKey: previousIdentityKey,
+                excludingAccountIDs: [account.id]
+            )
+        }
+
+        var didChange = metadataChanged || rateLimitsChanged || needsSnapshotWrite || syncedCredentialChanged
         if account.authFileContents != nil {
             account.authFileContents = nil
             didChange = true
@@ -2507,12 +2675,12 @@ final class AppController {
             : nil
         let request = CodexRateLimitRequest(
             identityKey: identityKey,
-            authFileContents: await bestAvailableSnapshotContents(for: account),
+            credentials: await bestAvailableRateLimitCredentials(for: account),
             linkedLocation: linkedLocation,
             isCurrentAccount: identityKey == activeIdentityKey
         )
 
-        let snapshot = await rateLimitProvider.fetchSnapshot(for: request)
+        let outcome = await rateLimitProvider.fetchSnapshot(for: request)
         pendingForcedRateLimitRefreshes.remove(identityKey)
 
         do {
@@ -2520,7 +2688,8 @@ final class AppController {
                 return
             }
 
-            if let snapshot {
+            switch outcome {
+            case .success(let snapshot):
                 let adjustedSnapshot = snapshot.applyingResetBoundaries()
                 guard shouldReplaceExistingRateLimitSnapshot(adjustedSnapshot, for: identityKey) else {
                     return
@@ -2530,17 +2699,27 @@ final class AppController {
                 rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
                 rateLimitFailureBackoffDurations.removeValue(forKey: identityKey)
 
-                guard update(account: account, from: adjustedSnapshot) else {
+                guard RateLimitAccountUpdater.apply(adjustedSnapshot, to: account) else {
                     return
                 }
 
                 try requireModelContext().save()
                 publishSharedState()
-            } else {
-                let currentBackoff = rateLimitFailureBackoffDurations[identityKey] ?? Self.initialRateLimitFailureBackoff
-                rateLimitFailureBackoffUntil[identityKey] = Date().addingTimeInterval(currentBackoff)
+
+            case .failure(let failure):
+                let fallbackBackoff = rateLimitFailureBackoffDurations[identityKey] ?? Self.initialRateLimitFailureBackoff
+                let requestedBackoff: TimeInterval
+
+                switch failure {
+                case .rateLimited(let retryAfter) where (retryAfter ?? 0) > 0:
+                    requestedBackoff = retryAfter ?? fallbackBackoff
+                default:
+                    requestedBackoff = fallbackBackoff
+                }
+
+                rateLimitFailureBackoffUntil[identityKey] = Date().addingTimeInterval(requestedBackoff)
                 rateLimitFailureBackoffDurations[identityKey] = min(
-                    currentBackoff * 2,
+                    max(requestedBackoff, Self.initialRateLimitFailureBackoff) * 2,
                     Self.maximumRateLimitFailureBackoff
                 )
             }
@@ -2555,9 +2734,7 @@ final class AppController {
             // flip the UI back to 100% locally instead of waiting for the next
             // network round-trip.
             var didChange = false
-            let accountsByIdentityKey = Dictionary(
-                uniqueKeysWithValues: try fetchAccounts().map { ($0.identityKey, $0) }
-            )
+            let accountsByIdentityKey = firstAccountByIdentityKey(from: try fetchAccounts())
 
             for identityKey in rateLimitCandidateIdentityKeys() {
                 guard
@@ -2573,7 +2750,7 @@ final class AppController {
                 }
 
                 rateLimitSnapshotsByIdentityKey[identityKey] = adjustedSnapshot
-                didChange = update(account: account, from: adjustedSnapshot) || didChange
+                didChange = RateLimitAccountUpdater.apply(adjustedSnapshot, to: account) || didChange
             }
 
             if didChange {
@@ -2803,6 +2980,26 @@ final class AppController {
 
         if survivor.accountIdentifier == nil, let duplicateAccountIdentifier = duplicate.accountIdentifier {
             survivor.accountIdentifier = duplicateAccountIdentifier
+            didChange = true
+        }
+
+        let survivorCredential = survivor.syncedRateLimitCredential(matching: survivor.identityKey)
+        let duplicateCredential = duplicate.syncedRateLimitCredential(matching: duplicate.identityKey)
+        let preferredCredential: SyncedRateLimitCredential?
+        switch (survivorCredential, duplicateCredential) {
+        case let (.some(survivorCredential), .some(duplicateCredential)):
+            preferredCredential = duplicateCredential.exportedAt > survivorCredential.exportedAt
+                ? duplicateCredential
+                : survivorCredential
+        case let (.none, .some(duplicateCredential)):
+            preferredCredential = duplicateCredential
+        case let (.some(survivorCredential), .none):
+            preferredCredential = survivorCredential
+        case (.none, .none):
+            preferredCredential = nil
+        }
+
+        if survivor.updateSyncedRateLimitCredential(preferredCredential) {
             didChange = true
         }
 
@@ -3059,77 +3256,23 @@ final class AppController {
         return "Account \(candidateIndex)"
     }
 
-    @discardableResult
-    private func update(account: StoredAccount, from rateLimitSnapshot: CodexRateLimitSnapshot?) -> Bool {
-        guard let rateLimitSnapshot else {
-            return false
+    private func firstAccountByIdentityKey(from accounts: [StoredAccount]) -> [String: StoredAccount] {
+        var accountsByIdentityKey: [String: StoredAccount] = [:]
+
+        for account in accounts {
+            let normalizedIdentityKey = account.identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalizedIdentityKey.isEmpty else {
+                continue
+            }
+
+            if accountsByIdentityKey[normalizedIdentityKey] == nil {
+                accountsByIdentityKey[normalizedIdentityKey] = account
+            }
         }
 
-        let existingObservedAt = account.rateLimitsObservedAt ?? .distantPast
-        guard rateLimitSnapshot.observedAt >= existingObservedAt else {
-            return false
-        }
-
-        var didChange = false
-
-        if account.rateLimitsObservedAt != rateLimitSnapshot.observedAt {
-            account.rateLimitsObservedAt = rateLimitSnapshot.observedAt
-            didChange = true
-        }
-
-        if account.sevenDayLimitUsedPercent != rateLimitSnapshot.sevenDayRemainingPercent {
-            account.sevenDayLimitUsedPercent = rateLimitSnapshot.sevenDayRemainingPercent
-            didChange = true
-        }
-
-        if account.fiveHourLimitUsedPercent != rateLimitSnapshot.fiveHourRemainingPercent {
-            account.fiveHourLimitUsedPercent = rateLimitSnapshot.fiveHourRemainingPercent
-            didChange = true
-        }
-
-        if account.rateLimitDisplayVersion != Self.currentRateLimitDisplayVersion {
-            account.rateLimitDisplayVersion = Self.currentRateLimitDisplayVersion
-            didChange = true
-        }
-
-        return didChange
+        return accountsByIdentityKey
     }
 
-    @discardableResult
-    private func update(account: StoredAccount, from rateLimitObservation: CodexRateLimitObservation?) -> Bool {
-        guard let rateLimitObservation else {
-            return false
-        }
-
-        let existingObservedAt = account.rateLimitsObservedAt ?? .distantPast
-        guard rateLimitObservation.observedAt >= existingObservedAt else {
-            return false
-        }
-
-        var didChange = false
-
-        if account.rateLimitsObservedAt != rateLimitObservation.observedAt {
-            account.rateLimitsObservedAt = rateLimitObservation.observedAt
-            didChange = true
-        }
-
-        if account.sevenDayLimitUsedPercent != rateLimitObservation.sevenDayRemainingPercent {
-            account.sevenDayLimitUsedPercent = rateLimitObservation.sevenDayRemainingPercent
-            didChange = true
-        }
-
-        if account.fiveHourLimitUsedPercent != rateLimitObservation.fiveHourRemainingPercent {
-            account.fiveHourLimitUsedPercent = rateLimitObservation.fiveHourRemainingPercent
-            didChange = true
-        }
-
-        if account.rateLimitDisplayVersion != Self.currentRateLimitDisplayVersion {
-            account.rateLimitDisplayVersion = Self.currentRateLimitDisplayVersion
-            didChange = true
-        }
-
-        return didChange
-    }
 }
 
 private enum PendingLocationAction {

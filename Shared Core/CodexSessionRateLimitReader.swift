@@ -2,7 +2,7 @@
 //  CodexSessionRateLimitReader.swift
 //  Codex Switcher
 //
-//  Created by Codex on 2026-04-09.
+//  Created by Codex on 2026-04-11.
 //
 
 import Foundation
@@ -237,7 +237,6 @@ struct CodexSessionRateLimitReader: Sendable {
 
         return .distantPast
     }
-
 }
 
 private nonisolated enum DisplayWindowKind {
@@ -279,29 +278,37 @@ private nonisolated struct CodexSessionRateLimits: Decodable {
 private nonisolated struct CodexSessionRateLimitWindow: Decodable {
     let usedPercent: Double?
     let windowMinutes: Int?
-    let resetsAt: Int?
-    let resetAt: Int?
-    let resetAfterSeconds: Int?
+    let windowSeconds: Int?
+    let resetsAt: Double?
+    let resetAt: Double?
+    let resetAfterSeconds: Double?
+    let resetSeconds: Double?
 
     enum CodingKeys: String, CodingKey {
         case usedPercent = "used_percent"
         case windowMinutes = "window_minutes"
+        case windowSeconds = "window_seconds"
         case resetsAt = "resets_at"
         case resetAt = "reset_at"
         case resetAfterSeconds = "reset_after_seconds"
+        case resetSeconds = "reset_seconds"
     }
 
-    func resolvedResetDate(relativeTo referenceDate: Date) -> Date? {
-        if let resetsAt {
-            return Date(timeIntervalSince1970: TimeInterval(resetsAt))
+    func resolvedResetDate(relativeTo observedAt: Date) -> Date? {
+        if let resetsAt, resetsAt.isFinite {
+            return Date(timeIntervalSince1970: resetsAt)
         }
 
-        if let resetAt {
-            return Date(timeIntervalSince1970: TimeInterval(resetAt))
+        if let resetAt, resetAt.isFinite {
+            return Date(timeIntervalSince1970: resetAt)
         }
 
-        if let resetAfterSeconds {
-            return referenceDate.addingTimeInterval(TimeInterval(resetAfterSeconds))
+        if let resetAfterSeconds, resetAfterSeconds.isFinite {
+            return observedAt.addingTimeInterval(resetAfterSeconds)
+        }
+
+        if let resetSeconds, resetSeconds.isFinite {
+            return observedAt.addingTimeInterval(resetSeconds)
         }
 
         return nil
