@@ -2,42 +2,83 @@
 //  Codex_Switcher_iOS_AppUITests.swift
 //  Codex Switcher iOS AppUITests
 //
-//  Created by Marcel Kwiatkowski on 2026-04-11.
+//  Created by Codex on 2026-04-11.
 //
 
 import XCTest
 
 final class Codex_Switcher_iOS_AppUITests: XCTestCase {
-
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testEmptyStateCopyIsShownWhenThereAreNoAccounts() throws {
+        let app = launchApp(scenario: "empty")
+
+        XCTAssertTrue(app.staticTexts["No Accounts"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Accounts captured in Codex Switcher on your Mac appear here through iCloud."].exists)
+    }
+
+    @MainActor
+    func testSampleLaunchDoesNotExposeAddOrSwitchActions() throws {
+        let app = launchApp(scenario: "sample-data")
+
+        XCTAssertTrue(app.staticTexts["Work"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Add Account"].exists)
+        XCTAssertFalse(app.buttons["Switch"].exists)
+        XCTAssertFalse(app.buttons["Log In"].exists)
+    }
+
+    @MainActor
+    func testSettingsShowsVersionBuildAndLinks() throws {
+        let app = launchApp(scenario: "sample-data")
+
+        app.buttons["ios-settings-button"].tap()
+
+        XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Version"].exists)
+        XCTAssertTrue(app.staticTexts["Build"].exists)
+        XCTAssertTrue(app.staticTexts["Contact Us"].exists)
+        XCTAssertTrue(app.staticTexts["Privacy Policy"].exists)
+        XCTAssertTrue(app.staticTexts["Source Code"].exists)
+    }
+
+    @MainActor
+    func testCustomOrderOnlyShowsEditButtonWhenReorderingIsAllowed() throws {
+        let app = launchApp(scenario: "sample-data")
+
+        XCTAssertFalse(app.buttons["Edit"].exists)
+
+        app.buttons["ios-sort-button"].tap()
+        app.buttons["Custom"].tap()
+
+        XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 5))
+
+        let searchField = app.searchFields["Search"]
+        searchField.tap()
+        searchField.typeText("work")
+
+        XCTAssertFalse(app.buttons["Edit"].exists)
+    }
+
+    @MainActor
+    func testSwipeDeleteRemovesAccountFromTheList() throws {
+        let app = launchApp(scenario: "sample-data")
+        let workRow = app.staticTexts["Work"]
+
+        XCTAssertTrue(workRow.waitForExistence(timeout: 5))
+        workRow.swipeLeft()
+        app.buttons["Remove"].tap()
+        app.buttons["Remove Account"].tap()
+
+        XCTAssertFalse(workRow.waitForExistence(timeout: 2))
+    }
+
+    private func launchApp(scenario: String) -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchEnvironment["CODEX_SWITCHER_IOS_LAUNCH_SCENARIO"] = scenario
         app.launch()
-
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
-    }
-
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+        return app
     }
 }

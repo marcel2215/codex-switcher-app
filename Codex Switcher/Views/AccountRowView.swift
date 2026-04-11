@@ -83,56 +83,6 @@ struct AccountRowView: View {
         .contentShape(Rectangle())
     }
 
-    /// Formats the last-login segment using the compact copy required by the
-    /// account list row. Keep this intentionally constrained so the row stays
-    /// short enough even with both limit percentages appended after it.
-    static func makeLastLoginDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
-        "Last login: \(makeLastLoginValueDescription(from: lastLoginAt, relativeTo: now))"
-    }
-
-    static func makeLastLoginValueDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
-        guard let lastLoginAt else {
-            return "never"
-        }
-
-        // Clock skew or manual system time changes should not produce "in the future".
-        let elapsedSeconds = max(now.timeIntervalSince(lastLoginAt), 0)
-        let hourInSeconds: TimeInterval = 60 * 60
-        let dayInSeconds: TimeInterval = 24 * hourInSeconds
-
-        if elapsedSeconds < hourInSeconds {
-            return "this hour"
-        }
-
-        if elapsedSeconds < dayInSeconds {
-            let hoursAgo = Int(elapsedSeconds / hourInSeconds)
-            return "\(hoursAgo)h ago"
-        }
-
-        let daysAgo = max(Int(elapsedSeconds / dayInSeconds), 1)
-        return "\(daysAgo)d ago"
-    }
-
-    static func makeMetadataDescription(
-        lastLoginAt: Date?,
-        sevenDayLimitUsedPercent: Int?,
-        fiveHourLimitUsedPercent: Int?,
-        relativeTo now: Date = .now
-    ) -> String {
-        [
-            makeLastLoginDescription(from: lastLoginAt, relativeTo: now),
-            "7d: \(formattedPercent(sevenDayLimitUsedPercent))",
-            "5h: \(formattedPercent(fiveHourLimitUsedPercent))",
-        ].joined(separator: " • ")
-    }
-    private static func formattedPercent(_ value: Int?) -> String {
-        guard let value else {
-            return "?"
-        }
-
-        return "\(min(max(value, 0), 100))%"
-    }
-
     private func commitRename() {
         onCommitRename(draftName)
     }

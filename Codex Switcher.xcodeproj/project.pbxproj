@@ -145,6 +145,11 @@
 			path = "Codex Switcher iOS App UI Tests";
 			sourceTree = "<group>";
 		};
+		6AE84D562BE14E0FA0856BF2 /* Shared Core */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Shared Core";
+			sourceTree = "<group>";
+		};
 		7A1B2C3D4E5F60718293A4B5 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Shared;
@@ -220,6 +225,7 @@
 			isa = PBXGroup;
 			children = (
 				1F87C9492F8406C7007DED25 /* Codex Switcher */,
+				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
 				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 				1F87C9592F8406C9007DED25 /* Codex Switcher Tests */,
 				1F87C9632F8406C9007DED25 /* Codex Switcher UI Tests */,
@@ -288,6 +294,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F87C9492F8406C7007DED25 /* Codex Switcher */,
+				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
 				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher";
@@ -357,6 +364,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F96B5A72F89BF5100044DB7 /* Codex Switcher iOS App */,
+				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
 			);
 			name = "Codex Switcher iOS App";
 			packageProductDependencies = (
@@ -1020,7 +1028,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -1056,7 +1064,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
 			};
@@ -1079,7 +1087,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codex Switcher iOS App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Codex Switcher iOS App";
 			};
@@ -1102,7 +1110,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codex Switcher iOS App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Codex Switcher iOS App";
 				VALIDATE_PRODUCT = YES;
@@ -1125,7 +1133,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = "Codex Switcher iOS App";
 			};
@@ -1147,7 +1155,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = "Codex Switcher iOS App";
 				VALIDATE_PRODUCT = YES;

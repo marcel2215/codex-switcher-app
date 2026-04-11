@@ -47,8 +47,30 @@ final class AppController {
         }
     }
     var searchText = ""
-    var sortCriterion: AccountSortCriterion = .dateAdded
-    var sortDirection: SortDirection = .ascending
+    var sortCriterion: AccountSortCriterion = .dateAdded {
+        didSet {
+            let normalizedDirection = AccountsPresentationLogic.normalizedSortDirection(
+                for: sortCriterion,
+                requestedDirection: sortDirection
+            )
+
+            if sortDirection != normalizedDirection {
+                sortDirection = normalizedDirection
+            }
+        }
+    }
+    var sortDirection: SortDirection = .ascending {
+        didSet {
+            let normalizedDirection = AccountsPresentationLogic.normalizedSortDirection(
+                for: sortCriterion,
+                requestedDirection: sortDirection
+            )
+
+            if sortDirection != normalizedDirection {
+                sortDirection = normalizedDirection
+            }
+        }
+    }
     var renameTargetID: UUID?
     var presentedAlert: UserFacingAlert?
     var isShowingLocationPicker = false
@@ -68,6 +90,7 @@ final class AppController {
     @ObservationIgnored private let startupAlert: UserFacingAlert?
 
     @ObservationIgnored private var modelContainer: ModelContainer?
+    @ObservationIgnored private var remoteDeletionCleanup: RemoteAccountDeletionCleanup?
     @ObservationIgnored private var hasConfiguredInitialState = false
     @ObservationIgnored private var hasStartedMonitoring = false
     @ObservationIgnored private var hasStartedObservingSystemState = false
@@ -127,6 +150,13 @@ final class AppController {
         self.modelContainer = modelContainer
         self.isAutopilotEnabled = autopilotEnabled
         self.logger = Logger(subsystem: bundleIdentifier, category: "AppController")
+        if let modelContainer {
+            self.remoteDeletionCleanup = RemoteAccountDeletionCleanup(
+                modelContainer: modelContainer,
+                secretStore: secretStore,
+                logger: Logger(subsystem: bundleIdentifier, category: "RemoteDeletionCleanup")
+            )
+        }
     }
 
     deinit {
@@ -151,6 +181,17 @@ final class AppController {
         // be valid when an async refresh fires later.
         if modelContainer == nil {
             modelContainer = modelContext.container
+        }
+
+        if remoteDeletionCleanup == nil, let modelContainer {
+            remoteDeletionCleanup = RemoteAccountDeletionCleanup(
+                modelContainer: modelContainer,
+                secretStore: secretStore,
+                logger: Logger(
+                    subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+                    category: "RemoteDeletionCleanup"
+                )
+            )
         }
 
         let resolvedModelContext = modelContainer?.mainContext ?? modelContext
@@ -181,6 +222,7 @@ final class AppController {
             await self.reconcileStoredSnapshotsIfNeeded()
             await self.refreshAuthState(showUnexpectedErrors: false)
             self.reconcileDisplayOnlyFieldsIfNeeded()
+            await self.remoteDeletionCleanup?.consumeHistoryIfNeeded()
             if !Self.isRunningMainApplicationUnitTests {
                 self.publishSharedState()
             }
@@ -198,7 +240,11 @@ final class AppController {
     }
 
     var canEditCustomOrder: Bool {
-        sortCriterion == .custom && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        AccountsPresentationLogic.canEditCustomOrder(
+            searchText: searchText,
+            sortCriterion: sortCriterion,
+            sortDirection: sortDirection
+        )
     }
 
     var selectedAccountID: UUID? {
@@ -244,7 +290,10 @@ final class AppController {
         sortDirectionRawValue: String
     ) {
         let resolvedCriterion = AccountSortCriterion(rawValue: sortCriterionRawValue) ?? .dateAdded
-        let resolvedDirection = SortDirection(rawValue: sortDirectionRawValue) ?? .ascending
+        let resolvedDirection = AccountsPresentationLogic.normalizedSortDirection(
+            for: resolvedCriterion,
+            requestedDirection: SortDirection(rawValue: sortDirectionRawValue) ?? .ascending
+        )
 
         if sortCriterion != resolvedCriterion {
             sortCriterion = resolvedCriterion
@@ -308,6 +357,9 @@ final class AppController {
 
         if isActive {
             scheduleAutopilotEvaluationSoon(trigger: .appBecameActive)
+            Task { @MainActor [weak self] in
+                await self?.remoteDeletionCleanup?.consumeHistoryIfNeeded()
+            }
         }
 
         if isRateLimitSurfaceActive {
@@ -362,21 +414,12 @@ final class AppController {
     }
 
     func displayedAccounts(from accounts: [StoredAccount]) -> [StoredAccount] {
-        let filteredAccounts: [StoredAccount]
-        let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmedSearch.isEmpty {
-            filteredAccounts = accounts
-        } else {
-            let lowercasedSearch = trimmedSearch.lowercased()
-            filteredAccounts = accounts.filter { account in
-                account.name.lowercased().contains(lowercasedSearch)
-                    || (account.emailHint?.lowercased().contains(lowercasedSearch) ?? false)
-                    || (account.accountIdentifier?.lowercased().contains(lowercasedSearch) ?? false)
-            }
-        }
-
-        return sortedAccounts(from: filteredAccounts)
+        AccountsPresentationLogic.displayedAccounts(
+            from: accounts,
+            searchText: searchText,
+            sortCriterion: sortCriterion,
+            sortDirection: sortDirection
+        )
     }
 
     func beginLinkingCodexLocation() {
@@ -462,8 +505,7 @@ final class AppController {
                 throw ControllerError.accountNotFound
             }
 
-            let trimmedName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedName.isEmpty else {
+            guard let trimmedName = AccountsPresentationLogic.normalizedRenamedAccountName(proposedName) else {
                 renameTargetID = nil
                 return
             }
@@ -1803,36 +1845,29 @@ final class AppController {
     }
 
     private func orderedAccountsForAutopilotRefresh(from accounts: [StoredAccount]) -> [StoredAccount] {
-        accounts
-            .filter(\.hasLocalSnapshot)
-            .sorted { lhs, rhs in
-                if lhs.identityKey == activeIdentityKey, rhs.identityKey != activeIdentityKey {
-                    return true
-                }
+        var prioritizedAccounts = AccountsPresentationLogic.sortedAccounts(
+            from: accounts.filter(\.hasLocalSnapshot),
+            sortCriterion: .rateLimit,
+            sortDirection: .descending
+        )
 
-                if rhs.identityKey == activeIdentityKey, lhs.identityKey != activeIdentityKey {
-                    return false
-                }
+        guard let activeIdentityKey,
+              let activeAccountIndex = prioritizedAccounts.firstIndex(where: { $0.identityKey == activeIdentityKey }) else {
+            return prioritizedAccounts
+        }
 
-                if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: .descending) {
-                    return lhs.createdAt < rhs.createdAt
-                }
-
-                return Self.rateLimitSortComesBefore(lhs, rhs, direction: .descending)
-            }
+        let activeAccount = prioritizedAccounts.remove(at: activeAccountIndex)
+        prioritizedAccounts.insert(activeAccount, at: 0)
+        return prioritizedAccounts
     }
 
     private func bestAutopilotAccountCandidate(from accounts: [StoredAccount]) -> StoredAccount? {
-        accounts
-            .filter(\.hasLocalSnapshot)
-            .sorted { lhs, rhs in
-                if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: .descending) {
-                    return lhs.createdAt < rhs.createdAt
-                }
-
-                return Self.rateLimitSortComesBefore(lhs, rhs, direction: .descending)
-            }
-            .first { Self.rateLimitSortMetrics(for: $0).isComplete }
+        AccountsPresentationLogic.sortedAccounts(
+            from: accounts.filter(\.hasLocalSnapshot),
+            sortCriterion: .rateLimit,
+            sortDirection: .descending
+        )
+        .first { $0.fiveHourLimitUsedPercent != nil && $0.sevenDayLimitUsedPercent != nil }
     }
 
     private func handleRemoteSwitchSignal(_ signal: CodexSharedSwitchSignal) async {
@@ -2811,7 +2846,11 @@ final class AppController {
     }
 
     private func sortedAccounts(from accounts: [StoredAccount]) -> [StoredAccount] {
-        accounts.sorted(by: sortComparator)
+        AccountsPresentationLogic.sortedAccounts(
+            from: accounts,
+            sortCriterion: sortCriterion,
+            sortDirection: sortDirection
+        )
     }
 
     private func publishSharedState(immediate: Bool = false) {
@@ -2987,133 +3026,6 @@ final class AppController {
 
         let nsError = error as NSError
         return nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError
-    }
-
-    private var sortComparator: (StoredAccount, StoredAccount) -> Bool {
-        { [sortCriterion, sortDirection] lhs, rhs in
-            if sortCriterion == .rateLimit {
-                if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: sortDirection) {
-                    return lhs.createdAt < rhs.createdAt
-                }
-
-                return Self.rateLimitSortComesBefore(lhs, rhs, direction: sortDirection)
-            }
-
-            let orderedAscending: Bool = switch sortCriterion {
-            case .name:
-                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            case .dateAdded:
-                lhs.createdAt < rhs.createdAt
-            case .lastLogin:
-                (lhs.lastLoginAt ?? .distantPast) < (rhs.lastLoginAt ?? .distantPast)
-            case .rateLimit:
-                false
-            case .custom:
-                lhs.customOrder < rhs.customOrder
-            }
-
-            let orderedDescending: Bool = switch sortCriterion {
-            case .name:
-                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedDescending
-            case .dateAdded:
-                lhs.createdAt > rhs.createdAt
-            case .lastLogin:
-                (lhs.lastLoginAt ?? .distantPast) > (rhs.lastLoginAt ?? .distantPast)
-            case .rateLimit:
-                false
-            case .custom:
-                lhs.customOrder > rhs.customOrder
-            }
-
-            if Self.isEquivalent(lhs, rhs, for: sortCriterion) {
-                return lhs.createdAt < rhs.createdAt
-            }
-
-            return sortDirection == .ascending ? orderedAscending : orderedDescending
-        }
-    }
-
-    private static func isEquivalent(_ lhs: StoredAccount, _ rhs: StoredAccount, for criterion: AccountSortCriterion) -> Bool {
-        switch criterion {
-        case .name:
-            lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedSame
-        case .dateAdded:
-            lhs.createdAt == rhs.createdAt
-        case .lastLogin:
-            lhs.lastLoginAt == rhs.lastLoginAt
-        case .rateLimit:
-            false
-        case .custom:
-            lhs.customOrder == rhs.customOrder
-        }
-    }
-
-    // "Rate Limit" sorts by min(5h, 7d) first, then by max(5h, 7d). Rows with
-    // a missing bucket are always pushed to the end regardless of direction so
-    // partial telemetry never outranks a verified pair of limits.
-    private static func rateLimitSortComesBefore(
-        _ lhs: StoredAccount,
-        _ rhs: StoredAccount,
-        direction: SortDirection
-    ) -> Bool {
-        let lhsMetrics = rateLimitSortMetrics(for: lhs)
-        let rhsMetrics = rateLimitSortMetrics(for: rhs)
-
-        if lhsMetrics.isComplete != rhsMetrics.isComplete {
-            return lhsMetrics.isComplete
-        }
-
-        if lhsMetrics.primary != rhsMetrics.primary {
-            return direction == .ascending
-                ? lhsMetrics.primary < rhsMetrics.primary
-                : lhsMetrics.primary > rhsMetrics.primary
-        }
-
-        if lhsMetrics.secondary != rhsMetrics.secondary {
-            return direction == .ascending
-                ? lhsMetrics.secondary < rhsMetrics.secondary
-                : lhsMetrics.secondary > rhsMetrics.secondary
-        }
-
-        return lhs.createdAt < rhs.createdAt
-    }
-
-    private static func areEquivalentForRateLimitSort(
-        _ lhs: StoredAccount,
-        _ rhs: StoredAccount,
-        direction: SortDirection
-    ) -> Bool {
-        let lhsMetrics = rateLimitSortMetrics(for: lhs)
-        let rhsMetrics = rateLimitSortMetrics(for: rhs)
-        return lhsMetrics.isComplete == rhsMetrics.isComplete
-            && lhsMetrics.primary == rhsMetrics.primary
-            && lhsMetrics.secondary == rhsMetrics.secondary
-    }
-
-    private static func rateLimitSortMetrics(
-        for account: StoredAccount
-    ) -> (isComplete: Bool, primary: Int, secondary: Int) {
-        let normalizedValues = normalizedRateLimitSortValues(for: account)
-        return (
-            normalizedValues.isComplete,
-            normalizedValues.values.min() ?? 0,
-            normalizedValues.values.max() ?? 0
-        )
-    }
-
-    private static func normalizedRateLimitSortValues(
-        for account: StoredAccount
-    ) -> (isComplete: Bool, values: [Int]) {
-        guard let fiveHourRemainingPercent = account.fiveHourLimitUsedPercent,
-              let sevenDayRemainingPercent = account.sevenDayLimitUsedPercent else {
-            return (false, [0, 0])
-        }
-
-        return (
-            true,
-            [fiveHourRemainingPercent, sevenDayRemainingPercent]
-                .map { min(max($0, 0), 100) }
-        )
     }
 
     private static func isGeneratedAccountName(_ name: String) -> Bool {

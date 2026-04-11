@@ -36,10 +36,10 @@ struct AccountMetadataText: View {
         .lineLimit(1)
         .truncationMode(.tail)
         .accessibilityLabel(
-            AccountRowView.makeMetadataDescription(
+            AccountDisplayFormatter.accessibilityMetadataDescription(
                 lastLoginAt: lastLoginAt,
-                sevenDayLimitUsedPercent: sevenDayLimitUsedPercent,
-                fiveHourLimitUsedPercent: fiveHourLimitUsedPercent
+                sevenDayRemainingPercent: sevenDayLimitUsedPercent,
+                fiveHourRemainingPercent: fiveHourLimitUsedPercent
             )
         )
     }
@@ -61,7 +61,7 @@ struct AccountMetadataText: View {
 
     private static func lastLoginFragment(_ lastLoginAt: Date?) -> AttributedString {
         var result = AttributedString("Last login: ")
-        var value = AttributedString(AccountRowView.makeLastLoginValueDescription(from: lastLoginAt))
+        var value = AttributedString(AccountDisplayFormatter.lastLoginValueDescription(from: lastLoginAt))
         value.foregroundColor = .primary
         result.append(value)
         return result
@@ -74,13 +74,12 @@ struct AccountMetadataText: View {
     }
 
     private static func percentFragment(_ value: Int?) -> AttributedString {
-        guard let value else {
+        guard let clampedValue = AccountDisplayFormatter.clampedPercentValue(value) else {
             return AttributedString("?")
         }
 
-        let clamped = min(max(value, 0), 100)
-        let components = usageColorComponents(forUsedPercent: clamped)
-        var result = AttributedString("\(clamped)%")
+        let components = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: clampedValue)
+        var result = AttributedString("\(clampedValue)%")
         result.foregroundColor = Color(
             .sRGB,
             red: components.red,
@@ -89,21 +88,5 @@ struct AccountMetadataText: View {
             opacity: 1
         )
         return result
-    }
-
-    // The limits use a fixed visual scale:
-    // 0% -> red, 50% -> yellow, 100% -> green.
-    // Keep the interpolation deterministic so list rows and menu bar rows
-    // always render the same meaning on every surface.
-    static func usageColorComponents(forUsedPercent value: Int) -> (red: Double, green: Double, blue: Double) {
-        let normalized = min(max(Double(value), 0), 100)
-
-        if normalized <= 50 {
-            let progress = normalized / 50
-            return (red: 1, green: progress, blue: 0)
-        }
-
-        let progress = (normalized - 50) / 50
-        return (red: 1 - progress, green: 1, blue: 0)
     }
 }

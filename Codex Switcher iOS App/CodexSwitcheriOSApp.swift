@@ -5,28 +5,22 @@
 //  Created by Marcel Kwiatkowski on 2026-04-11.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @main
-struct CodexSwitcheriOSAppApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+struct CodexSwitcheriOSApp: App {
+    private let bootstrap = IOSAppBootstrap.make()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            switch bootstrap {
+            case let .ready(modelContainer):
+                AccountsRootView()
+                    .modelContainer(modelContainer)
+            case let .failed(message):
+                StorageUnavailableView(message: message)
+            }
         }
-        .modelContainer(sharedModelContainer)
     }
 }
