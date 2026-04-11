@@ -39,11 +39,11 @@ nonisolated enum SyncedRateLimitCredentialStoreError: LocalizedError, Equatable 
 actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
     private nonisolated static let service = "com.marcel2215.codexswitcher.syncedRateLimitCredentials"
 
-    private let accessGroup: String?
+    private let accessGroup: String
     private let logger: Logger
 
     init(
-        accessGroup: String? = nil,
+        accessGroup: String = "group.com.marcel2215.codexswitcher",
         logger: Logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
             category: "SyncedRateLimitCredentialStore"
@@ -58,32 +58,30 @@ actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
         let data = try JSONEncoder().encode(credential)
 
         let query = baseQuery(forIdentityKey: identityKey)
-        let attributes: [String: Any] = [
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
-        ]
+        var item = query
+        item[kSecValueData as String] = data
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
 
-        switch SecItemCopyMatching(query as CFDictionary, nil) {
-        case errSecItemNotFound:
-            var item = query
-            attributes.forEach { item[$0.key] = $0.value }
+        let addStatus = SecItemAdd(item as CFDictionary, nil)
 
-            let status = SecItemAdd(item as CFDictionary, nil)
-            guard status == errSecSuccess else {
-                logger.error("Keychain add failed with status \(status, privacy: .public)")
-                throw SyncedRateLimitCredentialStoreError.unexpectedStatus(status)
-            }
-
+        switch addStatus {
         case errSecSuccess:
-            let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-            guard status == errSecSuccess else {
-                logger.error("Keychain update failed with status \(status, privacy: .public)")
-                throw SyncedRateLimitCredentialStoreError.unexpectedStatus(status)
+            return
+
+        case errSecDuplicateItem:
+            let attributes: [String: Any] = [
+                kSecValueData as String: data,
+                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+            ]
+            let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+            guard updateStatus == errSecSuccess else {
+                logger.error("Keychain update failed with status \(updateStatus, privacy: .public)")
+                throw SyncedRateLimitCredentialStoreError.unexpectedStatus(updateStatus)
             }
 
-        case let status:
-            logger.error("Keychain lookup failed with status \(status, privacy: .public)")
-            throw SyncedRateLimitCredentialStoreError.unexpectedStatus(status)
+        default:
+            logger.error("Keychain add failed with status \(addStatus, privacy: .public)")
+            throw SyncedRateLimitCredentialStoreError.unexpectedStatus(addStatus)
         }
     }
 
@@ -150,9 +148,9 @@ actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
             kSecUseDataProtectionKeychain as String: true,
             kSecAttrService as String: Self.service,
             kSecAttrAccount as String: identityKey,
+            kSecAttrAccessGroup as String: accessGroup,
             kSecAttrSynchronizable as String: kCFBooleanTrue as Any,
         ]
-        .merging(accessGroup.map { [kSecAttrAccessGroup as String: $0] } ?? [:]) { current, _ in current }
     }
 
     private func normalizedIdentityKey(_ identityKey: String) throws -> String {

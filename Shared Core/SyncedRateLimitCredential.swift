@@ -69,27 +69,6 @@ nonisolated struct SyncedRateLimitCredential: Codable, Sendable, Equatable {
             idToken: nil
         )
     }
-
-    func encodedJSONString() throws -> String {
-        let data = try JSONEncoder().encode(self)
-        guard let string = String(data: data, encoding: .utf8) else {
-            throw SyncedRateLimitCredentialStoreError.invalidPayload
-        }
-        return string
-    }
-
-    static func decode(jsonString: String) throws -> SyncedRateLimitCredential {
-        guard let data = jsonString.data(using: .utf8) else {
-            throw SyncedRateLimitCredentialStoreError.invalidPayload
-        }
-
-        let credential = try JSONDecoder().decode(SyncedRateLimitCredential.self, from: data)
-        guard credential.schemaVersion == currentSchemaVersion else {
-            throw SyncedRateLimitCredentialStoreError.invalidPayload
-        }
-
-        return credential
-    }
 }
 
 private extension String {

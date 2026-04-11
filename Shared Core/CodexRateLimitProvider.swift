@@ -22,15 +22,21 @@ nonisolated enum CodexRateLimitFetchFailure: Sendable, Equatable {
     case invalidResponse
     case invalidPayload
     case network(URLError.Code)
+    case cancelled
 }
 
-nonisolated enum CodexRateLimitFetchOutcome: Sendable, Equatable {
-    case success(CodexRateLimitSnapshot)
-    case failure(CodexRateLimitFetchFailure)
+nonisolated struct CodexRateLimitFetchResult: Sendable, Equatable {
+    let snapshot: CodexRateLimitSnapshot?
+    let remoteFailure: CodexRateLimitFetchFailure?
+
+    init(snapshot: CodexRateLimitSnapshot? = nil, remoteFailure: CodexRateLimitFetchFailure? = nil) {
+        self.snapshot = snapshot
+        self.remoteFailure = remoteFailure
+    }
 }
 
 protocol CodexRateLimitProviding: Sendable {
-    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchOutcome
+    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchResult
 }
 
 actor CodexRateLimitProvider: CodexRateLimitProviding {
@@ -66,14 +72,14 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
         }
     }
 
-    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchOutcome {
-        let remoteOutcome = await fetchRemoteSnapshot(for: request)
-        if case .success = remoteOutcome {
-            return remoteOutcome
+    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchResult {
+        let remoteResult = await fetchRemoteSnapshot(for: request)
+        if remoteResult.snapshot != nil || remoteResult.remoteFailure == .cancelled {
+            return remoteResult
         }
 
         guard request.isCurrentAccount, let linkedLocation = request.linkedLocation else {
-            return remoteOutcome
+            return remoteResult
         }
 
         let fallbackObservation = await sessionReader.readLatestObservation(
@@ -81,7 +87,7 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
         )
 
         guard let fallbackObservation else {
-            return remoteOutcome
+            return remoteResult
         }
 
         let snapshot = CodexRateLimitSnapshot(
@@ -94,10 +100,13 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
             sevenDayResetsAt: fallbackObservation.sevenDayResetsAt,
             fiveHourResetsAt: fallbackObservation.fiveHourResetsAt
         ).applyingResetBoundaries()
-        return .success(snapshot)
+        return CodexRateLimitFetchResult(
+            snapshot: snapshot,
+            remoteFailure: remoteResult.remoteFailure
+        )
     }
 
-    private func fetchRemoteSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchOutcome {
+    private func fetchRemoteSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchResult {
         guard
             let credentials = request.credentials,
             credentials.identityKey == request.identityKey,
@@ -105,10 +114,8 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
             let accessToken = credentials.accessToken?.trimmingCharacters(in: .whitespacesAndNewlines),
             !accessToken.isEmpty
         else {
-            return .failure(.missingCredentials)
+            return CodexRateLimitFetchResult(remoteFailure: .missingCredentials)
         }
-
-        await requestLimiter.acquire()
 
         var urlRequest = URLRequest(url: Self.usageURL)
         urlRequest.httpMethod = "GET"
@@ -121,10 +128,11 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
         }
 
         do {
+            try await requestLimiter.acquire()
             let (data, response) = try await urlSession.data(for: urlRequest)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                return .failure(.invalidResponse)
+                return CodexRateLimitFetchResult(remoteFailure: .invalidResponse)
             }
 
             switch httpResponse.statusCode {
@@ -132,27 +140,33 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
                 do {
                     let decoded = try JSONDecoder().decode(CodexUsageAPIResponse.self, from: data)
                     guard let snapshot = makeSnapshot(from: decoded, identityKey: request.identityKey) else {
-                        return .failure(.invalidPayload)
+                        return CodexRateLimitFetchResult(remoteFailure: .invalidPayload)
                     }
 
-                    return .success(snapshot)
+                    return CodexRateLimitFetchResult(snapshot: snapshot)
                 } catch {
-                    return .failure(.invalidPayload)
+                    return CodexRateLimitFetchResult(remoteFailure: .invalidPayload)
                 }
 
             case 401, 403:
-                return .failure(.unauthorized)
+                return CodexRateLimitFetchResult(remoteFailure: .unauthorized)
 
             case 429:
-                return .failure(.rateLimited(retryAfter: retryAfterSeconds(from: httpResponse)))
+                return CodexRateLimitFetchResult(
+                    remoteFailure: .rateLimited(retryAfter: retryAfterSeconds(from: httpResponse))
+                )
 
             default:
-                return .failure(.httpStatus(httpResponse.statusCode))
+                return CodexRateLimitFetchResult(remoteFailure: .httpStatus(httpResponse.statusCode))
             }
+        } catch is CancellationError {
+            return CodexRateLimitFetchResult(remoteFailure: .cancelled)
+        } catch let error as URLError where error.code == .cancelled {
+            return CodexRateLimitFetchResult(remoteFailure: .cancelled)
         } catch let error as URLError {
-            return .failure(.network(error.code))
+            return CodexRateLimitFetchResult(remoteFailure: .network(error.code))
         } catch {
-            return .failure(.invalidResponse)
+            return CodexRateLimitFetchResult(remoteFailure: .invalidResponse)
         }
     }
 

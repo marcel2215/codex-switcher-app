@@ -88,6 +88,7 @@ struct CodexSwitcherTests {
         #expect(account.hasLocalSnapshot)
         #expect(await secretStore.secret(forIdentityKey: account.identityKey) == makeChatGPTAuthJSON(accountID: "acct-123"))
         #expect(await syncedRateLimitCredentialStore.containsCredential(forIdentityKey: account.identityKey))
+        #expect(await syncedRateLimitCredentialStore.saveCallCount() == 1)
     }
 
     @Test func captureFallsBackToGeneratedNameWhenEmailUnknown() async throws {
@@ -1833,10 +1834,8 @@ struct CodexSwitcherTests {
 
         #expect(MockURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer \(accessToken)")
         #expect(MockURLProtocol.lastRequest?.value(forHTTPHeaderField: "ChatGPT-Account-Id") == "acct-remote")
-        guard case let .success(snapshot) = outcome else {
-            Issue.record("Expected a successful remote rate-limit snapshot fetch.")
-            return
-        }
+        #expect(outcome.remoteFailure == nil)
+        let snapshot = try #require(outcome.snapshot)
 
         #expect(snapshot.source == .remoteUsageAPI)
         #expect(snapshot.fiveHourRemainingPercent == 66)
@@ -2407,21 +2406,21 @@ final class FakeSecretStore: @unchecked Sendable, AccountSnapshotStoring {
 }
 
 actor FakeRateLimitProvider: CodexRateLimitProviding {
-    private var outcomes: [String: CodexRateLimitFetchOutcome] = [:]
+    private var results: [String: CodexRateLimitFetchResult] = [:]
     private var capturedIdentityKeys: [String] = []
 
-    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchOutcome {
+    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchResult {
         let identityKey = request.identityKey
         capturedIdentityKeys.append(identityKey)
-        return outcomes[identityKey] ?? .failure(.missingCredentials)
+        return results[identityKey] ?? CodexRateLimitFetchResult(remoteFailure: .missingCredentials)
     }
 
     func setSnapshot(_ snapshot: CodexRateLimitSnapshot, for identityKey: String) {
-        outcomes[identityKey] = .success(snapshot)
+        results[identityKey] = CodexRateLimitFetchResult(snapshot: snapshot)
     }
 
     func setFailure(_ failure: CodexRateLimitFetchFailure, for identityKey: String) {
-        outcomes[identityKey] = .failure(failure)
+        results[identityKey] = CodexRateLimitFetchResult(remoteFailure: failure)
     }
 
     func requestCount(for identityKey: String) -> Int {
@@ -2440,9 +2439,11 @@ actor FakeRateLimitProvider: CodexRateLimitProviding {
 final class FakeSyncedRateLimitCredentialStore: @unchecked Sendable, SyncedRateLimitCredentialStoring {
     private let lock = NSLock()
     private var credentialsByIdentityKey: [String: SyncedRateLimitCredential] = [:]
+    private var saveCount = 0
 
     func save(_ credential: SyncedRateLimitCredential) async throws {
         withLock {
+            saveCount += 1
             credentialsByIdentityKey[credential.identityKey] = credential
         }
     }
@@ -2472,6 +2473,12 @@ final class FakeSyncedRateLimitCredentialStore: @unchecked Sendable, SyncedRateL
     func credential(forIdentityKey identityKey: String) async -> SyncedRateLimitCredential? {
         withLock {
             credentialsByIdentityKey[identityKey]
+        }
+    }
+
+    func saveCallCount() async -> Int {
+        withLock {
+            saveCount
         }
     }
 

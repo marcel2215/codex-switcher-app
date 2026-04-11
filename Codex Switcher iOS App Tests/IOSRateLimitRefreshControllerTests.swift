@@ -46,7 +46,7 @@ struct IOSRateLimitRefreshControllerTests {
                 )
             )
         )
-        await provider.setOutcome(.success(snapshot), for: account.identityKey)
+        await provider.setSnapshot(snapshot, for: account.identityKey)
 
         controller.configure(modelContext: harness.modelContext)
         controller.setVisible(true, for: account.identityKey)
@@ -91,7 +91,7 @@ struct IOSRateLimitRefreshControllerTests {
                 )
             )
         )
-        await provider.setOutcome(.success(makeRefreshSnapshot(identityKey: account.identityKey)), for: account.identityKey)
+        await provider.setSnapshot(makeRefreshSnapshot(identityKey: account.identityKey), for: account.identityKey)
 
         controller.configure(modelContext: harness.modelContext)
         controller.setVisible(true, for: account.identityKey)
@@ -103,7 +103,7 @@ struct IOSRateLimitRefreshControllerTests {
         // A visible list row that was refreshed two minutes ago is still fresh.
         account.rateLimitsObservedAt = observedAt
         try harness.modelContext.save()
-        await provider.setOutcome(.success(makeRefreshSnapshot(identityKey: account.identityKey)), for: account.identityKey)
+        await provider.setSnapshot(makeRefreshSnapshot(identityKey: account.identityKey), for: account.identityKey)
         await provider.resetRequests()
         controller.reconcileKnownIdentityKeys([account.identityKey])
         await controller.refreshDueAccountsForTesting()
@@ -142,7 +142,7 @@ struct IOSRateLimitRefreshControllerTests {
                 )
             )
         )
-        await provider.setOutcome(.failure(.unauthorized), for: account.identityKey)
+        await provider.setFailure(.unauthorized, for: account.identityKey)
 
         controller.configure(modelContext: harness.modelContext)
         await controller.refreshNowForTesting(for: account.identityKey)
@@ -196,57 +196,6 @@ struct IOSRateLimitRefreshControllerTests {
     }
 
     @Test
-    func cloudKitSyncedCredentialRefreshesWithoutKeychainCredential() async throws {
-        let account = makeRefreshTestAccount(
-            identityKey: "identity-cloudkit",
-            name: "CloudKit",
-            customOrder: 0
-        )
-        #expect(
-            account.updateSyncedRateLimitCredential(
-                try SyncedRateLimitCredential(
-                    credentials: CodexRateLimitCredentials(
-                        identityKey: account.identityKey,
-                        authMode: .chatgpt,
-                        accountID: "acct-cloudkit",
-                        accessToken: "token-cloudkit",
-                        idToken: nil
-                    )
-                )
-            )
-        )
-
-        let harness = try makeRefreshHarness(accounts: [account])
-        let provider = TestIOSRateLimitProvider()
-        let controller = IOSRateLimitRefreshController(
-            provider: provider,
-            credentialStore: TestSyncedRateLimitCredentialStore()
-        )
-        let observedAt = Date().addingTimeInterval(-45)
-        let snapshot = makeRefreshSnapshot(
-            identityKey: account.identityKey,
-            observedAt: observedAt,
-            fetchedAt: observedAt.addingTimeInterval(5),
-            sevenDayRemainingPercent: 81,
-            fiveHourRemainingPercent: 29
-        )
-
-        await provider.setOutcome(.success(snapshot), for: account.identityKey)
-
-        controller.configure(modelContext: harness.modelContext)
-        controller.setVisible(true, for: account.identityKey)
-
-        try await waitUntil {
-            await provider.requestCount(for: account.identityKey) == 1
-        }
-
-        let refreshedAccount = try #require(fetchRefreshAccounts(in: harness.modelContext).first)
-        #expect(refreshedAccount.sevenDayLimitUsedPercent == 81)
-        #expect(refreshedAccount.fiveHourLimitUsedPercent == 29)
-        #expect(refreshedAccount.rateLimitsObservedAt == snapshot.observedAt)
-    }
-
-    @Test
     func automaticRefreshHonorsTransientBackoff() async throws {
         let account = makeRefreshTestAccount(
             identityKey: "identity-backoff",
@@ -272,7 +221,7 @@ struct IOSRateLimitRefreshControllerTests {
                 )
             )
         )
-        await provider.setOutcome(.failure(.network(.notConnectedToInternet)), for: account.identityKey)
+        await provider.setFailure(.network(.notConnectedToInternet), for: account.identityKey)
 
         controller.configure(modelContext: harness.modelContext)
         controller.setVisible(true, for: account.identityKey)
@@ -317,7 +266,7 @@ struct IOSRateLimitRefreshControllerTests {
                 )
             )
         )
-        await provider.setOutcome(.failure(.unauthorized), for: account.identityKey)
+        await provider.setFailure(.unauthorized, for: account.identityKey)
 
         controller.configure(modelContext: harness.modelContext)
         controller.setVisible(true, for: account.identityKey)
@@ -337,15 +286,13 @@ struct IOSRateLimitRefreshControllerTests {
                 )
             )
         )
-        await provider.setOutcome(
-            .success(
-                makeRefreshSnapshot(
-                    identityKey: account.identityKey,
-                    observedAt: observedAt.addingTimeInterval(30),
-                    fetchedAt: observedAt.addingTimeInterval(35),
-                    sevenDayRemainingPercent: 67,
-                    fiveHourRemainingPercent: 40
-                )
+        await provider.setSnapshot(
+            makeRefreshSnapshot(
+                identityKey: account.identityKey,
+                observedAt: observedAt.addingTimeInterval(30),
+                fetchedAt: observedAt.addingTimeInterval(35),
+                sevenDayRemainingPercent: 67,
+                fiveHourRemainingPercent: 40
             ),
             for: account.identityKey
         )
@@ -387,7 +334,7 @@ struct IOSRateLimitRefreshControllerTests {
                 )
             )
         )
-        await provider.setOutcome(.success(makeRefreshSnapshot(identityKey: duplicateIdentityKey)), for: duplicateIdentityKey)
+        await provider.setSnapshot(makeRefreshSnapshot(identityKey: duplicateIdentityKey), for: duplicateIdentityKey)
 
         controller.configure(modelContext: harness.modelContext)
         controller.setVisible(true, for: duplicateIdentityKey)
@@ -400,6 +347,41 @@ struct IOSRateLimitRefreshControllerTests {
         let remainingAccounts = try fetchRefreshAccounts(in: harness.modelContext)
             .filter { $0.identityKey == duplicateIdentityKey }
         #expect(remainingAccounts.count == 2)
+    }
+
+    @Test
+    func cancelledRefreshDoesNotCreateBackoff() async throws {
+        let account = makeRefreshTestAccount(
+            identityKey: "identity-cancelled",
+            name: "Cancelled",
+            customOrder: 0
+        )
+        let harness = try makeRefreshHarness(accounts: [account])
+        let provider = TestIOSRateLimitProvider()
+        let credentialStore = TestSyncedRateLimitCredentialStore()
+        let controller = IOSRateLimitRefreshController(
+            provider: provider,
+            credentialStore: credentialStore
+        )
+
+        try await credentialStore.save(
+            SyncedRateLimitCredential(
+                credentials: CodexRateLimitCredentials(
+                    identityKey: account.identityKey,
+                    authMode: .chatgpt,
+                    accountID: "acct-cancelled",
+                    accessToken: "token-cancelled",
+                    idToken: nil
+                )
+            )
+        )
+        await provider.setFailure(.cancelled, for: account.identityKey)
+
+        controller.configure(modelContext: harness.modelContext)
+        await controller.refreshNowForTesting(for: account.identityKey)
+        await controller.refreshNowForTesting(for: account.identityKey)
+
+        #expect(await provider.requestCount(for: account.identityKey) == 2)
     }
 }
 
@@ -478,16 +460,20 @@ private struct RefreshHarness {
 }
 
 private actor TestIOSRateLimitProvider: CodexRateLimitProviding {
-    private var outcomesByIdentityKey: [String: CodexRateLimitFetchOutcome] = [:]
+    private var resultsByIdentityKey: [String: CodexRateLimitFetchResult] = [:]
     private var requestsByIdentityKey: [String: Int] = [:]
 
-    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchOutcome {
+    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchResult {
         requestsByIdentityKey[request.identityKey, default: 0] += 1
-        return outcomesByIdentityKey[request.identityKey] ?? .failure(.missingCredentials)
+        return resultsByIdentityKey[request.identityKey] ?? CodexRateLimitFetchResult(remoteFailure: .missingCredentials)
     }
 
-    func setOutcome(_ outcome: CodexRateLimitFetchOutcome, for identityKey: String) {
-        outcomesByIdentityKey[identityKey] = outcome
+    func setSnapshot(_ snapshot: CodexRateLimitSnapshot, for identityKey: String) {
+        resultsByIdentityKey[identityKey] = CodexRateLimitFetchResult(snapshot: snapshot)
+    }
+
+    func setFailure(_ failure: CodexRateLimitFetchFailure, for identityKey: String) {
+        resultsByIdentityKey[identityKey] = CodexRateLimitFetchResult(remoteFailure: failure)
     }
 
     func requestCount(for identityKey: String) -> Int {

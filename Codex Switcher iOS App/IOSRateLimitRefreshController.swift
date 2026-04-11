@@ -37,6 +37,7 @@ final class IOSRateLimitRefreshController {
     private var unauthorizedFingerprintByIdentityKey: [String: String] = [:]
     private var currentScenePhase: ScenePhase = .background
     private var pathMonitor: NWPathMonitor?
+    private var lastPathSatisfied = false
 
     init(
         provider: CodexRateLimitProviding = CodexRateLimitProvider(),
@@ -49,6 +50,13 @@ final class IOSRateLimitRefreshController {
         self.provider = provider
         self.credentialStore = credentialStore
         self.logger = logger
+    }
+
+    deinit {
+        MainActor.assumeIsolated {
+            pollingTask?.cancel()
+            pathMonitor?.cancel()
+        }
     }
 
     func configure(modelContext: ModelContext) {
@@ -152,12 +160,15 @@ final class IOSRateLimitRefreshController {
 
         let monitor = NWPathMonitor()
         monitor.pathUpdateHandler = { [weak self] path in
-            guard path.status == .satisfied else {
-                return
-            }
-
             Task { @MainActor [weak self] in
-                guard let self, self.currentScenePhase == .active else {
+                guard let self else {
+                    return
+                }
+
+                let isSatisfied = path.status == .satisfied
+                defer { self.lastPathSatisfied = isSatisfied }
+
+                guard isSatisfied, !self.lastPathSatisfied, self.currentScenePhase == .active else {
                     return
                 }
 
@@ -220,11 +231,18 @@ final class IOSRateLimitRefreshController {
             return
         }
 
-        guard let syncedCredential = await bestAvailableCredential(for: identityKey, account: account) else {
+        let now = Date()
+        let hasUnauthorizedBackoff = unauthorizedFingerprintByIdentityKey[identityKey] != nil
+        if !force && !hasUnauthorizedBackoff {
+            guard shouldRefresh(identityKey: identityKey, account: account, now: now) else {
+                return
+            }
+        }
+
+        guard let syncedCredential = await bestAvailableCredential(for: identityKey) else {
             return
         }
 
-        let now = Date()
         let credentialFingerprintChangedAfterUnauthorized: Bool
         if let unauthorizedFingerprint = unauthorizedFingerprintByIdentityKey[identityKey],
            unauthorizedFingerprint != syncedCredential.fingerprint {
@@ -240,7 +258,7 @@ final class IOSRateLimitRefreshController {
             return
         }
 
-        if !force, !credentialFingerprintChangedAfterUnauthorized {
+        if !force, hasUnauthorizedBackoff, !credentialFingerprintChangedAfterUnauthorized {
             guard shouldRefresh(identityKey: identityKey, account: account, now: now) else {
                 return
             }
@@ -251,7 +269,7 @@ final class IOSRateLimitRefreshController {
             refreshesInFlight.remove(identityKey)
         }
 
-        let outcome = await provider.fetchSnapshot(
+        let result = await provider.fetchSnapshot(
             for: CodexRateLimitRequest(
                 identityKey: identityKey,
                 credentials: syncedCredential.rateLimitCredentials,
@@ -260,13 +278,9 @@ final class IOSRateLimitRefreshController {
             )
         )
 
-        switch outcome {
-        case .success(let snapshot):
+        if let snapshot = result.snapshot {
             let adjustedSnapshot = snapshot.applyingResetBoundaries()
             snapshotsByIdentityKey[identityKey] = adjustedSnapshot
-            backoffUntil.removeValue(forKey: identityKey)
-            backoffSeconds.removeValue(forKey: identityKey)
-            unauthorizedFingerprintByIdentityKey.removeValue(forKey: identityKey)
 
             if RateLimitAccountUpdater.apply(adjustedSnapshot, to: account) {
                 do {
@@ -275,20 +289,27 @@ final class IOSRateLimitRefreshController {
                     logger.error("Couldn't save refreshed rate limits for \(identityKey, privacy: .private): \(String(describing: error), privacy: .private)")
                 }
             }
+        }
 
-        case .failure(.missingCredentials):
+        switch result.remoteFailure {
+        case nil:
+            backoffUntil.removeValue(forKey: identityKey)
+            backoffSeconds.removeValue(forKey: identityKey)
+            unauthorizedFingerprintByIdentityKey.removeValue(forKey: identityKey)
+
+        case .some(.missingCredentials), .some(.cancelled):
             return
 
-        case .failure(.unauthorized):
+        case .some(.unauthorized):
             unauthorizedFingerprintByIdentityKey[identityKey] = syncedCredential.fingerprint
             backoffSeconds.removeValue(forKey: identityKey)
             backoffUntil[identityKey] = now.addingTimeInterval(Self.authBackoff)
 
-        case .failure(.rateLimited(let retryAfter)):
+        case .some(.rateLimited(let retryAfter)):
             let requestedBackoff = retryAfter ?? nextTransientBackoff(for: identityKey)
             scheduleTransientBackoff(for: identityKey, seconds: requestedBackoff)
 
-        case .failure:
+        case .some:
             scheduleTransientBackoff(for: identityKey, seconds: nextTransientBackoff(for: identityKey))
         }
     }
@@ -368,32 +389,13 @@ final class IOSRateLimitRefreshController {
         return try? modelContext.fetch(descriptor).first
     }
 
-    private func bestAvailableCredential(
-        for identityKey: String,
-        account: StoredAccount
-    ) async -> SyncedRateLimitCredential? {
-        let cloudKitCredential = account.syncedRateLimitCredential(matching: identityKey)
-        let keychainCredential: SyncedRateLimitCredential?
-
+    private func bestAvailableCredential(for identityKey: String) async -> SyncedRateLimitCredential? {
         do {
-            keychainCredential = try await credentialStore.load(forIdentityKey: identityKey)
+            return try await credentialStore.load(forIdentityKey: identityKey)
         } catch SyncedRateLimitCredentialStoreError.missingCredential {
-            keychainCredential = nil
+            return nil
         } catch {
-            logger.error("Couldn't load keychain-synced rate-limit credential for \(identityKey, privacy: .private): \(String(describing: error), privacy: .private)")
-            keychainCredential = nil
-        }
-
-        switch (cloudKitCredential, keychainCredential) {
-        case let (.some(cloudKitCredential), .some(keychainCredential)):
-            return cloudKitCredential.exportedAt >= keychainCredential.exportedAt
-                ? cloudKitCredential
-                : keychainCredential
-        case let (.some(cloudKitCredential), .none):
-            return cloudKitCredential
-        case let (.none, .some(keychainCredential)):
-            return keychainCredential
-        case (.none, .none):
+            logger.error("Couldn't load synced rate-limit credential for \(identityKey, privacy: .private): \(String(describing: error), privacy: .private)")
             return nil
         }
     }
