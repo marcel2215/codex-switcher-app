@@ -81,11 +81,19 @@ struct AccountDetailView: View {
                 NavigationLink {
                     IOSAccountIconPickerView(account: account, controller: controller)
                 } label: {
-                    LabeledContent("Icon") {
-                        Label(
-                            AccountIconOption.resolve(from: account.iconSystemName).title,
-                            systemImage: AccountIconOption.resolve(from: account.iconSystemName).systemName
-                        )
+                    HStack(spacing: 12) {
+                        Text("Icon")
+
+                        Spacer(minLength: 12)
+
+                        HStack(spacing: 8) {
+                            Image(systemName: selectedIcon.systemName)
+                                .foregroundStyle(.tint)
+
+                            Text(selectedIcon.title)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
                     }
                 }
             }
@@ -111,6 +119,10 @@ struct AccountDetailView: View {
     private var accountIdentifier: String? {
         let trimmedIdentifier = account.accountIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmedIdentifier.isEmpty ? nil : trimmedIdentifier
+    }
+
+    private var selectedIcon: AccountIconOption {
+        AccountIconOption.resolve(from: account.iconSystemName)
     }
 
     private func persistDraftName() {
