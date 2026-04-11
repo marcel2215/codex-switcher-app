@@ -134,6 +134,13 @@
 			);
 			target = 1F96B5A52F89BF5100044DB7 /* Codex Switcher iOS App */;
 		};
+		1FA0358B2F8AF7D600367DD6 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
+		};
 		1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -157,6 +164,7 @@
 			exceptions = (
 				1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */,
 				1F96B7502F89D34B00044DB7 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS App" target */,
+				1FA0358B2F8AF7D600367DD6 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App" target */,
 			);
 			path = "Codex Switcher";
 			sourceTree = "<group>";
