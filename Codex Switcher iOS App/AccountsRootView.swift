@@ -116,6 +116,7 @@ struct AccountsRootView: View {
             rateLimitRefreshController.configure(modelContext: modelContext)
             rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
             rateLimitRefreshController.setScenePhase(scenePhase)
+            syncRegularSelectedRateLimitTracking(for: selectedAccountID)
         }
         .onChange(of: controller.sortCriterion) { _, newValue in
             sortPreferences.persist(
@@ -148,6 +149,9 @@ struct AccountsRootView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             rateLimitRefreshController.setScenePhase(newPhase)
+        }
+        .onChange(of: selectedAccountID) { _, newSelection in
+            syncRegularSelectedRateLimitTracking(for: newSelection)
         }
         .onChange(of: accounts.map(\.id)) { _, ids in
             if let selectedAccountID, !ids.contains(selectedAccountID) {
@@ -283,20 +287,26 @@ struct AccountsRootView: View {
         accounts.first(where: { $0.id == accountID })
     }
 
+    @ViewBuilder
     private func accountDetailView(for account: StoredAccount) -> some View {
-        AccountDetailView(
+        let detailView = AccountDetailView(
             account: account,
             controller: controller,
             onRemove: {
                 accountPendingDeletion = account
             }
         )
-        .task(id: account.identityKey) {
-            rateLimitRefreshController.setSelected(identityKey: account.identityKey)
-            rateLimitRefreshController.refreshNow(for: account.identityKey)
-        }
-        .onDisappear {
-            rateLimitRefreshController.setSelected(identityKey: nil)
+
+        if usesCompactNavigation {
+            detailView
+                .onAppear {
+                    scheduleCompactSelectedRateLimitTracking(for: account.identityKey)
+                }
+                .onDisappear {
+                    scheduleCompactSelectedRateLimitClear()
+                }
+        } else {
+            detailView
         }
     }
 
@@ -364,6 +374,42 @@ struct AccountsRootView: View {
 
             if isSelected {
                 Image(systemName: "checkmark")
+            }
+        }
+    }
+
+    private func syncRegularSelectedRateLimitTracking(for accountID: UUID?) {
+        guard !usesCompactNavigation else {
+            return
+        }
+
+        let identityKey = accountID.flatMap { account(for: $0)?.identityKey }
+        rateLimitRefreshController.setSelected(identityKey: identityKey)
+
+        if let identityKey {
+            rateLimitRefreshController.refreshNow(for: identityKey)
+        }
+    }
+
+    private func scheduleCompactSelectedRateLimitTracking(for identityKey: String) {
+        Task { @MainActor in
+            // Defer the refresh-state mutation until after SwiftUI finishes the
+            // current navigation update to avoid duplicate navigation requests
+            // in the same frame.
+            await Task.yield()
+            rateLimitRefreshController.setSelected(identityKey: identityKey)
+            rateLimitRefreshController.refreshNow(for: identityKey)
+        }
+    }
+
+    private func scheduleCompactSelectedRateLimitClear() {
+        Task { @MainActor in
+            // Compact navigation destroys and recreates detail views as the
+            // stack changes, so clear selection on the next turn instead of
+            // during the same transition frame.
+            await Task.yield()
+            if usesCompactNavigation {
+                rateLimitRefreshController.setSelected(identityKey: nil)
             }
         }
     }
