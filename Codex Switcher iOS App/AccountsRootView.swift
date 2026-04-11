@@ -9,6 +9,20 @@ import SwiftData
 import SwiftUI
 
 struct AccountsRootView: View {
+    private enum ActiveAlert: Identifiable {
+        case error(PresentedError)
+        case removal(StoredAccount)
+
+        var id: String {
+            switch self {
+            case .error(let error):
+                return "error-\(error.id.uuidString)"
+            case .removal(let account):
+                return "removal-\(account.id.uuidString)"
+            }
+        }
+    }
+
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
     @Query private var accounts: [StoredAccount]
@@ -17,9 +31,7 @@ struct AccountsRootView: View {
     @State private var selectedAccountID: UUID?
     @State private var showingSettings = false
     @State private var accountPendingDeletion: StoredAccount?
-
-    @AppStorage("ios.sortCriterion") private var persistedSortCriterionRawValue = AccountSortCriterion.dateAdded.rawValue
-    @AppStorage("ios.sortDirection") private var persistedSortDirectionRawValue = SortDirection.ascending.rawValue
+    @State private var sortPreferences = IOSCloudSortPreferences()
 
     private var displayedAccounts: [StoredAccount] {
         controller.displayedAccounts(from: accounts)
@@ -33,6 +45,35 @@ struct AccountsRootView: View {
         horizontalSizeClass == .compact
     }
 
+    private var activeAlert: Binding<ActiveAlert?> {
+        Binding(
+            get: {
+                if let error = controller.presentedError {
+                    return .error(error)
+                }
+
+                if let accountPendingDeletion {
+                    return .removal(accountPendingDeletion)
+                }
+
+                return nil
+            },
+            set: { newValue in
+                switch newValue {
+                case .none:
+                    controller.presentedError = nil
+                    accountPendingDeletion = nil
+                case .error(let error):
+                    controller.presentedError = error
+                    accountPendingDeletion = nil
+                case .removal(let account):
+                    accountPendingDeletion = account
+                    controller.presentedError = nil
+                }
+            }
+        )
+    }
+
     var body: some View {
         @Bindable var bindableController = controller
 
@@ -42,9 +83,9 @@ struct AccountsRootView: View {
                     compactAccountsList
                         .navigationTitle("Accounts")
                         .navigationDestination(for: UUID.self, destination: compactAccountDestination)
+                        .searchable(text: $bindableController.searchText, prompt: "Search")
+                        .toolbar(content: rootToolbar)
                 }
-                .searchable(text: $bindableController.searchText, prompt: "Search")
-                .toolbar(content: rootToolbar)
             } else {
                 NavigationSplitView {
                     regularAccountsList
@@ -65,16 +106,35 @@ struct AccountsRootView: View {
             }
         }
         .task {
+            sortPreferences.synchronize()
             controller.restoreSortPreferences(
-                sortCriterionRawValue: persistedSortCriterionRawValue,
-                sortDirectionRawValue: persistedSortDirectionRawValue
+                sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
+                sortDirectionRawValue: sortPreferences.sortDirectionRawValue
             )
         }
         .onChange(of: controller.sortCriterion) { _, newValue in
-            persistedSortCriterionRawValue = newValue.rawValue
+            sortPreferences.persist(
+                sortCriterionRawValue: newValue.rawValue,
+                sortDirectionRawValue: controller.sortDirection.rawValue
+            )
         }
         .onChange(of: controller.sortDirection) { _, newValue in
-            persistedSortDirectionRawValue = newValue.rawValue
+            sortPreferences.persist(
+                sortCriterionRawValue: controller.sortCriterion.rawValue,
+                sortDirectionRawValue: newValue.rawValue
+            )
+        }
+        .onChange(of: sortPreferences.sortCriterionRawValue) { _, newValue in
+            controller.restoreSortPreferences(
+                sortCriterionRawValue: newValue,
+                sortDirectionRawValue: sortPreferences.sortDirectionRawValue
+            )
+        }
+        .onChange(of: sortPreferences.sortDirectionRawValue) { _, newValue in
+            controller.restoreSortPreferences(
+                sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
+                sortDirectionRawValue: newValue
+            )
         }
         .onChange(of: usesCompactNavigation) { _, isCompact in
             if isCompact {
@@ -91,37 +151,30 @@ struct AccountsRootView: View {
                 IOSSettingsView()
             }
         }
-        .alert(item: $bindableController.presentedError) { error in
-            Alert(title: Text(error.title), message: Text(error.message))
-        }
-        .confirmationDialog(
-            "Remove Account?",
-            isPresented: Binding(
-                get: { accountPendingDeletion != nil },
-                set: { isPresented in
-                    if !isPresented {
+        .alert(item: activeAlert) { alert in
+            switch alert {
+            case .error(let error):
+                return Alert(
+                    title: Text(error.title),
+                    message: Text(error.message)
+                )
+            case .removal(let account):
+                return Alert(
+                    title: Text("Remove \"\(AccountsPresentationLogic.displayName(for: account))\"?"),
+                    message: Text("Are you sure you want to remove this account from Codex switcher? You will be able to add it again later."),
+                    primaryButton: .destructive(Text("Remove Account")) {
+                        if selectedAccountID == account.id {
+                            selectedAccountID = nil
+                        }
+
+                        controller.remove(account, in: modelContext)
+                        accountPendingDeletion = nil
+                    },
+                    secondaryButton: .cancel {
                         accountPendingDeletion = nil
                     }
-                }
-            ),
-            titleVisibility: .visible
-        ) {
-            if let account = accountPendingDeletion {
-                Button("Remove Account", role: .destructive) {
-                    if selectedAccountID == account.id {
-                        selectedAccountID = nil
-                    }
-
-                    controller.remove(account, in: modelContext)
-                    accountPendingDeletion = nil
-                }
+                )
             }
-
-            Button("Cancel", role: .cancel) {
-                accountPendingDeletion = nil
-            }
-        } message: {
-            Text("This removes the saved account from your iCloud-synced account list. It does not switch the account currently active on your Mac.")
         }
     }
 
@@ -170,19 +223,22 @@ struct AccountsRootView: View {
     @ToolbarContentBuilder
     private func rootToolbar() -> some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            if controller.canEditCustomOrder && displayedAccounts.count > 1 {
+            sortMenu
+        }
+
+        if controller.canEditCustomOrder && displayedAccounts.count > 1 {
+            ToolbarItem(placement: .topBarLeading) {
                 EditButton()
             }
         }
 
-        ToolbarItemGroup(placement: .topBarTrailing) {
-            sortMenu
-
+        ToolbarItem(placement: .topBarTrailing) {
             Button {
                 showingSettings = true
             } label: {
-                Label("Settings", systemImage: "gearshape")
+                Image(systemName: "gearshape")
             }
+            .accessibilityLabel("Settings")
             .accessibilityIdentifier("ios-settings-button")
         }
     }
@@ -240,30 +296,28 @@ struct AccountsRootView: View {
 
     private var sortMenu: some View {
         Menu {
-            Section("Sort By") {
-                ForEach(AccountSortCriterion.allCases) { criterion in
-                    Button {
-                        controller.sortCriterion = criterion
-                    } label: {
-                        rowMenuLabel(
-                            title: criterion.menuTitle,
-                            isSelected: controller.sortCriterion == criterion
-                        )
-                    }
+            ForEach(AccountSortCriterion.allCases) { criterion in
+                Button {
+                    controller.sortCriterion = criterion
+                } label: {
+                    rowMenuLabel(
+                        title: criterion.menuTitle,
+                        isSelected: controller.sortCriterion == criterion
+                    )
                 }
             }
 
             if controller.sortCriterion != .custom {
-                Section("Direction") {
-                    ForEach(SortDirection.allCases) { direction in
-                        Button {
-                            controller.sortDirection = direction
-                        } label: {
-                            rowMenuLabel(
-                                title: direction.menuTitle,
-                                isSelected: controller.sortDirection == direction
-                            )
-                        }
+                Divider()
+
+                ForEach(SortDirection.allCases) { direction in
+                    Button {
+                        controller.sortDirection = direction
+                    } label: {
+                        rowMenuLabel(
+                            title: direction.menuTitle,
+                            isSelected: controller.sortDirection == direction
+                        )
                     }
                 }
             }

@@ -59,39 +59,27 @@ struct AccountDetailView: View {
                 }
             }
 
-            Section {
-                LabeledContent("7-Day Remaining") {
-                    Text(AccountDisplayFormatter.detailedPercentDescription(account.sevenDayLimitUsedPercent))
-                }
-
-                LabeledContent("5-Hour Remaining") {
-                    Text(AccountDisplayFormatter.detailedPercentDescription(account.fiveHourLimitUsedPercent))
-                }
-
+            Section("Usage") {
                 LabeledContent("Last Login") {
                     Text(AccountDisplayFormatter.lastLoginValueDescription(from: account.lastLoginAt))
                 }
 
-                LabeledContent("Last Updated") {
-                    if let rateLimitsObservedAt = account.rateLimitsObservedAt {
-                        Text(rateLimitsObservedAt, style: .relative)
-                    } else {
-                        Text("Not synced yet")
-                            .foregroundStyle(.secondary)
-                    }
+                LabeledContent("7-Day Remaining") {
+                    usageValueText(account.sevenDayLimitUsedPercent)
                 }
-            } header: {
-                Text("Rate Limits")
-            } footer: {
-                Text("Rate limits are synced from your Mac. The iPhone and iPad app does not refresh them directly.")
+
+                LabeledContent("5-Hour Remaining") {
+                    usageValueText(account.fiveHourLimitUsedPercent)
+                }
             }
 
             Section {
-                Button("Remove Account", role: .destructive, action: onRemove)
+                Button(role: .destructive, action: onRemove) {
+                    Label("Remove Account", systemImage: "trash")
+                        .foregroundStyle(.red)
+                }
             } header: {
                 Text("Danger Zone")
-            } footer: {
-                Text("Removing an account deletes the saved account entry from your iCloud-synced list. It does not remotely switch or log out your Mac.")
             }
         }
         .navigationTitle(displayName)
@@ -120,6 +108,28 @@ struct AccountDetailView: View {
 
     private var selectedIcon: AccountIconOption {
         AccountIconOption.resolve(from: account.iconSystemName)
+    }
+
+    private func usageValueText(_ value: Int?) -> some View {
+        let description = AccountDisplayFormatter.detailedPercentDescription(value)
+
+        return Text(description)
+            .foregroundStyle(usageColor(for: value))
+    }
+
+    private func usageColor(for value: Int?) -> Color {
+        guard let clampedValue = AccountDisplayFormatter.clampedPercentValue(value) else {
+            return .secondary
+        }
+
+        let components = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: clampedValue)
+        return Color(
+            .sRGB,
+            red: components.red,
+            green: components.green,
+            blue: components.blue,
+            opacity: 1
+        )
     }
 
     @ViewBuilder

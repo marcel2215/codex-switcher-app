@@ -23,16 +23,14 @@ struct IOSAccountRow: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                Text(AccountDisplayFormatter.listMetadataDescription(
-                    lastLoginAt: account.lastLoginAt,
+                Text(AccountDisplayFormatter.compactUsageListDescription(
                     sevenDayRemainingPercent: account.sevenDayLimitUsedPercent,
                     fiveHourRemainingPercent: account.fiveHourLimitUsedPercent
                 ))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .accessibilityLabel(AccountDisplayFormatter.accessibilityMetadataDescription(
-                    lastLoginAt: account.lastLoginAt,
+                .accessibilityLabel(AccountDisplayFormatter.accessibilityUsageListDescription(
                     sevenDayRemainingPercent: account.sevenDayLimitUsedPercent,
                     fiveHourRemainingPercent: account.fiveHourLimitUsedPercent
                 ))

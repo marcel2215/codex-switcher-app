@@ -59,6 +59,26 @@ enum AccountDisplayFormatter {
         ].joined(separator: ", ")
     }
 
+    static func compactUsageListDescription(
+        sevenDayRemainingPercent: Int?,
+        fiveHourRemainingPercent: Int?
+    ) -> String {
+        [
+            "7d: \(compactPercentDescription(sevenDayRemainingPercent))",
+            "5h: \(compactPercentDescription(fiveHourRemainingPercent))",
+        ].joined(separator: " • ")
+    }
+
+    static func accessibilityUsageListDescription(
+        sevenDayRemainingPercent: Int?,
+        fiveHourRemainingPercent: Int?
+    ) -> String {
+        [
+            "7 day remaining \(detailedPercentDescription(sevenDayRemainingPercent))",
+            "5 hour remaining \(detailedPercentDescription(fiveHourRemainingPercent))",
+        ].joined(separator: ", ")
+    }
+
     static func compactPercentDescription(_ value: Int?) -> String {
         guard let clampedPercent = clampedPercentValue(value) else {
             return "?"
