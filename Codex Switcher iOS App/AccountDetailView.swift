@@ -1,0 +1,157 @@
+//
+//  AccountDetailView.swift
+//  Codex Switcher iOS App
+//
+//  Created by Codex on 2026-04-11.
+//
+
+import SwiftData
+import SwiftUI
+
+struct AccountDetailView: View {
+    private enum DetailDestination: Hashable {
+        case name
+        case icon
+    }
+
+    @Environment(\.modelContext) private var modelContext
+
+    let account: StoredAccount
+    let controller: IOSAccountsController
+    let onRemove: () -> Void
+
+    @State private var draftName: String
+
+    init(
+        account: StoredAccount,
+        controller: IOSAccountsController,
+        onRemove: @escaping () -> Void
+    ) {
+        self.account = account
+        self.controller = controller
+        self.onRemove = onRemove
+        _draftName = State(initialValue: account.name)
+    }
+
+    var body: some View {
+        Form {
+            Section("Account") {
+                NavigationLink(value: DetailDestination.name) {
+                    LabeledContent("Name") {
+                        Text(displayName)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+
+                NavigationLink(value: DetailDestination.icon) {
+                    LabeledContent("Icon") {
+                        HStack(spacing: 8) {
+                            Image(systemName: selectedIcon.systemName)
+
+                            Text(selectedIcon.title)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section("Usage") {
+                LabeledContent("Last Login") {
+                    Text(AccountDisplayFormatter.lastLoginValueDescription(from: account.lastLoginAt))
+                }
+
+                LabeledContent("7-Day Remaining") {
+                    usageValueText(account.sevenDayLimitUsedPercent)
+                }
+
+                LabeledContent("5-Hour Remaining") {
+                    usageValueText(account.fiveHourLimitUsedPercent)
+                }
+            }
+
+            Section {
+                Button(role: .destructive, action: onRemove) {
+                    Label("Remove Account", systemImage: "trash")
+                        .foregroundStyle(.red)
+                }
+            } header: {
+                Text("Danger Zone")
+            }
+        }
+        .navigationTitle(displayName)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: DetailDestination.self, destination: destinationView)
+        .onDisappear(perform: persistDraftName)
+    }
+
+    private var emailHint: String? {
+        let trimmedEmailHint = account.emailHint?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedEmailHint.isEmpty ? nil : trimmedEmailHint
+    }
+
+    private var displayName: String {
+        AccountsPresentationLogic.displayName(
+            name: draftName,
+            emailHint: emailHint,
+            accountIdentifier: account.accountIdentifier,
+            identityKey: account.identityKey
+        )
+    }
+
+    private var nameEditorPrompt: String {
+        emailHint ?? ""
+    }
+
+    private var selectedIcon: AccountIconOption {
+        AccountIconOption.resolve(from: account.iconSystemName)
+    }
+
+    private func usageValueText(_ value: Int?) -> some View {
+        let description = AccountDisplayFormatter.detailedPercentDescription(value)
+
+        return Text(description)
+            .foregroundStyle(usageColor(for: value))
+    }
+
+    private func usageColor(for value: Int?) -> Color {
+        guard let clampedValue = AccountDisplayFormatter.clampedPercentValue(value) else {
+            return .secondary
+        }
+
+        let components = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: clampedValue)
+        return Color(
+            .sRGB,
+            red: components.red,
+            green: components.green,
+            blue: components.blue,
+            opacity: 1
+        )
+    }
+
+    @ViewBuilder
+    private func destinationView(for destination: DetailDestination) -> some View {
+        switch destination {
+        case .name:
+            IOSAccountNameEditorView(
+                draftName: $draftName,
+                placeholder: nameEditorPrompt,
+                onSave: persistDraftName
+            )
+        case .icon:
+            IOSAccountIconPickerView(account: account, controller: controller)
+        }
+    }
+
+    private func persistDraftName() {
+        guard !account.isDeleted else {
+            return
+        }
+
+        controller.commitRename(for: account, proposedName: draftName, in: modelContext)
+        draftName = account.name
+    }
+}

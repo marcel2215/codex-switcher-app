@@ -745,26 +745,6 @@ private struct SettingsView: View {
     }
 }
 
-private struct AppAboutInfo {
-    let version: String
-    let build: String
-
-    static var current: AppAboutInfo {
-        let bundle = Bundle.main
-        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
-        let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
-        return AppAboutInfo(version: version, build: build)
-    }
-}
-
-private enum AppSupportLink {
-    static let contactURL = URL(
-        string: "mailto:marcel2215@icloud.com?subject=Codex%20Switcher%20Support"
-    )!
-    static let sourceCodeURL = URL(string: "https://github.com/marcel2215/codex-switcher")!
-    static let privacyPolicyURL = URL(string: "https://github.com/marcel2215/codex-switcher/blob/main/PRIVACY.md")!
-}
-
 private enum SettingsConfirmationAction: String, Identifiable {
     case removeAllAccounts
     case resetSettings

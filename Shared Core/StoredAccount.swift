@@ -11,6 +11,7 @@ import SwiftData
 @Model
 final class StoredAccount {
     var id: UUID = UUID()
+    @Attribute(.preserveValueOnDeletion)
     var identityKey: String = ""
     var name: String = ""
     var createdAt: Date = Date()

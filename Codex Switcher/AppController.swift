@@ -24,7 +24,6 @@ struct UserFacingAlert: Identifiable, Equatable {
 @Observable
 @MainActor
 final class AppController {
-    private nonisolated static let currentRateLimitDisplayVersion = 1
     private nonisolated static let batterySaverRefreshPauseThreshold = 15
     private nonisolated static let currentAccountRateLimitRefreshInterval: TimeInterval = 60
     private nonisolated static let visibleAccountRateLimitRefreshInterval: TimeInterval = 5 * 60
@@ -47,8 +46,30 @@ final class AppController {
         }
     }
     var searchText = ""
-    var sortCriterion: AccountSortCriterion = .dateAdded
-    var sortDirection: SortDirection = .ascending
+    var sortCriterion: AccountSortCriterion = .dateAdded {
+        didSet {
+            let normalizedDirection = AccountsPresentationLogic.normalizedSortDirection(
+                for: sortCriterion,
+                requestedDirection: sortDirection
+            )
+
+            if sortDirection != normalizedDirection {
+                sortDirection = normalizedDirection
+            }
+        }
+    }
+    var sortDirection: SortDirection = .ascending {
+        didSet {
+            let normalizedDirection = AccountsPresentationLogic.normalizedSortDirection(
+                for: sortCriterion,
+                requestedDirection: sortDirection
+            )
+
+            if sortDirection != normalizedDirection {
+                sortDirection = normalizedDirection
+            }
+        }
+    }
     var renameTargetID: UUID?
     var presentedAlert: UserFacingAlert?
     var isShowingLocationPicker = false
@@ -58,6 +79,7 @@ final class AppController {
 
     @ObservationIgnored private let authFileManager: AuthFileManaging
     @ObservationIgnored private let secretStore: AccountSnapshotStoring
+    @ObservationIgnored private let syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring
     @ObservationIgnored private let notificationManager: AccountSwitchNotifying
     @ObservationIgnored private let rateLimitProvider: CodexRateLimitProviding
     @ObservationIgnored private let sessionRateLimitReader: CodexSessionRateLimitReader
@@ -68,6 +90,7 @@ final class AppController {
     @ObservationIgnored private let startupAlert: UserFacingAlert?
 
     @ObservationIgnored private var modelContainer: ModelContainer?
+    @ObservationIgnored private var remoteDeletionCleanup: RemoteAccountDeletionCleanup?
     @ObservationIgnored private var hasConfiguredInitialState = false
     @ObservationIgnored private var hasStartedMonitoring = false
     @ObservationIgnored private var hasStartedObservingSystemState = false
@@ -104,6 +127,7 @@ final class AppController {
     init(
         authFileManager: AuthFileManaging,
         secretStore: AccountSnapshotStoring,
+        syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore(),
         notificationManager: AccountSwitchNotifying,
         rateLimitProvider: CodexRateLimitProviding = CodexRateLimitProvider(),
         sessionRateLimitReader: CodexSessionRateLimitReader = CodexSessionRateLimitReader(),
@@ -117,6 +141,7 @@ final class AppController {
     ) {
         self.authFileManager = authFileManager
         self.secretStore = secretStore
+        self.syncedRateLimitCredentialStore = syncedRateLimitCredentialStore
         self.notificationManager = notificationManager
         self.rateLimitProvider = rateLimitProvider
         self.sessionRateLimitReader = sessionRateLimitReader
@@ -127,6 +152,14 @@ final class AppController {
         self.modelContainer = modelContainer
         self.isAutopilotEnabled = autopilotEnabled
         self.logger = Logger(subsystem: bundleIdentifier, category: "AppController")
+        if let modelContainer {
+            self.remoteDeletionCleanup = RemoteAccountDeletionCleanup(
+                modelContainer: modelContainer,
+                secretStore: secretStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                logger: Logger(subsystem: bundleIdentifier, category: "RemoteDeletionCleanup")
+            )
+        }
     }
 
     deinit {
@@ -151,6 +184,18 @@ final class AppController {
         // be valid when an async refresh fires later.
         if modelContainer == nil {
             modelContainer = modelContext.container
+        }
+
+        if remoteDeletionCleanup == nil, let modelContainer {
+            remoteDeletionCleanup = RemoteAccountDeletionCleanup(
+                modelContainer: modelContainer,
+                secretStore: secretStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                logger: Logger(
+                    subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+                    category: "RemoteDeletionCleanup"
+                )
+            )
         }
 
         let resolvedModelContext = modelContainer?.mainContext ?? modelContext
@@ -181,6 +226,7 @@ final class AppController {
             await self.reconcileStoredSnapshotsIfNeeded()
             await self.refreshAuthState(showUnexpectedErrors: false)
             self.reconcileDisplayOnlyFieldsIfNeeded()
+            await self.remoteDeletionCleanup?.consumeHistoryIfNeeded()
             if !Self.isRunningMainApplicationUnitTests {
                 self.publishSharedState()
             }
@@ -198,7 +244,11 @@ final class AppController {
     }
 
     var canEditCustomOrder: Bool {
-        sortCriterion == .custom && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        AccountsPresentationLogic.canEditCustomOrder(
+            searchText: searchText,
+            sortCriterion: sortCriterion,
+            sortDirection: sortDirection
+        )
     }
 
     var selectedAccountID: UUID? {
@@ -244,7 +294,10 @@ final class AppController {
         sortDirectionRawValue: String
     ) {
         let resolvedCriterion = AccountSortCriterion(rawValue: sortCriterionRawValue) ?? .dateAdded
-        let resolvedDirection = SortDirection(rawValue: sortDirectionRawValue) ?? .ascending
+        let resolvedDirection = AccountsPresentationLogic.normalizedSortDirection(
+            for: resolvedCriterion,
+            requestedDirection: SortDirection(rawValue: sortDirectionRawValue) ?? .ascending
+        )
 
         if sortCriterion != resolvedCriterion {
             sortCriterion = resolvedCriterion
@@ -308,6 +361,9 @@ final class AppController {
 
         if isActive {
             scheduleAutopilotEvaluationSoon(trigger: .appBecameActive)
+            Task { @MainActor [weak self] in
+                await self?.remoteDeletionCleanup?.consumeHistoryIfNeeded()
+            }
         }
 
         if isRateLimitSurfaceActive {
@@ -362,21 +418,12 @@ final class AppController {
     }
 
     func displayedAccounts(from accounts: [StoredAccount]) -> [StoredAccount] {
-        let filteredAccounts: [StoredAccount]
-        let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmedSearch.isEmpty {
-            filteredAccounts = accounts
-        } else {
-            let lowercasedSearch = trimmedSearch.lowercased()
-            filteredAccounts = accounts.filter { account in
-                account.name.lowercased().contains(lowercasedSearch)
-                    || (account.emailHint?.lowercased().contains(lowercasedSearch) ?? false)
-                    || (account.accountIdentifier?.lowercased().contains(lowercasedSearch) ?? false)
-            }
-        }
-
-        return sortedAccounts(from: filteredAccounts)
+        AccountsPresentationLogic.displayedAccounts(
+            from: accounts,
+            searchText: searchText,
+            sortCriterion: sortCriterion,
+            sortDirection: sortDirection
+        )
     }
 
     func beginLinkingCodexLocation() {
@@ -462,8 +509,7 @@ final class AppController {
                 throw ControllerError.accountNotFound
             }
 
-            let trimmedName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedName.isEmpty else {
+            guard let trimmedName = AccountsPresentationLogic.normalizedRenamedAccountName(proposedName) else {
                 renameTargetID = nil
                 return
             }
@@ -748,6 +794,7 @@ final class AppController {
             for account in accountsToDelete {
                 if !remainingIdentityKeys.contains(account.identityKey) {
                     try? await secretStore.deleteSnapshot(forIdentityKey: account.identityKey)
+                    try? await syncedRateLimitCredentialStore.delete(forIdentityKey: account.identityKey)
                 }
                 modelContext.delete(account)
             }
@@ -1803,36 +1850,29 @@ final class AppController {
     }
 
     private func orderedAccountsForAutopilotRefresh(from accounts: [StoredAccount]) -> [StoredAccount] {
-        accounts
-            .filter(\.hasLocalSnapshot)
-            .sorted { lhs, rhs in
-                if lhs.identityKey == activeIdentityKey, rhs.identityKey != activeIdentityKey {
-                    return true
-                }
+        var prioritizedAccounts = AccountsPresentationLogic.sortedAccounts(
+            from: accounts.filter(\.hasLocalSnapshot),
+            sortCriterion: .rateLimit,
+            sortDirection: .descending
+        )
 
-                if rhs.identityKey == activeIdentityKey, lhs.identityKey != activeIdentityKey {
-                    return false
-                }
+        guard let activeIdentityKey,
+              let activeAccountIndex = prioritizedAccounts.firstIndex(where: { $0.identityKey == activeIdentityKey }) else {
+            return prioritizedAccounts
+        }
 
-                if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: .descending) {
-                    return lhs.createdAt < rhs.createdAt
-                }
-
-                return Self.rateLimitSortComesBefore(lhs, rhs, direction: .descending)
-            }
+        let activeAccount = prioritizedAccounts.remove(at: activeAccountIndex)
+        prioritizedAccounts.insert(activeAccount, at: 0)
+        return prioritizedAccounts
     }
 
     private func bestAutopilotAccountCandidate(from accounts: [StoredAccount]) -> StoredAccount? {
-        accounts
-            .filter(\.hasLocalSnapshot)
-            .sorted { lhs, rhs in
-                if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: .descending) {
-                    return lhs.createdAt < rhs.createdAt
-                }
-
-                return Self.rateLimitSortComesBefore(lhs, rhs, direction: .descending)
-            }
-            .first { Self.rateLimitSortMetrics(for: $0).isComplete }
+        AccountsPresentationLogic.sortedAccounts(
+            from: accounts.filter(\.hasLocalSnapshot),
+            sortCriterion: .rateLimit,
+            sortDirection: .descending
+        )
+        .first { $0.fiveHourLimitUsedPercent != nil && $0.sevenDayLimitUsedPercent != nil }
     }
 
     private func handleRemoteSwitchSignal(_ signal: CodexSharedSwitchSignal) async {
@@ -1939,7 +1979,7 @@ final class AppController {
                     didChange = true
                 }
 
-                if account.rateLimitDisplayVersion != Self.currentRateLimitDisplayVersion {
+                if account.rateLimitDisplayVersion != RateLimitAccountUpdater.currentDisplayVersion {
                     if let sevenDayUsedPercent = account.sevenDayLimitUsedPercent {
                         account.sevenDayLimitUsedPercent = 100 - min(max(sevenDayUsedPercent, 0), 100)
                         didChange = true
@@ -1950,7 +1990,7 @@ final class AppController {
                         didChange = true
                     }
 
-                    account.rateLimitDisplayVersion = Self.currentRateLimitDisplayVersion
+                    account.rateLimitDisplayVersion = RateLimitAccountUpdater.currentDisplayVersion
                     didChange = true
                 }
             }
@@ -2204,6 +2244,11 @@ final class AppController {
                     syncedContents,
                     forIdentityKey: migratedSnapshot.identityKey
                 )
+                _ = await exportSyncedRateLimitCredentialIfNeeded(
+                    from: syncedContents,
+                    expectedIdentityKey: migratedSnapshot.identityKey,
+                    excludingAccountIDsForDelete: [account.id]
+                )
                 account.authFileContents = nil
                 didChange = true
             } catch {
@@ -2220,6 +2265,13 @@ final class AppController {
                     fromLegacyAccountID: account.id,
                     toIdentityKey: normalizedIdentityKey
                 ) {
+                    if let migratedContents = try? await secretStore.loadSnapshot(forIdentityKey: normalizedIdentityKey) {
+                        _ = await exportSyncedRateLimitCredentialIfNeeded(
+                            from: migratedContents,
+                            expectedIdentityKey: normalizedIdentityKey,
+                            excludingAccountIDsForDelete: [account.id]
+                        )
+                    }
                     didChange = true
                 }
             } catch {
@@ -2258,18 +2310,129 @@ final class AppController {
         }
     }
 
+    private func bestAvailableRateLimitCredentials(for account: StoredAccount) async -> CodexRateLimitCredentials? {
+        guard let snapshotContents = await bestAvailableSnapshotContents(for: account) else {
+            return nil
+        }
+
+        do {
+            return try CodexAuthFile.parseRateLimitCredentials(contents: snapshotContents)
+        } catch {
+            logger.error(
+                "Couldn't parse rate-limit credentials for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
+            )
+            return nil
+        }
+    }
+
+    @discardableResult
+    private func exportSyncedRateLimitCredentialIfNeeded(
+        from rawContents: String,
+        expectedIdentityKey: String,
+        excludingAccountIDsForDelete: Set<UUID> = []
+    ) async -> Bool {
+        let normalizedIdentityKey = expectedIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedIdentityKey.isEmpty else {
+            return false
+        }
+
+        do {
+            let credentials = try CodexAuthFile.parseRateLimitCredentials(contents: rawContents)
+
+            guard
+                credentials.identityKey == normalizedIdentityKey,
+                credentials.authMode != .apiKey,
+                credentials.accessToken?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            else {
+                await deleteSyncedRateLimitCredentialIfUnused(
+                    identityKey: normalizedIdentityKey,
+                    excludingAccountIDs: excludingAccountIDsForDelete
+                )
+                return false
+            }
+
+            let syncedCredential = try SyncedRateLimitCredential(credentials: credentials)
+            let existingCredential = try? await syncedRateLimitCredentialStore.load(forIdentityKey: normalizedIdentityKey)
+            guard existingCredential?.fingerprint != syncedCredential.fingerprint else {
+                return false
+            }
+
+            do {
+                try await syncedRateLimitCredentialStore.save(syncedCredential)
+            } catch {
+                logger.error(
+                    "Couldn't save synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
+                )
+                return false
+            }
+
+            return true
+        } catch {
+            logger.error(
+                "Couldn't export synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
+            )
+            return false
+        }
+    }
+
+    private func deleteSyncedRateLimitCredentialIfUnused(
+        identityKey: String,
+        excludingAccountIDs: Set<UUID> = []
+    ) async {
+        let normalizedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedIdentityKey.isEmpty else {
+            return
+        }
+
+        do {
+            let remainingIdentityKeys = Set(
+                try fetchAccounts()
+                    .filter { !excludingAccountIDs.contains($0.id) }
+                    .map(\.identityKey)
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            )
+
+            guard !remainingIdentityKeys.contains(normalizedIdentityKey) else {
+                return
+            }
+
+            try await syncedRateLimitCredentialStore.delete(forIdentityKey: normalizedIdentityKey)
+        } catch {
+            logger.error(
+                "Couldn't delete synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
+            )
+        }
+    }
+
     private func storeSnapshot(
         _ snapshot: CodexAuthSnapshot,
         rateLimitObservation: CodexRateLimitObservation? = nil,
         on account: StoredAccount
     ) async throws -> Bool {
+        let previousIdentityKey = account.identityKey
         let metadataChanged = update(account: account, from: snapshot)
-        let rateLimitsChanged = update(account: account, from: rateLimitObservation)
+        let rateLimitsChanged = rateLimitObservation.map {
+            RateLimitAccountUpdater.apply($0, identityKey: snapshot.identityKey, to: account)
+        } ?? false
         let existingContents = try? await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
         let needsSnapshotWrite = existingContents != snapshot.rawContents || !account.hasLocalSnapshot
 
         if needsSnapshotWrite {
             try await secretStore.saveSnapshot(snapshot.rawContents, forIdentityKey: account.identityKey)
+        }
+
+        _ = await exportSyncedRateLimitCredentialIfNeeded(
+            from: snapshot.rawContents,
+            expectedIdentityKey: snapshot.identityKey,
+            excludingAccountIDsForDelete: [account.id]
+        )
+
+        if previousIdentityKey != snapshot.identityKey {
+            await deleteSyncedRateLimitCredentialIfUnused(
+                identityKey: previousIdentityKey,
+                excludingAccountIDs: [account.id]
+            )
         }
 
         var didChange = metadataChanged || rateLimitsChanged || needsSnapshotWrite
@@ -2472,12 +2635,12 @@ final class AppController {
             : nil
         let request = CodexRateLimitRequest(
             identityKey: identityKey,
-            authFileContents: await bestAvailableSnapshotContents(for: account),
+            credentials: await bestAvailableRateLimitCredentials(for: account),
             linkedLocation: linkedLocation,
             isCurrentAccount: identityKey == activeIdentityKey
         )
 
-        let snapshot = await rateLimitProvider.fetchSnapshot(for: request)
+        let result = await rateLimitProvider.fetchSnapshot(for: request)
         pendingForcedRateLimitRefreshes.remove(identityKey)
 
         do {
@@ -2485,32 +2648,54 @@ final class AppController {
                 return
             }
 
-            if let snapshot {
+            if let snapshot = result.snapshot {
                 let adjustedSnapshot = snapshot.applyingResetBoundaries()
-                guard shouldReplaceExistingRateLimitSnapshot(adjustedSnapshot, for: identityKey) else {
-                    return
-                }
+                if shouldReplaceExistingRateLimitSnapshot(adjustedSnapshot, for: identityKey) {
+                    rateLimitSnapshotsByIdentityKey[identityKey] = adjustedSnapshot
 
-                rateLimitSnapshotsByIdentityKey[identityKey] = adjustedSnapshot
+                    if RateLimitAccountUpdater.apply(adjustedSnapshot, to: account) {
+                        try requireModelContext().save()
+                        publishSharedState()
+                    }
+                }
+            }
+
+            switch result.remoteFailure {
+            case nil:
                 rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
                 rateLimitFailureBackoffDurations.removeValue(forKey: identityKey)
 
-                guard update(account: account, from: adjustedSnapshot) else {
-                    return
-                }
-
-                try requireModelContext().save()
-                publishSharedState()
-            } else {
-                let currentBackoff = rateLimitFailureBackoffDurations[identityKey] ?? Self.initialRateLimitFailureBackoff
-                rateLimitFailureBackoffUntil[identityKey] = Date().addingTimeInterval(currentBackoff)
-                rateLimitFailureBackoffDurations[identityKey] = min(
-                    currentBackoff * 2,
-                    Self.maximumRateLimitFailureBackoff
-                )
+            case .some(let failure):
+                scheduleRateLimitFailureBackoff(for: identityKey, failure: failure)
             }
         } catch {
             logger.error("Rate-limit refresh failed for account \(identityKey, privacy: .private): \(String(describing: error), privacy: .private)")
+        }
+    }
+
+    private func scheduleRateLimitFailureBackoff(
+        for identityKey: String,
+        failure: CodexRateLimitFetchFailure
+    ) {
+        switch failure {
+        case .cancelled, .missingCredentials:
+            return
+
+        case .rateLimited(let retryAfter) where (retryAfter ?? 0) > 0:
+            let requestedBackoff = retryAfter ?? Self.initialRateLimitFailureBackoff
+            rateLimitFailureBackoffUntil[identityKey] = Date().addingTimeInterval(requestedBackoff)
+            rateLimitFailureBackoffDurations[identityKey] = min(
+                max(requestedBackoff, Self.initialRateLimitFailureBackoff) * 2,
+                Self.maximumRateLimitFailureBackoff
+            )
+
+        default:
+            let fallbackBackoff = rateLimitFailureBackoffDurations[identityKey] ?? Self.initialRateLimitFailureBackoff
+            rateLimitFailureBackoffUntil[identityKey] = Date().addingTimeInterval(fallbackBackoff)
+            rateLimitFailureBackoffDurations[identityKey] = min(
+                max(fallbackBackoff, Self.initialRateLimitFailureBackoff) * 2,
+                Self.maximumRateLimitFailureBackoff
+            )
         }
     }
 
@@ -2520,9 +2705,7 @@ final class AppController {
             // flip the UI back to 100% locally instead of waiting for the next
             // network round-trip.
             var didChange = false
-            let accountsByIdentityKey = Dictionary(
-                uniqueKeysWithValues: try fetchAccounts().map { ($0.identityKey, $0) }
-            )
+            let accountsByIdentityKey = firstAccountByIdentityKey(from: try fetchAccounts())
 
             for identityKey in rateLimitCandidateIdentityKeys() {
                 guard
@@ -2538,7 +2721,7 @@ final class AppController {
                 }
 
                 rateLimitSnapshotsByIdentityKey[identityKey] = adjustedSnapshot
-                didChange = update(account: account, from: adjustedSnapshot) || didChange
+                didChange = RateLimitAccountUpdater.apply(adjustedSnapshot, to: account) || didChange
             }
 
             if didChange {
@@ -2811,7 +2994,11 @@ final class AppController {
     }
 
     private func sortedAccounts(from accounts: [StoredAccount]) -> [StoredAccount] {
-        accounts.sorted(by: sortComparator)
+        AccountsPresentationLogic.sortedAccounts(
+            from: accounts,
+            sortCriterion: sortCriterion,
+            sortDirection: sortDirection
+        )
     }
 
     private func publishSharedState(immediate: Bool = false) {
@@ -2989,133 +3176,6 @@ final class AppController {
         return nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError
     }
 
-    private var sortComparator: (StoredAccount, StoredAccount) -> Bool {
-        { [sortCriterion, sortDirection] lhs, rhs in
-            if sortCriterion == .rateLimit {
-                if Self.areEquivalentForRateLimitSort(lhs, rhs, direction: sortDirection) {
-                    return lhs.createdAt < rhs.createdAt
-                }
-
-                return Self.rateLimitSortComesBefore(lhs, rhs, direction: sortDirection)
-            }
-
-            let orderedAscending: Bool = switch sortCriterion {
-            case .name:
-                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            case .dateAdded:
-                lhs.createdAt < rhs.createdAt
-            case .lastLogin:
-                (lhs.lastLoginAt ?? .distantPast) < (rhs.lastLoginAt ?? .distantPast)
-            case .rateLimit:
-                false
-            case .custom:
-                lhs.customOrder < rhs.customOrder
-            }
-
-            let orderedDescending: Bool = switch sortCriterion {
-            case .name:
-                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedDescending
-            case .dateAdded:
-                lhs.createdAt > rhs.createdAt
-            case .lastLogin:
-                (lhs.lastLoginAt ?? .distantPast) > (rhs.lastLoginAt ?? .distantPast)
-            case .rateLimit:
-                false
-            case .custom:
-                lhs.customOrder > rhs.customOrder
-            }
-
-            if Self.isEquivalent(lhs, rhs, for: sortCriterion) {
-                return lhs.createdAt < rhs.createdAt
-            }
-
-            return sortDirection == .ascending ? orderedAscending : orderedDescending
-        }
-    }
-
-    private static func isEquivalent(_ lhs: StoredAccount, _ rhs: StoredAccount, for criterion: AccountSortCriterion) -> Bool {
-        switch criterion {
-        case .name:
-            lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedSame
-        case .dateAdded:
-            lhs.createdAt == rhs.createdAt
-        case .lastLogin:
-            lhs.lastLoginAt == rhs.lastLoginAt
-        case .rateLimit:
-            false
-        case .custom:
-            lhs.customOrder == rhs.customOrder
-        }
-    }
-
-    // "Rate Limit" sorts by min(5h, 7d) first, then by max(5h, 7d). Rows with
-    // a missing bucket are always pushed to the end regardless of direction so
-    // partial telemetry never outranks a verified pair of limits.
-    private static func rateLimitSortComesBefore(
-        _ lhs: StoredAccount,
-        _ rhs: StoredAccount,
-        direction: SortDirection
-    ) -> Bool {
-        let lhsMetrics = rateLimitSortMetrics(for: lhs)
-        let rhsMetrics = rateLimitSortMetrics(for: rhs)
-
-        if lhsMetrics.isComplete != rhsMetrics.isComplete {
-            return lhsMetrics.isComplete
-        }
-
-        if lhsMetrics.primary != rhsMetrics.primary {
-            return direction == .ascending
-                ? lhsMetrics.primary < rhsMetrics.primary
-                : lhsMetrics.primary > rhsMetrics.primary
-        }
-
-        if lhsMetrics.secondary != rhsMetrics.secondary {
-            return direction == .ascending
-                ? lhsMetrics.secondary < rhsMetrics.secondary
-                : lhsMetrics.secondary > rhsMetrics.secondary
-        }
-
-        return lhs.createdAt < rhs.createdAt
-    }
-
-    private static func areEquivalentForRateLimitSort(
-        _ lhs: StoredAccount,
-        _ rhs: StoredAccount,
-        direction: SortDirection
-    ) -> Bool {
-        let lhsMetrics = rateLimitSortMetrics(for: lhs)
-        let rhsMetrics = rateLimitSortMetrics(for: rhs)
-        return lhsMetrics.isComplete == rhsMetrics.isComplete
-            && lhsMetrics.primary == rhsMetrics.primary
-            && lhsMetrics.secondary == rhsMetrics.secondary
-    }
-
-    private static func rateLimitSortMetrics(
-        for account: StoredAccount
-    ) -> (isComplete: Bool, primary: Int, secondary: Int) {
-        let normalizedValues = normalizedRateLimitSortValues(for: account)
-        return (
-            normalizedValues.isComplete,
-            normalizedValues.values.min() ?? 0,
-            normalizedValues.values.max() ?? 0
-        )
-    }
-
-    private static func normalizedRateLimitSortValues(
-        for account: StoredAccount
-    ) -> (isComplete: Bool, values: [Int]) {
-        guard let fiveHourRemainingPercent = account.fiveHourLimitUsedPercent,
-              let sevenDayRemainingPercent = account.sevenDayLimitUsedPercent else {
-            return (false, [0, 0])
-        }
-
-        return (
-            true,
-            [fiveHourRemainingPercent, sevenDayRemainingPercent]
-                .map { min(max($0, 0), 100) }
-        )
-    }
-
     private static func isGeneratedAccountName(_ name: String) -> Bool {
         generatedAccountIndex(from: name) != nil
     }
@@ -3147,77 +3207,23 @@ final class AppController {
         return "Account \(candidateIndex)"
     }
 
-    @discardableResult
-    private func update(account: StoredAccount, from rateLimitSnapshot: CodexRateLimitSnapshot?) -> Bool {
-        guard let rateLimitSnapshot else {
-            return false
+    private func firstAccountByIdentityKey(from accounts: [StoredAccount]) -> [String: StoredAccount] {
+        var accountsByIdentityKey: [String: StoredAccount] = [:]
+
+        for account in accounts {
+            let normalizedIdentityKey = account.identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalizedIdentityKey.isEmpty else {
+                continue
+            }
+
+            if accountsByIdentityKey[normalizedIdentityKey] == nil {
+                accountsByIdentityKey[normalizedIdentityKey] = account
+            }
         }
 
-        let existingObservedAt = account.rateLimitsObservedAt ?? .distantPast
-        guard rateLimitSnapshot.observedAt >= existingObservedAt else {
-            return false
-        }
-
-        var didChange = false
-
-        if account.rateLimitsObservedAt != rateLimitSnapshot.observedAt {
-            account.rateLimitsObservedAt = rateLimitSnapshot.observedAt
-            didChange = true
-        }
-
-        if account.sevenDayLimitUsedPercent != rateLimitSnapshot.sevenDayRemainingPercent {
-            account.sevenDayLimitUsedPercent = rateLimitSnapshot.sevenDayRemainingPercent
-            didChange = true
-        }
-
-        if account.fiveHourLimitUsedPercent != rateLimitSnapshot.fiveHourRemainingPercent {
-            account.fiveHourLimitUsedPercent = rateLimitSnapshot.fiveHourRemainingPercent
-            didChange = true
-        }
-
-        if account.rateLimitDisplayVersion != Self.currentRateLimitDisplayVersion {
-            account.rateLimitDisplayVersion = Self.currentRateLimitDisplayVersion
-            didChange = true
-        }
-
-        return didChange
+        return accountsByIdentityKey
     }
 
-    @discardableResult
-    private func update(account: StoredAccount, from rateLimitObservation: CodexRateLimitObservation?) -> Bool {
-        guard let rateLimitObservation else {
-            return false
-        }
-
-        let existingObservedAt = account.rateLimitsObservedAt ?? .distantPast
-        guard rateLimitObservation.observedAt >= existingObservedAt else {
-            return false
-        }
-
-        var didChange = false
-
-        if account.rateLimitsObservedAt != rateLimitObservation.observedAt {
-            account.rateLimitsObservedAt = rateLimitObservation.observedAt
-            didChange = true
-        }
-
-        if account.sevenDayLimitUsedPercent != rateLimitObservation.sevenDayRemainingPercent {
-            account.sevenDayLimitUsedPercent = rateLimitObservation.sevenDayRemainingPercent
-            didChange = true
-        }
-
-        if account.fiveHourLimitUsedPercent != rateLimitObservation.fiveHourRemainingPercent {
-            account.fiveHourLimitUsedPercent = rateLimitObservation.fiveHourRemainingPercent
-            didChange = true
-        }
-
-        if account.rateLimitDisplayVersion != Self.currentRateLimitDisplayVersion {
-            account.rateLimitDisplayVersion = Self.currentRateLimitDisplayVersion
-            didChange = true
-        }
-
-        return didChange
-    }
 }
 
 private enum PendingLocationAction {

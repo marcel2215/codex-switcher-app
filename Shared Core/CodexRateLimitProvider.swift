@@ -2,20 +2,41 @@
 //  CodexRateLimitProvider.swift
 //  Codex Switcher
 //
-//  Created by Codex on 2026-04-09.
+//  Created by Codex on 2026-04-11.
 //
 
 import Foundation
 
-struct CodexRateLimitRequest: Sendable {
+nonisolated struct CodexRateLimitRequest: Sendable {
     let identityKey: String
-    let authFileContents: String?
+    let credentials: CodexRateLimitCredentials?
     let linkedLocation: AuthLinkedLocation?
     let isCurrentAccount: Bool
 }
 
+nonisolated enum CodexRateLimitFetchFailure: Sendable, Equatable {
+    case missingCredentials
+    case unauthorized
+    case rateLimited(retryAfter: TimeInterval?)
+    case httpStatus(Int)
+    case invalidResponse
+    case invalidPayload
+    case network(URLError.Code)
+    case cancelled
+}
+
+nonisolated struct CodexRateLimitFetchResult: Sendable, Equatable {
+    let snapshot: CodexRateLimitSnapshot?
+    let remoteFailure: CodexRateLimitFetchFailure?
+
+    init(snapshot: CodexRateLimitSnapshot? = nil, remoteFailure: CodexRateLimitFetchFailure? = nil) {
+        self.snapshot = snapshot
+        self.remoteFailure = remoteFailure
+    }
+}
+
 protocol CodexRateLimitProviding: Sendable {
-    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitSnapshot?
+    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchResult
 }
 
 actor CodexRateLimitProvider: CodexRateLimitProviding {
@@ -51,13 +72,14 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
         }
     }
 
-    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitSnapshot? {
-        if let remoteSnapshot = await fetchRemoteSnapshot(for: request) {
-            return remoteSnapshot
+    func fetchSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchResult {
+        let remoteResult = await fetchRemoteSnapshot(for: request)
+        if remoteResult.snapshot != nil || remoteResult.remoteFailure == .cancelled {
+            return remoteResult
         }
 
         guard request.isCurrentAccount, let linkedLocation = request.linkedLocation else {
-            return nil
+            return remoteResult
         }
 
         let fallbackObservation = await sessionReader.readLatestObservation(
@@ -65,10 +87,10 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
         )
 
         guard let fallbackObservation else {
-            return nil
+            return remoteResult
         }
 
-        return CodexRateLimitSnapshot(
+        let snapshot = CodexRateLimitSnapshot(
             identityKey: request.identityKey,
             observedAt: fallbackObservation.observedAt,
             fetchedAt: .now,
@@ -78,43 +100,73 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
             sevenDayResetsAt: fallbackObservation.sevenDayResetsAt,
             fiveHourResetsAt: fallbackObservation.fiveHourResetsAt
         ).applyingResetBoundaries()
+        return CodexRateLimitFetchResult(
+            snapshot: snapshot,
+            remoteFailure: remoteResult.remoteFailure
+        )
     }
 
-    private func fetchRemoteSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitSnapshot? {
+    private func fetchRemoteSnapshot(for request: CodexRateLimitRequest) async -> CodexRateLimitFetchResult {
         guard
-            let authFileContents = request.authFileContents,
-            let credentials = try? CodexAuthFile.parseRateLimitCredentials(contents: authFileContents),
+            let credentials = request.credentials,
             credentials.identityKey == request.identityKey,
             credentials.authMode != .apiKey,
-            let accessToken = credentials.accessToken,
+            let accessToken = credentials.accessToken?.trimmingCharacters(in: .whitespacesAndNewlines),
             !accessToken.isEmpty
         else {
-            return nil
+            return CodexRateLimitFetchResult(remoteFailure: .missingCredentials)
         }
-
-        await requestLimiter.acquire()
 
         var urlRequest = URLRequest(url: Self.usageURL)
         urlRequest.httpMethod = "GET"
+        urlRequest.cachePolicy = .reloadIgnoringLocalCacheData
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
 
-        if let accountID = credentials.accountID, !accountID.isEmpty {
+        if let accountID = credentials.accountID?.trimmingCharacters(in: .whitespacesAndNewlines), !accountID.isEmpty {
             urlRequest.setValue(accountID, forHTTPHeaderField: "ChatGPT-Account-Id")
         }
 
         do {
+            try await requestLimiter.acquire()
             let (data, response) = try await urlSession.data(for: urlRequest)
-            guard
-                let httpResponse = response as? HTTPURLResponse,
-                200..<300 ~= httpResponse.statusCode,
-                let remoteResponse = try? JSONDecoder().decode(CodexUsageAPIResponse.self, from: data)
-            else {
-                return nil
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return CodexRateLimitFetchResult(remoteFailure: .invalidResponse)
             }
 
-            return makeSnapshot(from: remoteResponse, identityKey: request.identityKey)
+            switch httpResponse.statusCode {
+            case 200..<300:
+                do {
+                    let decoded = try JSONDecoder().decode(CodexUsageAPIResponse.self, from: data)
+                    guard let snapshot = makeSnapshot(from: decoded, identityKey: request.identityKey) else {
+                        return CodexRateLimitFetchResult(remoteFailure: .invalidPayload)
+                    }
+
+                    return CodexRateLimitFetchResult(snapshot: snapshot)
+                } catch {
+                    return CodexRateLimitFetchResult(remoteFailure: .invalidPayload)
+                }
+
+            case 401, 403:
+                return CodexRateLimitFetchResult(remoteFailure: .unauthorized)
+
+            case 429:
+                return CodexRateLimitFetchResult(
+                    remoteFailure: .rateLimited(retryAfter: retryAfterSeconds(from: httpResponse))
+                )
+
+            default:
+                return CodexRateLimitFetchResult(remoteFailure: .httpStatus(httpResponse.statusCode))
+            }
+        } catch is CancellationError {
+            return CodexRateLimitFetchResult(remoteFailure: .cancelled)
+        } catch let error as URLError where error.code == .cancelled {
+            return CodexRateLimitFetchResult(remoteFailure: .cancelled)
+        } catch let error as URLError {
+            return CodexRateLimitFetchResult(remoteFailure: .network(error.code))
         } catch {
-            return nil
+            return CodexRateLimitFetchResult(remoteFailure: .invalidResponse)
         }
     }
 
@@ -174,6 +226,35 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
             .min { lhs, rhs in
                 abs(lhs.windowMinutes - preferredMinutes) < abs(rhs.windowMinutes - preferredMinutes)
             }
+    }
+
+    private func retryAfterSeconds(from response: HTTPURLResponse) -> TimeInterval? {
+        guard let header = response.value(forHTTPHeaderField: "Retry-After")?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !header.isEmpty else {
+            return nil
+        }
+
+        if let seconds = TimeInterval(header), seconds.isFinite, seconds >= 0 {
+            return seconds
+        }
+
+        for format in [
+            "EEE',' dd MMM yyyy HH':'mm':'ss zzz",
+            "EEEE',' dd-MMM-yy HH':'mm':'ss zzz",
+            "EEE MMM d HH':'mm':'ss yyyy",
+        ] {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            formatter.dateFormat = format
+
+            if let date = formatter.date(from: header) {
+                return max(date.timeIntervalSinceNow, 0)
+            }
+        }
+
+        return nil
     }
 }
 
@@ -272,44 +353,26 @@ private nonisolated struct CodexUsageBucket: Decodable {
 
 private nonisolated struct CodexUsageWindow: Decodable {
     let usedPercent: Double?
-    let windowDurationMins: Int?
     let limitWindowSeconds: Int?
-    let resetsAt: Int?
-    let resetAt: Int?
-    let resetAfterSeconds: Int?
+    let limitWindowMinutes: Int?
+    let resetAt: Double?
+    let resetsAt: Double?
+    let resetSeconds: Double?
+    let remainingPercentValue: Double?
 
     enum CodingKeys: String, CodingKey {
-        case usedPercent
-        case usedPercentSnake = "used_percent"
-        case windowDurationMins
-        case windowDurationMinsSnake = "window_duration_mins"
+        case usedPercent = "used_percent"
         case limitWindowSeconds = "limit_window_seconds"
-        case resetsAt
-        case resetsAtSnake = "resets_at"
+        case limitWindowMinutes = "limit_window_minutes"
         case resetAt = "reset_at"
-        case resetAfterSeconds = "reset_after_seconds"
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        // The public usage endpoint has already shipped both snake_case and
-        // camelCase variants in community tooling and samples. Accept both so a
-        // small schema drift does not silently zero out the rate-limit display.
-        usedPercent = try container.decodeIfPresent(Double.self, forKey: .usedPercent)
-            ?? container.decodeIfPresent(Double.self, forKey: .usedPercentSnake)
-        windowDurationMins = try container.decodeIfPresent(Int.self, forKey: .windowDurationMins)
-            ?? container.decodeIfPresent(Int.self, forKey: .windowDurationMinsSnake)
-        limitWindowSeconds = try container.decodeIfPresent(Int.self, forKey: .limitWindowSeconds)
-        resetsAt = try container.decodeIfPresent(Int.self, forKey: .resetsAt)
-            ?? container.decodeIfPresent(Int.self, forKey: .resetsAtSnake)
-        resetAt = try container.decodeIfPresent(Int.self, forKey: .resetAt)
-        resetAfterSeconds = try container.decodeIfPresent(Int.self, forKey: .resetAfterSeconds)
+        case resetsAt = "resets_at"
+        case resetSeconds = "reset_seconds"
+        case remainingPercentValue = "remaining_percent"
     }
 
     var normalizedWindowMinutes: Int? {
-        if let windowDurationMins {
-            return windowDurationMins
+        if let limitWindowMinutes {
+            return limitWindowMinutes
         }
 
         if let limitWindowSeconds {
@@ -319,32 +382,36 @@ private nonisolated struct CodexUsageWindow: Decodable {
         return nil
     }
 
-    func resolvedResetDate(relativeTo referenceDate: Date) -> Date? {
-        if let resetsAt {
-            return Date(timeIntervalSince1970: TimeInterval(resetsAt))
-        }
-
-        if let resetAt {
-            return Date(timeIntervalSince1970: TimeInterval(resetAt))
-        }
-
-        if let resetAfterSeconds {
-            return referenceDate.addingTimeInterval(TimeInterval(resetAfterSeconds))
-        }
-
-        return nil
-    }
-
     func remainingPercent(relativeTo referenceDate: Date) -> Int? {
+        if let remainingPercentValue, remainingPercentValue.isFinite {
+            return min(max(Int(remainingPercentValue.rounded()), 0), 100)
+        }
+
         guard let usedPercent, usedPercent.isFinite else {
             return nil
         }
 
+        let clampedUsedPercent = min(max(Int(usedPercent.rounded()), 0), 100)
         if let resetDate = resolvedResetDate(relativeTo: referenceDate), referenceDate >= resetDate {
             return 100
         }
 
-        let clampedUsed = min(max(Int(usedPercent.rounded()), 0), 100)
-        return 100 - clampedUsed
+        return 100 - clampedUsedPercent
+    }
+
+    func resolvedResetDate(relativeTo referenceDate: Date) -> Date? {
+        if let resetAt, resetAt.isFinite {
+            return Date(timeIntervalSince1970: resetAt)
+        }
+
+        if let resetsAt, resetsAt.isFinite {
+            return Date(timeIntervalSince1970: resetsAt)
+        }
+
+        if let resetSeconds, resetSeconds.isFinite {
+            return referenceDate.addingTimeInterval(resetSeconds)
+        }
+
+        return nil
     }
 }

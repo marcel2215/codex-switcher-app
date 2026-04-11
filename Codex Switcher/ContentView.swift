@@ -108,16 +108,18 @@ struct ContentView: View {
                         }
                     }
 
-                    Divider()
+                    if controller.sortCriterion != .custom {
+                        Divider()
 
-                    ForEach(SortDirection.allCases) { direction in
-                        Button {
-                            controller.sortDirection = direction
-                        } label: {
-                            sortMenuLabel(
-                                title: direction.menuTitle,
-                                isSelected: controller.sortDirection == direction
-                            )
+                        ForEach(SortDirection.allCases) { direction in
+                            Button {
+                                controller.sortDirection = direction
+                            } label: {
+                                sortMenuLabel(
+                                    title: direction.menuTitle,
+                                    isSelected: controller.sortDirection == direction
+                                )
+                            }
                         }
                     }
                 } label: {
