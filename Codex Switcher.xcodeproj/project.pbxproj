@@ -10,7 +10,7 @@
 		1F28ABAF2F86DA4B00639A74 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */; };
 		1F28ABB12F86DA4B00639A74 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */; };
 		1F28ABBE2F86DA4C00639A74 /* Codex Switcher Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1F28ABAC2F86DA4A00639A74 /* Codex Switcher Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		1FA0357F2F8AF68400367DD6 /* Codex Switcher Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 1FA0355F2F8AF68300367DD6 /* Codex Switcher Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1FA0357F2F8AF68400367DD6 /* Codex Switcher Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 1FA0355F2F8AF68300367DD6 /* Codex Switcher Watch App.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -843,6 +843,7 @@
 		};
 		1FA0357E2F8AF68400367DD6 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
 			targetProxy = 1FA0357D2F8AF68400367DD6 /* PBXContainerItemProxy */;
 		};
