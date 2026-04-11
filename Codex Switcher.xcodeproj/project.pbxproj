@@ -1414,7 +1414,7 @@
 				DEVELOPMENT_TEAM = YN958LW8P7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher Watch App";
+				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.marcel2215.codexswitcher;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1448,7 +1448,7 @@
 				DEVELOPMENT_TEAM = YN958LW8P7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher Watch App";
+				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.marcel2215.codexswitcher;
 				LD_RUNPATH_SEARCH_PATHS = (
