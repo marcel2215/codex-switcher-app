@@ -189,19 +189,19 @@
 			path = "Codex Switcher iOS App UI Tests";
 			sourceTree = "<group>";
 		};
-		1FA035602F8AF68300367DD6 /* Codex Switcher Watch App Watch App */ = {
+		1FA035602F8AF68300367DD6 /* Codex Switcher Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Codex Switcher Watch App Watch App";
+			path = "Codex Switcher Watch App";
 			sourceTree = "<group>";
 		};
-		1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Watch AppTests */ = {
+		1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Codex Switcher Watch App Watch AppTests";
+			path = "Codex Switcher Watch App Tests";
 			sourceTree = "<group>";
 		};
-		1FA035782F8AF68400367DD6 /* Codex Switcher Watch App Watch AppUITests */ = {
+		1FA035782F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Codex Switcher Watch App Watch AppUITests";
+			path = "Codex Switcher Watch App UI Tests";
 			sourceTree = "<group>";
 		};
 		6AE84D562BE14E0FA0856BF2 /* Shared Core */ = {
@@ -313,9 +313,9 @@
 				1F96B5A72F89BF5100044DB7 /* Codex Switcher iOS App */,
 				1F96B5B92F89BF5200044DB7 /* Codex Switcher iOS App Tests */,
 				1F96B5C32F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */,
-				1FA035602F8AF68300367DD6 /* Codex Switcher Watch App Watch App */,
-				1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Watch AppTests */,
-				1FA035782F8AF68400367DD6 /* Codex Switcher Watch App Watch AppUITests */,
+				1FA035602F8AF68300367DD6 /* Codex Switcher Watch App */,
+				1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Tests */,
+				1FA035782F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */,
 				1F28ABAD2F86DA4A00639A74 /* Frameworks */,
 				1F87C9482F8406C7007DED25 /* Products */,
 			);
@@ -520,7 +520,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				1FA035602F8AF68300367DD6 /* Codex Switcher Watch App Watch App */,
+				1FA035602F8AF68300367DD6 /* Codex Switcher Watch App */,
 			);
 			name = "Codex Switcher Watch App Watch App";
 			packageProductDependencies = (
@@ -543,7 +543,7 @@
 				1FA0356D2F8AF68400367DD6 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Watch AppTests */,
+				1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Tests */,
 			);
 			name = "Codex Switcher Watch App Watch AppTests";
 			packageProductDependencies = (
@@ -566,7 +566,7 @@
 				1FA035772F8AF68400367DD6 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1FA035782F8AF68400367DD6 /* Codex Switcher Watch App Watch AppUITests */,
+				1FA035782F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */,
 			);
 			name = "Codex Switcher Watch App Watch AppUITests";
 			packageProductDependencies = (
