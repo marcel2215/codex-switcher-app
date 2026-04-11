@@ -9,6 +9,7 @@ import SwiftData
 import SwiftUI
 
 struct AccountsRootView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
     @Query private var accounts: [StoredAccount]
 
@@ -28,72 +29,39 @@ struct AccountsRootView: View {
         accounts.first(where: { $0.id == selectedAccountID })
     }
 
+    private var usesCompactNavigation: Bool {
+        horizontalSizeClass == .compact
+    }
+
     var body: some View {
         @Bindable var bindableController = controller
 
-        NavigationSplitView {
-            Group {
-                if displayedAccounts.isEmpty {
-                    emptyState
-                } else {
-                    List(selection: $selectedAccountID) {
-                        ForEach(displayedAccounts) { account in
-                            IOSAccountRow(account: account)
-                                .tag(account.id)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        accountPendingDeletion = account
-                                    } label: {
-                                        Label("Remove", systemImage: "trash")
-                                    }
-                                }
-                        }
-                        .onMove { source, destination in
-                            controller.move(
-                                from: source,
-                                to: destination,
-                                visibleAccounts: displayedAccounts,
-                                in: modelContext
-                            )
-                        }
-                    }
+        Group {
+            if usesCompactNavigation {
+                NavigationStack {
+                    compactAccountsList
+                        .navigationTitle("Accounts")
+                        .navigationDestination(for: UUID.self, destination: compactAccountDestination)
                 }
-            }
-            .navigationTitle("Accounts")
-            .searchable(text: $bindableController.searchText, prompt: "Search")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if controller.canEditCustomOrder && displayedAccounts.count > 1 {
-                        EditButton()
-                    }
-                }
-
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    sortMenu
-
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                    .accessibilityIdentifier("ios-settings-button")
-                }
-            }
-        } detail: {
-            if let selectedAccount {
-                AccountDetailView(
-                    account: selectedAccount,
-                    controller: controller,
-                    onRemove: {
-                        accountPendingDeletion = selectedAccount
-                    }
-                )
+                .searchable(text: $bindableController.searchText, prompt: "Search")
+                .toolbar(content: rootToolbar)
             } else {
-                ContentUnavailableView(
-                    "Select an Account",
-                    systemImage: "person.crop.circle",
-                    description: Text("Choose an account to view and edit its details.")
-                )
+                NavigationSplitView {
+                    regularAccountsList
+                        .navigationTitle("Accounts")
+                        .searchable(text: $bindableController.searchText, prompt: "Search")
+                        .toolbar(content: rootToolbar)
+                } detail: {
+                    if let selectedAccount {
+                        accountDetailView(for: selectedAccount)
+                    } else {
+                        ContentUnavailableView(
+                            "Select an Account",
+                            systemImage: "person.crop.circle",
+                            description: Text("Choose an account to view and edit its details.")
+                        )
+                    }
+                }
             }
         }
         .task {
@@ -107,6 +75,11 @@ struct AccountsRootView: View {
         }
         .onChange(of: controller.sortDirection) { _, newValue in
             persistedSortDirectionRawValue = newValue.rawValue
+        }
+        .onChange(of: usesCompactNavigation) { _, isCompact in
+            if isCompact {
+                selectedAccountID = nil
+            }
         }
         .onChange(of: accounts.map(\.id)) { _, ids in
             if let selectedAccountID, !ids.contains(selectedAccountID) {
@@ -152,6 +125,35 @@ struct AccountsRootView: View {
         }
     }
 
+    @ViewBuilder
+    private var compactAccountsList: some View {
+        if displayedAccounts.isEmpty {
+            emptyState
+        } else {
+            List {
+                accountRows { account in
+                    NavigationLink(value: account.id) {
+                        IOSAccountRow(account: account)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var regularAccountsList: some View {
+        if displayedAccounts.isEmpty {
+            emptyState
+        } else {
+            List(selection: $selectedAccountID) {
+                accountRows { account in
+                    IOSAccountRow(account: account)
+                        .tag(account.id)
+                }
+            }
+        }
+    }
+
     private var emptyState: some View {
         let trimmedSearchText = AccountsPresentationLogic.normalizedSearchText(controller.searchText)
         return ContentUnavailableView(
@@ -163,6 +165,77 @@ struct AccountsRootView: View {
                     : "Try a different search term."
             )
         )
+    }
+
+    @ToolbarContentBuilder
+    private func rootToolbar() -> some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            if controller.canEditCustomOrder && displayedAccounts.count > 1 {
+                EditButton()
+            }
+        }
+
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            sortMenu
+
+            Button {
+                showingSettings = true
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .accessibilityIdentifier("ios-settings-button")
+        }
+    }
+
+    @ViewBuilder
+    private func compactAccountDestination(for accountID: UUID) -> some View {
+        if let account = account(for: accountID) {
+            accountDetailView(for: account)
+        } else {
+            ContentUnavailableView(
+                "Account Unavailable",
+                systemImage: "person.crop.circle.badge.exclamationmark",
+                description: Text("This account is no longer available.")
+            )
+        }
+    }
+
+    private func account(for accountID: UUID) -> StoredAccount? {
+        accounts.first(where: { $0.id == accountID })
+    }
+
+    private func accountDetailView(for account: StoredAccount) -> some View {
+        AccountDetailView(
+            account: account,
+            controller: controller,
+            onRemove: {
+                accountPendingDeletion = account
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func accountRows<RowContent: View>(
+        @ViewBuilder rowContent: @escaping (StoredAccount) -> RowContent
+    ) -> some View {
+        ForEach(displayedAccounts) { account in
+            rowContent(account)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        accountPendingDeletion = account
+                    } label: {
+                        Label("Remove", systemImage: "trash")
+                    }
+                }
+        }
+        .onMove { source, destination in
+            controller.move(
+                from: source,
+                to: destination,
+                visibleAccounts: displayedAccounts,
+                in: modelContext
+            )
+        }
     }
 
     private var sortMenu: some View {
