@@ -9,6 +9,11 @@ import SwiftData
 import SwiftUI
 
 struct AccountDetailView: View {
+    private enum DetailDestination: Hashable {
+        case name
+        case icon
+    }
+
     @Environment(\.modelContext) private var modelContext
 
     let account: StoredAccount
@@ -31,21 +36,25 @@ struct AccountDetailView: View {
     var body: some View {
         Form {
             Section("Account") {
-                TextField("Name", text: $draftName)
-                    .submitLabel(.done)
-                    .onSubmit(persistDraftName)
-
-                if let emailHint {
-                    LabeledContent("Email") {
-                        Text(emailHint)
+                NavigationLink(value: DetailDestination.name) {
+                    LabeledContent("Name") {
+                        Text(displayName)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .multilineTextAlignment(.trailing)
                     }
                 }
 
-                if let accountIdentifier {
-                    LabeledContent("Identifier") {
-                        Text(accountIdentifier)
-                            .foregroundStyle(.secondary)
+                NavigationLink(value: DetailDestination.icon) {
+                    LabeledContent("Icon") {
+                        HStack(spacing: 8) {
+                            Image(systemName: selectedIcon.systemName)
+
+                            Text(selectedIcon.title)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                        .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -77,27 +86,6 @@ struct AccountDetailView: View {
                 Text("Rate limits are synced from your Mac. The iPhone and iPad app does not refresh them directly.")
             }
 
-            Section("Appearance") {
-                NavigationLink {
-                    IOSAccountIconPickerView(account: account, controller: controller)
-                } label: {
-                    HStack(spacing: 12) {
-                        Text("Icon")
-
-                        Spacer(minLength: 12)
-
-                        HStack(spacing: 8) {
-                            Image(systemName: selectedIcon.systemName)
-                                .foregroundStyle(.tint)
-
-                            Text(selectedIcon.title)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                    }
-                }
-            }
-
             Section {
                 Button("Remove Account", role: .destructive, action: onRemove)
             } header: {
@@ -106,8 +94,9 @@ struct AccountDetailView: View {
                 Text("Removing an account deletes the saved account entry from your iCloud-synced list. It does not remotely switch or log out your Mac.")
             }
         }
-        .navigationTitle(account.name)
+        .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: DetailDestination.self, destination: destinationView)
         .onDisappear(perform: persistDraftName)
     }
 
@@ -116,13 +105,35 @@ struct AccountDetailView: View {
         return trimmedEmailHint.isEmpty ? nil : trimmedEmailHint
     }
 
-    private var accountIdentifier: String? {
-        let trimmedIdentifier = account.accountIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return trimmedIdentifier.isEmpty ? nil : trimmedIdentifier
+    private var displayName: String {
+        AccountsPresentationLogic.displayName(
+            name: draftName,
+            emailHint: emailHint,
+            accountIdentifier: account.accountIdentifier,
+            identityKey: account.identityKey
+        )
+    }
+
+    private var nameEditorPrompt: String {
+        emailHint ?? ""
     }
 
     private var selectedIcon: AccountIconOption {
         AccountIconOption.resolve(from: account.iconSystemName)
+    }
+
+    @ViewBuilder
+    private func destinationView(for destination: DetailDestination) -> some View {
+        switch destination {
+        case .name:
+            IOSAccountNameEditorView(
+                draftName: $draftName,
+                placeholder: nameEditorPrompt,
+                onSave: persistDraftName
+            )
+        case .icon:
+            IOSAccountIconPickerView(account: account, controller: controller)
+        }
     }
 
     private func persistDraftName() {

@@ -81,9 +81,9 @@ final class IOSAccountsController {
             return
         }
 
-        guard let trimmedName = AccountsPresentationLogic.normalizedRenamedAccountName(proposedName) else {
-            return
-        }
+        // iOS allows clearing the stored name so the UI can fall back to the
+        // account email or identifier in places that show a display name.
+        let trimmedName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard trimmedName != account.name else {
             return

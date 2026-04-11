@@ -12,6 +12,28 @@ enum AccountsPresentationLogic {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    static func displayName(for account: StoredAccount) -> String {
+        displayName(
+            name: account.name,
+            emailHint: account.emailHint,
+            accountIdentifier: account.accountIdentifier,
+            identityKey: account.identityKey
+        )
+    }
+
+    static func displayName(
+        name: String,
+        emailHint: String?,
+        accountIdentifier: String?,
+        identityKey: String
+    ) -> String {
+        normalizedDisplayText(name)
+            ?? normalizedDisplayText(emailHint)
+            ?? normalizedDisplayText(accountIdentifier)
+            ?? normalizedDisplayText(identityKey)
+            ?? "Unnamed Account"
+    }
+
     static func normalizedSortDirection(
         for sortCriterion: AccountSortCriterion,
         requestedDirection: SortDirection
@@ -82,7 +104,7 @@ enum AccountsPresentationLogic {
 
             let orderedAscending: Bool = switch sortCriterion {
             case .name:
-                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                displayName(for: lhs).localizedCaseInsensitiveCompare(displayName(for: rhs)) == .orderedAscending
             case .dateAdded:
                 lhs.createdAt < rhs.createdAt
             case .lastLogin:
@@ -95,7 +117,7 @@ enum AccountsPresentationLogic {
 
             let orderedDescending: Bool = switch sortCriterion {
             case .name:
-                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedDescending
+                displayName(for: lhs).localizedCaseInsensitiveCompare(displayName(for: rhs)) == .orderedDescending
             case .dateAdded:
                 lhs.createdAt > rhs.createdAt
             case .lastLogin:
@@ -121,7 +143,7 @@ enum AccountsPresentationLogic {
     ) -> Bool {
         switch criterion {
         case .name:
-            lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedSame
+            displayName(for: lhs).localizedCaseInsensitiveCompare(displayName(for: rhs)) == .orderedSame
         case .dateAdded:
             lhs.createdAt == rhs.createdAt
         case .lastLogin:
@@ -195,5 +217,14 @@ enum AccountsPresentationLogic {
             [fiveHourRemainingPercent, sevenDayRemainingPercent]
                 .map { min(max($0, 0), 100) }
         )
+    }
+
+    private static func normalizedDisplayText(_ text: String?) -> String? {
+        guard let text else {
+            return nil
+        }
+
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedText.isEmpty ? nil : trimmedText
     }
 }

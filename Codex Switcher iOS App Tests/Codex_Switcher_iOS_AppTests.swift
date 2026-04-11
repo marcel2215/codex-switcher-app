@@ -40,13 +40,25 @@ struct Codex_Switcher_iOS_AppTests {
     }
 
     @Test
-    func emptyRenameIsRejected() throws {
+    func emptyRenameClearsStoredName() throws {
         let account = makeAccount(name: "Original", customOrder: 0)
         let harness = try makeHarness(accounts: [account])
 
         harness.controller.commitRename(for: account, proposedName: "   ", in: harness.modelContext)
 
-        #expect(try fetchAccounts(in: harness.modelContext).first?.name == "Original")
+        #expect(try fetchAccounts(in: harness.modelContext).first?.name == "")
+    }
+
+    @Test
+    func displayNameFallsBackToEmailHintWhenNameIsEmpty() {
+        let account = makeAccount(
+            name: "",
+            emailHint: "work@example.com",
+            accountIdentifier: "acct-work",
+            customOrder: 0
+        )
+
+        #expect(AccountsPresentationLogic.displayName(for: account) == "work@example.com")
     }
 
     @Test

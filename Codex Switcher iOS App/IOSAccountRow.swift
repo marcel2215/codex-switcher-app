@@ -18,9 +18,10 @@ struct IOSAccountRow: View {
                 .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(account.name)
+                Text(AccountsPresentationLogic.displayName(for: account))
                     .font(.headline)
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
 
                 Text(AccountDisplayFormatter.listMetadataDescription(
                     lastLoginAt: account.lastLoginAt,
