@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  Codex Switcher Watch App Watch App
+//  Codex Switcher Watch App
 //
 //  Created by Marcel Kwiatkowski on 2026-04-11.
 //

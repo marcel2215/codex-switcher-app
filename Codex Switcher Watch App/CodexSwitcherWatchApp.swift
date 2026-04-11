@@ -1,6 +1,6 @@
 //
-//  Codex_Switcher_Watch_AppApp.swift
-//  Codex Switcher Watch App Watch App
+//  CodexSwitcherWatchApp.swift
+//  Codex Switcher Watch App
 //
 //  Created by Marcel Kwiatkowski on 2026-04-11.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct Codex_Switcher_Watch_App_Watch_AppApp: App {
+struct CodexSwitcherWatchApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
