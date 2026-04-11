@@ -95,9 +95,8 @@ struct IOSRateLimitRefreshControllerTests {
 
         controller.configure(modelContext: harness.modelContext)
         controller.setVisible(true, for: account.identityKey)
-        try await waitUntil {
-            await provider.requestCount(for: account.identityKey) == 1
-        }
+        await controller.refreshNowForTesting(for: account.identityKey)
+        #expect(await provider.requestCount(for: account.identityKey) == 1)
         await provider.resetRequests()
 
         // A visible list row that was refreshed two minutes ago is still fresh.
@@ -270,9 +269,8 @@ struct IOSRateLimitRefreshControllerTests {
 
         controller.configure(modelContext: harness.modelContext)
         controller.setVisible(true, for: account.identityKey)
-        try await waitUntil {
-            await provider.requestCount(for: account.identityKey) == 1
-        }
+        await controller.refreshNowForTesting(for: account.identityKey)
+        #expect(await provider.requestCount(for: account.identityKey) == 1)
         await provider.resetRequests()
 
         try await credentialStore.save(

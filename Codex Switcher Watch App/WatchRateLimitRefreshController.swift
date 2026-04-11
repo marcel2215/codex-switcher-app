@@ -1,6 +1,6 @@
 //
-//  IOSRateLimitRefreshController.swift
-//  Codex Switcher iOS App
+//  WatchRateLimitRefreshController.swift
+//  Codex Switcher Watch App
 //
 //  Created by Codex on 2026-04-12.
 //
@@ -12,7 +12,7 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class IOSRateLimitRefreshController {
+final class WatchRateLimitRefreshController {
     @ObservationIgnored private let engine: ForegroundRateLimitRefreshController
 
     init(
@@ -20,11 +20,11 @@ final class IOSRateLimitRefreshController {
         credentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore(),
         logger: Logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
-            category: "IOSRateLimitRefreshController"
+            category: "WatchRateLimitRefreshController"
         )
     ) {
         engine = ForegroundRateLimitRefreshController(
-            policy: .iOS,
+            policy: .watchOS,
             provider: provider,
             credentialStore: credentialStore,
             logger: logger
@@ -55,11 +55,11 @@ final class IOSRateLimitRefreshController {
         engine.refreshNow(for: identityKey)
     }
 
-    func refreshDueAccountsForTesting() async {
-        await engine.refreshDueAccountsForTesting()
+    func refreshTrackedAccountsNow() async {
+        await engine.refreshTrackedAccountsNow()
     }
 
-    func refreshNowForTesting(for identityKey: String) async {
-        await engine.refreshNowForTesting(for: identityKey)
+    func hasSyncedCredential(for identityKey: String) async -> Bool {
+        await engine.hasSyncedCredential(for: identityKey)
     }
 }

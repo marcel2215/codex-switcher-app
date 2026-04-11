@@ -5,13 +5,22 @@
 //  Created by Marcel Kwiatkowski on 2026-04-11.
 //
 
+import SwiftData
 import SwiftUI
 
 @main
 struct CodexSwitcherWatchApp: App {
+    private let bootstrap = WatchAppBootstrap.make()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            switch bootstrap {
+            case let .ready(modelContainer):
+                WatchAccountsRootView()
+                    .modelContainer(modelContainer)
+            case let .failed(message):
+                WatchStorageUnavailableView(message: message)
+            }
         }
     }
 }

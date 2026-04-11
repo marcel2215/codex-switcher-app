@@ -37,6 +37,16 @@ enum RateLimitAccountUpdater {
             didChange = true
         }
 
+        if account.sevenDayResetsAt != adjustedSnapshot.sevenDayResetsAt {
+            account.sevenDayResetsAt = adjustedSnapshot.sevenDayResetsAt
+            didChange = true
+        }
+
+        if account.fiveHourResetsAt != adjustedSnapshot.fiveHourResetsAt {
+            account.fiveHourResetsAt = adjustedSnapshot.fiveHourResetsAt
+            didChange = true
+        }
+
         if account.rateLimitDisplayVersion != currentDisplayVersion {
             account.rateLimitDisplayVersion = currentDisplayVersion
             didChange = true

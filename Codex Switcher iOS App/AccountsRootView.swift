@@ -33,7 +33,7 @@ struct AccountsRootView: View {
     @State private var selectedAccountID: UUID?
     @State private var showingSettings = false
     @State private var accountPendingDeletion: StoredAccount?
-    @State private var sortPreferences = IOSCloudSortPreferences()
+    @State private var sortPreferences = CloudSortPreferences()
 
     private var displayedAccounts: [StoredAccount] {
         controller.displayedAccounts(from: accounts)

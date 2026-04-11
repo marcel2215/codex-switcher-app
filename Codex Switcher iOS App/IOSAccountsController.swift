@@ -81,17 +81,8 @@ final class IOSAccountsController {
             return
         }
 
-        // iOS allows clearing the stored name so the UI can fall back to the
-        // account email or identifier in places that show a display name.
-        let trimmedName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard trimmedName != account.name else {
-            return
-        }
-
         do {
-            account.name = trimmedName
-            try modelContext.save()
+            try StoredAccountMutations.rename(account, to: proposedName, in: modelContext)
         } catch {
             presentedError = PresentedError(
                 title: "Couldn't Rename Account",
@@ -111,8 +102,7 @@ final class IOSAccountsController {
         }
 
         do {
-            account.iconSystemName = resolvedSystemName
-            try modelContext.save()
+            try StoredAccountMutations.setIcon(icon, for: account, in: modelContext)
         } catch {
             presentedError = PresentedError(
                 title: "Couldn't Change Icon",
@@ -127,8 +117,7 @@ final class IOSAccountsController {
         }
 
         do {
-            modelContext.delete(account)
-            try modelContext.save()
+            try StoredAccountMutations.remove(account, in: modelContext)
         } catch {
             presentedError = PresentedError(
                 title: "Couldn't Remove Account",
