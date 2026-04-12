@@ -30,7 +30,9 @@ struct AccountsRootView: View {
 
     @State private var controller = IOSAccountsController()
     @State private var rateLimitRefreshController = IOSRateLimitRefreshController()
+    @State private var editMode: EditMode = .inactive
     @State private var selectedAccountID: UUID?
+    @State private var selectedAccountIDsForEditing: Set<UUID> = []
     @State private var showingSettings = false
     @State private var accountPendingDeletion: StoredAccount?
     @State private var sortPreferences = CloudSortPreferences()
@@ -45,6 +47,10 @@ struct AccountsRootView: View {
 
     private var usesCompactNavigation: Bool {
         horizontalSizeClass == .compact
+    }
+
+    private var isEditing: Bool {
+        editMode == .active
     }
 
     private var activeAlert: Binding<ActiveAlert?> {
@@ -107,6 +113,7 @@ struct AccountsRootView: View {
                 }
             }
         }
+        .environment(\.editMode, $editMode)
         .task {
             sortPreferences.synchronize()
             controller.restoreSortPreferences(
@@ -150,6 +157,14 @@ struct AccountsRootView: View {
         .onChange(of: scenePhase) { _, newPhase in
             rateLimitRefreshController.setScenePhase(newPhase)
         }
+        .onChange(of: editMode) { _, newMode in
+            if newMode == .active {
+                selectedAccountID = nil
+                return
+            }
+
+            selectedAccountIDsForEditing.removeAll()
+        }
         .onChange(of: selectedAccountID) { _, newSelection in
             syncRegularSelectedRateLimitTracking(for: newSelection)
         }
@@ -157,6 +172,11 @@ struct AccountsRootView: View {
             if let selectedAccountID, !ids.contains(selectedAccountID) {
                 self.selectedAccountID = nil
             }
+
+            selectedAccountIDsForEditing.formIntersection(Set(ids))
+        }
+        .onChange(of: displayedAccounts.map(\.id)) { _, ids in
+            selectedAccountIDsForEditing.formIntersection(Set(ids))
         }
         .onChange(of: accounts.map(\.identityKey)) { _, identityKeys in
             rateLimitRefreshController.reconcileKnownIdentityKeys(identityKeys)
@@ -167,40 +187,18 @@ struct AccountsRootView: View {
             }
             .presentationDragIndicator(.visible)
         }
-        .alert(item: activeAlert) { alert in
-            switch alert {
-            case .error(let error):
-                return Alert(
-                    title: Text(error.title),
-                    message: Text(error.message)
-                )
-            case .removal(let account):
-                return Alert(
-                    title: Text("Remove \"\(AccountsPresentationLogic.displayName(for: account))\"?"),
-                    message: Text("Are you sure you want to remove this account from Codex switcher? You will be able to add it again later."),
-                    primaryButton: .destructive(Text("Remove Account")) {
-                        if selectedAccountID == account.id {
-                            selectedAccountID = nil
-                        }
-
-                        controller.remove(account, in: modelContext)
-                        accountPendingDeletion = nil
-                    },
-                    secondaryButton: .cancel {
-                        accountPendingDeletion = nil
-                    }
-                )
-            }
-        }
+        .alert(item: activeAlert, content: makeAlert)
     }
 
     @ViewBuilder
     private var compactAccountsList: some View {
         if displayedAccounts.isEmpty {
             emptyState
+        } else if isEditing {
+            editableAccountsList
         } else {
             List {
-                accountRows { account in
+                ForEach(displayedAccounts) { account in
                     NavigationLink(value: account.id) {
                         IOSAccountRow(account: account)
                     }
@@ -210,7 +208,23 @@ struct AccountsRootView: View {
                     .onDisappear {
                         rateLimitRefreshController.setVisible(false, for: account.identityKey)
                     }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            accountPendingDeletion = account
+                        } label: {
+                            Label("Remove", systemImage: "trash")
+                        }
+                    }
                 }
+                .onMove { source, destination in
+                    controller.move(
+                        from: source,
+                        to: destination,
+                        visibleAccounts: displayedAccounts,
+                        in: modelContext
+                    )
+                }
+                .moveDisabled(!controller.canEditCustomOrder)
             }
         }
     }
@@ -219,9 +233,11 @@ struct AccountsRootView: View {
     private var regularAccountsList: some View {
         if displayedAccounts.isEmpty {
             emptyState
+        } else if isEditing {
+            editableAccountsList
         } else {
             List(selection: $selectedAccountID) {
-                accountRows { account in
+                ForEach(displayedAccounts) { account in
                     IOSAccountRow(account: account)
                         .tag(account.id)
                         .onAppear {
@@ -230,8 +246,50 @@ struct AccountsRootView: View {
                         .onDisappear {
                             rateLimitRefreshController.setVisible(false, for: account.identityKey)
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                accountPendingDeletion = account
+                            } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                        }
                 }
+                .onMove { source, destination in
+                    controller.move(
+                        from: source,
+                        to: destination,
+                        visibleAccounts: displayedAccounts,
+                        in: modelContext
+                    )
+                }
+                .moveDisabled(!controller.canEditCustomOrder)
             }
+        }
+    }
+
+    private var editableAccountsList: some View {
+        // SwiftUI's built-in multi-selection edit UI is unreliable here when
+        // combined with the app's navigation structure, so edit mode uses
+        // explicit row checkboxes and a plain movable ForEach.
+        List {
+            ForEach(displayedAccounts) { account in
+                editModeRow(for: account)
+                    .onAppear {
+                        rateLimitRefreshController.setVisible(true, for: account.identityKey)
+                    }
+                    .onDisappear {
+                        rateLimitRefreshController.setVisible(false, for: account.identityKey)
+                    }
+            }
+            .onMove { source, destination in
+                controller.move(
+                    from: source,
+                    to: destination,
+                    visibleAccounts: displayedAccounts,
+                    in: modelContext
+                )
+            }
+            .moveDisabled(!controller.canEditCustomOrder)
         }
     }
 
@@ -254,9 +312,17 @@ struct AccountsRootView: View {
             sortMenu
         }
 
-        if controller.canEditCustomOrder && displayedAccounts.count > 1 {
-            ToolbarItem(placement: .topBarLeading) {
-                EditButton()
+        if isEditing {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    deleteSelectedAccounts()
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .disabled(selectedAccountIDsForEditing.isEmpty)
+                .accessibilityLabel("Delete Selected Accounts")
+                .accessibilityIdentifier("ios-delete-selected-accounts-button")
+                .tint(.red)
             }
         }
 
@@ -288,6 +354,32 @@ struct AccountsRootView: View {
         accounts.first(where: { $0.id == accountID })
     }
 
+    private func deleteSelectedAccounts() {
+        let accountIDsToDelete = selectedAccountIDsForEditing
+        guard !accountIDsToDelete.isEmpty else {
+            return
+        }
+
+        if let selectedAccountID, accountIDsToDelete.contains(selectedAccountID) {
+            self.selectedAccountID = nil
+        }
+
+        controller.removeAccounts(
+            withIDs: accountIDsToDelete,
+            from: accounts,
+            in: modelContext
+        )
+        selectedAccountIDsForEditing.removeAll()
+    }
+
+    private func toggleEditingSelection(for accountID: UUID) {
+        if selectedAccountIDsForEditing.contains(accountID) {
+            selectedAccountIDsForEditing.remove(accountID)
+        } else {
+            selectedAccountIDsForEditing.insert(accountID)
+        }
+    }
+
     @ViewBuilder
     private func accountDetailView(for account: StoredAccount) -> some View {
         let detailView = AccountDetailView(
@@ -308,30 +400,6 @@ struct AccountsRootView: View {
                 }
         } else {
             detailView
-        }
-    }
-
-    @ViewBuilder
-    private func accountRows<RowContent: View>(
-        @ViewBuilder rowContent: @escaping (StoredAccount) -> RowContent
-    ) -> some View {
-        ForEach(displayedAccounts) { account in
-            rowContent(account)
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive) {
-                        accountPendingDeletion = account
-                    } label: {
-                        Label("Remove", systemImage: "trash")
-                    }
-                }
-        }
-        .onMove { source, destination in
-            controller.move(
-                from: source,
-                to: destination,
-                visibleAccounts: displayedAccounts,
-                in: modelContext
-            )
         }
     }
 
@@ -376,6 +444,54 @@ struct AccountsRootView: View {
             if isSelected {
                 Image(systemName: "checkmark")
             }
+        }
+    }
+
+    private func editModeRow(for account: StoredAccount) -> some View {
+        let isSelected = selectedAccountIDsForEditing.contains(account.id)
+
+        return Button {
+            toggleEditingSelection(for: account.id)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .accessibilityHidden(true)
+
+                IOSAccountRow(account: account)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AccountsPresentationLogic.displayName(for: account))
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityHint("Double tap to toggle selection")
+    }
+
+    private func makeAlert(for alert: ActiveAlert) -> Alert {
+        switch alert {
+        case .error(let error):
+            return Alert(
+                title: Text(error.title),
+                message: Text(error.message)
+            )
+        case .removal(let account):
+            return Alert(
+                title: Text("Remove \"\(AccountsPresentationLogic.displayName(for: account))\"?"),
+                message: Text("Are you sure you want to remove this account from Codex switcher? You will be able to add it again later."),
+                primaryButton: .destructive(Text("Remove Account")) {
+                    if selectedAccountID == account.id {
+                        selectedAccountID = nil
+                    }
+
+                    controller.remove(account, in: modelContext)
+                    accountPendingDeletion = nil
+                },
+                secondaryButton: .cancel {
+                    accountPendingDeletion = nil
+                }
+            )
         }
     }
 

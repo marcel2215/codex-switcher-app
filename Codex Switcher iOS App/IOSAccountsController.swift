@@ -126,6 +126,34 @@ final class IOSAccountsController {
         }
     }
 
+    func removeAccounts(
+        withIDs accountIDs: Set<UUID>,
+        from accounts: [StoredAccount],
+        in modelContext: ModelContext
+    ) {
+        guard !accountIDs.isEmpty else {
+            return
+        }
+
+        let accountsToRemove = accounts.filter { accountIDs.contains($0.id) && !$0.isDeleted }
+        guard !accountsToRemove.isEmpty else {
+            return
+        }
+
+        do {
+            for account in accountsToRemove {
+                modelContext.delete(account)
+            }
+
+            try modelContext.save()
+        } catch {
+            presentedError = PresentedError(
+                title: "Couldn't Remove Accounts",
+                message: error.localizedDescription
+            )
+        }
+    }
+
     func move(
         from source: IndexSet,
         to destination: Int,
@@ -139,6 +167,13 @@ final class IOSAccountsController {
         var reorderedAccounts = visibleAccounts
         reorderedAccounts.move(fromOffsets: source, toOffset: destination)
 
+        persistCustomOrder(for: reorderedAccounts, in: modelContext)
+    }
+
+    private func persistCustomOrder(
+        for reorderedAccounts: [StoredAccount],
+        in modelContext: ModelContext
+    ) {
         do {
             for (index, account) in reorderedAccounts.enumerated() {
                 account.customOrder = Double(index)
