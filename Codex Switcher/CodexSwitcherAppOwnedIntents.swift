@@ -513,8 +513,8 @@ private nonisolated func rateLimitDialog(
 ) -> IntentDialog {
     let message = [
         "\(prefix): \"\(account.name)\".",
-        "7-day remaining: \(formattedRemainingPercent(account.sevenDayLimitUsedPercent)).",
         "5-hour remaining: \(formattedRemainingPercent(account.fiveHourLimitUsedPercent)).",
+        "7-day remaining: \(formattedRemainingPercent(account.sevenDayLimitUsedPercent)).",
     ]
     .joined(separator: " ")
 

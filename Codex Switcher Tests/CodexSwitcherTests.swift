@@ -1681,7 +1681,7 @@ struct CodexSwitcherTests {
                 sevenDayLimitUsedPercent: 93,
                 fiveHourLimitUsedPercent: 34,
                 relativeTo: now
-            ) == "Last login: 3h ago • 7d: 93% • 5h: 34%"
+            ) == "Last login: 3h ago • 5h: 34% • 7d: 93%"
         )
 
         #expect(
@@ -1690,7 +1690,7 @@ struct CodexSwitcherTests {
                 sevenDayLimitUsedPercent: nil,
                 fiveHourLimitUsedPercent: nil,
                 relativeTo: now
-            ) == "Last login: never • 7d: ? • 5h: ?"
+            ) == "Last login: never • 5h: ? • 7d: ?"
         )
     }
 

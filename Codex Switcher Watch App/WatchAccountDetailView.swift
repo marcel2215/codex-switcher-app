@@ -43,16 +43,16 @@ struct WatchAccountDetailView: View {
         List {
             Section {
                 WatchRateLimitCard(
-                    title: "7-Day Remaining",
-                    remainingPercent: account.sevenDayLimitUsedPercent,
-                    resetsAt: account.sevenDayResetsAt,
+                    title: "5-Hour Remaining",
+                    remainingPercent: account.fiveHourLimitUsedPercent,
+                    resetsAt: account.fiveHourResetsAt,
                     dimSecondaryContent: isLuminanceReduced
                 )
 
                 WatchRateLimitCard(
-                    title: "5-Hour Remaining",
-                    remainingPercent: account.fiveHourLimitUsedPercent,
-                    resetsAt: account.fiveHourResetsAt,
+                    title: "7-Day Remaining",
+                    remainingPercent: account.sevenDayLimitUsedPercent,
+                    resetsAt: account.sevenDayResetsAt,
                     dimSecondaryContent: isLuminanceReduced
                 )
             } footer: {

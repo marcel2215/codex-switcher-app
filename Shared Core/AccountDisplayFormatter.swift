@@ -46,8 +46,8 @@ enum AccountDisplayFormatter {
     ) -> String {
         [
             lastLoginListDescription(from: lastLoginAt, relativeTo: now),
-            "7d: \(compactPercentDescription(sevenDayRemainingPercent))",
             "5h: \(compactPercentDescription(fiveHourRemainingPercent))",
+            "7d: \(compactPercentDescription(sevenDayRemainingPercent))",
         ].joined(separator: " • ")
     }
 
@@ -59,8 +59,8 @@ enum AccountDisplayFormatter {
     ) -> String {
         [
             "Last login \(lastLoginValueDescription(from: lastLoginAt, relativeTo: now))",
-            "7 day remaining \(detailedPercentDescription(sevenDayRemainingPercent))",
             "5 hour remaining \(detailedPercentDescription(fiveHourRemainingPercent))",
+            "7 day remaining \(detailedPercentDescription(sevenDayRemainingPercent))",
         ].joined(separator: ", ")
     }
 
@@ -69,8 +69,8 @@ enum AccountDisplayFormatter {
         fiveHourRemainingPercent: Int?
     ) -> String {
         [
-            "7d: \(compactPercentDescription(sevenDayRemainingPercent))",
             "5h: \(compactPercentDescription(fiveHourRemainingPercent))",
+            "7d: \(compactPercentDescription(sevenDayRemainingPercent))",
         ].joined(separator: " • ")
     }
 
@@ -79,8 +79,8 @@ enum AccountDisplayFormatter {
         fiveHourRemainingPercent: Int?
     ) -> String {
         [
-            "7 day remaining \(detailedPercentDescription(sevenDayRemainingPercent))",
             "5 hour remaining \(detailedPercentDescription(fiveHourRemainingPercent))",
+            "7 day remaining \(detailedPercentDescription(sevenDayRemainingPercent))",
         ].joined(separator: ", ")
     }
 

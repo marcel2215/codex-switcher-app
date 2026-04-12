@@ -19,8 +19,8 @@ struct WatchAccountRow: View {
             .lineLimit(1)
 
             HStack(spacing: 6) {
-                WatchUsageBadge(title: "7d", value: account.sevenDayLimitUsedPercent)
                 WatchUsageBadge(title: "5h", value: account.fiveHourLimitUsedPercent)
+                WatchUsageBadge(title: "7d", value: account.sevenDayLimitUsedPercent)
             }
         }
         .padding(.vertical, 2)

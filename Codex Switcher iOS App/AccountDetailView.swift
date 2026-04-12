@@ -73,20 +73,20 @@ struct AccountDetailView: View {
             }
 
             Section("Rate Limits") {
-                LabeledContent("7-Day Remaining") {
-                    usageValueText(account.sevenDayLimitUsedPercent)
-                }
-
-                LabeledContent("7-Day Reset") {
-                    resetValueButton(account.sevenDayResetsAt, row: .sevenDay)
-                }
-
                 LabeledContent("5-Hour Remaining") {
                     usageValueText(account.fiveHourLimitUsedPercent)
                 }
 
                 LabeledContent("5-Hour Reset") {
                     resetValueButton(account.fiveHourResetsAt, row: .fiveHour)
+                }
+
+                LabeledContent("7-Day Remaining") {
+                    usageValueText(account.sevenDayLimitUsedPercent)
+                }
+
+                LabeledContent("7-Day Reset") {
+                    resetValueButton(account.sevenDayResetsAt, row: .sevenDay)
                 }
             }
 
