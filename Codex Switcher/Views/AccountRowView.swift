@@ -29,13 +29,13 @@ struct AccountRowView: View {
     }
 
     private var rowContent: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 8) {
             Image(systemName: AccountIconOption.resolve(from: account.iconSystemName).systemName)
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .frame(width: 24, height: 24)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 1) {
                 if isRenaming {
                     TextField("", text: $draftName)
                         .textFieldStyle(.plain)
@@ -59,7 +59,7 @@ struct AccountRowView: View {
                         }
                 } else {
                     Text(account.name)
-                        .font(.headline)
+                        .font(.callout.weight(.semibold))
                         .foregroundStyle(.primary)
                 }
 
@@ -73,14 +73,26 @@ struct AccountRowView: View {
 
             Spacer(minLength: 0)
 
+            currentAccountIndicator
+        }
+        .padding(.vertical, 1)
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var currentAccountIndicator: some View {
+        // Always reserve the trailing indicator slot so the progress meters
+        // line up consistently whether or not this row is the current account.
+        Group {
             if isCurrentAccount {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(isSelected ? Color.white : Color.accentColor)
                     .help("Currently active in Codex")
+            } else {
+                Color.clear
             }
         }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
+        .frame(width: 16, height: 16)
     }
 
     private func commitRename() {
