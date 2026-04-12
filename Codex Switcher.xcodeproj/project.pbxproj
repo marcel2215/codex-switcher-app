@@ -237,6 +237,20 @@
 			);
 			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */;
 		};
+		7F1000010001000100010001 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS Widgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F2922F12F8C123700BE19D2 /* Codex Switcher iOS Widgets */;
+		};
+		7F1000020002000200020002 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch Widgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F2923082F8C125900BE19D2 /* Codex Switcher Watch Widgets */;
+		};
 		5B8E7D6C5B4A392817161514 /* Exceptions for "Shared" folder in "Codex Switcher Watch Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -285,6 +299,8 @@
 				1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */,
 				1F96B7502F89D34B00044DB7 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS App" target */,
 				1FA0358B2F8AF7D600367DD6 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App" target */,
+				7F1000010001000100010001 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS Widgets" target */,
+				7F1000020002000200020002 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch Widgets" target */,
 			);
 			path = "Codex Switcher";
 			sourceTree = "<group>";
@@ -1115,6 +1131,7 @@
 		1F28ABC12F86DA4C00639A74 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = "Codex Switcher Widgets/Codex Switcher Widgets.entitlements";
@@ -1160,6 +1177,7 @@
 		1F28ABC22F86DA4C00639A74 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = "Codex Switcher Widgets/Codex Switcher Widgets.entitlements";
@@ -1205,6 +1223,7 @@
 		1F2923012F8C123800BE19D2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = "Codex Switcher iOS Widgets/Codex Switcher iOS Widgets.entitlements";
@@ -1238,6 +1257,7 @@
 		1F2923022F8C123800BE19D2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = "Codex Switcher iOS Widgets/Codex Switcher iOS Widgets.entitlements";
@@ -1272,6 +1292,7 @@
 		1F2923182F8C125A00BE19D2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = "Codex Switcher Watch Widgets/Codex Switcher Watch Widgets.entitlements";
@@ -1307,6 +1328,7 @@
 		1F2923192F8C125A00BE19D2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = "Codex Switcher Watch Widgets/Codex Switcher Watch Widgets.entitlements";
