@@ -95,6 +95,48 @@ enum AccountDisplayFormatter {
         return "\(clampedPercent)%"
     }
 
+    /// Produces a compact reset countdown for detail views.
+    /// The output deliberately caps itself at two units so the value remains
+    /// readable inside a `LabeledContent` trailing column.
+    static func resetCountdownDescription(until resetAt: Date?, relativeTo now: Date = .now) -> String {
+        guard let resetAt else {
+            return "Unavailable"
+        }
+
+        let remainingSeconds = resetAt.timeIntervalSince(now)
+        guard remainingSeconds > 0 else {
+            return "now"
+        }
+
+        // Round up to the next minute so a future reset never appears as "now"
+        // or "0m" before the boundary is actually reached.
+        let totalMinutes = Int(ceil(remainingSeconds / 60))
+
+        if totalMinutes < 60 {
+            return "\(max(totalMinutes, 1))m"
+        }
+
+        let totalHours = totalMinutes / 60
+        let remainingMinutes = totalMinutes % 60
+
+        if totalHours < 24 {
+            if remainingMinutes == 0 {
+                return "\(totalHours)h"
+            }
+
+            return "\(totalHours)h \(remainingMinutes)m"
+        }
+
+        let days = totalHours / 24
+        let remainingHours = totalHours % 24
+
+        if remainingHours == 0 {
+            return "\(days)d"
+        }
+
+        return "\(days)d \(remainingHours)h"
+    }
+
     static func clampedPercentValue(_ value: Int?) -> Int? {
         guard let value else {
             return nil

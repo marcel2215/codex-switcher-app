@@ -57,19 +57,27 @@ struct AccountDetailView: View {
                         .foregroundStyle(.secondary)
                     }
                 }
-            }
 
-            Section("Usage") {
                 LabeledContent("Last Login") {
                     Text(AccountDisplayFormatter.lastLoginValueDescription(from: account.lastLoginAt))
                 }
+            }
 
+            Section("Rate Limits") {
                 LabeledContent("7-Day Remaining") {
                     usageValueText(account.sevenDayLimitUsedPercent)
                 }
 
+                LabeledContent("7-Day Reset") {
+                    resetValueText(account.sevenDayResetsAt)
+                }
+
                 LabeledContent("5-Hour Remaining") {
                     usageValueText(account.fiveHourLimitUsedPercent)
+                }
+
+                LabeledContent("5-Hour Reset") {
+                    resetValueText(account.fiveHourResetsAt)
                 }
             }
 
@@ -130,6 +138,13 @@ struct AccountDetailView: View {
             blue: components.blue,
             opacity: 1
         )
+    }
+
+    private func resetValueText(_ value: Date?) -> some View {
+        let description = AccountDisplayFormatter.resetCountdownDescription(until: value)
+
+        return Text(description)
+            .foregroundStyle(.secondary)
     }
 
     @ViewBuilder
