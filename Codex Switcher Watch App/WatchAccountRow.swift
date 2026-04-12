@@ -22,7 +22,6 @@ struct WatchAccountRow: View {
                 WatchUsageBadge(title: "7d", value: account.sevenDayLimitUsedPercent)
                 WatchUsageBadge(title: "5h", value: account.fiveHourLimitUsedPercent)
             }
-            .privacySensitive()
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
@@ -41,17 +40,23 @@ private struct WatchUsageBadge: View {
     let value: Int?
 
     var body: some View {
-        let percentDescription = AccountDisplayFormatter.compactPercentDescription(value)
-        let clampedValue = AccountDisplayFormatter.clampedPercentValue(value) ?? 0
-        let color = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: clampedValue)
-
-        Text("\(title) \(percentDescription)")
+        Text("\(title) \(AccountDisplayFormatter.compactPercentDescription(value))")
             .font(.caption2.monospacedDigit())
+            .foregroundStyle(value == nil ? .secondary : .primary)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(
                 Capsule()
-                    .fill(Color(.sRGB, red: color.red, green: color.green, blue: color.blue, opacity: 0.16))
+                    .fill(backgroundColor)
             )
+    }
+
+    private var backgroundColor: Color {
+        guard let clampedValue = AccountDisplayFormatter.clampedPercentValue(value) else {
+            return .secondary.opacity(0.12)
+        }
+
+        let color = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: clampedValue)
+        return Color(.sRGB, red: color.red, green: color.green, blue: color.blue, opacity: 0.16)
     }
 }

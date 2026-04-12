@@ -10,7 +10,7 @@ import SwiftUI
 
 @main
 struct CodexSwitcherWatchApp: App {
-    private let bootstrap = WatchAppBootstrap.make()
+    @State private var bootstrap = WatchAppBootstrap.make()
 
     var body: some Scene {
         WindowGroup {
@@ -19,7 +19,12 @@ struct CodexSwitcherWatchApp: App {
                 WatchAccountsRootView()
                     .modelContainer(modelContainer)
             case let .failed(message):
-                WatchStorageUnavailableView(message: message)
+                WatchStorageUnavailableView(
+                    message: message,
+                    onRetry: {
+                        bootstrap = WatchAppBootstrap.make()
+                    }
+                )
             }
         }
     }

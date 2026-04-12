@@ -301,7 +301,7 @@ struct IOSRateLimitRefreshControllerTests {
     }
 
     @Test
-    func duplicateIdentityKeysDoNotCrashLocalResetHandling() async throws {
+    func duplicateIdentityKeysRefreshAllMatchingAccounts() async throws {
         let duplicateIdentityKey = "identity-duplicate"
         let firstAccount = makeRefreshTestAccount(
             identityKey: duplicateIdentityKey,
@@ -340,11 +340,13 @@ struct IOSRateLimitRefreshControllerTests {
             await provider.requestCount(for: duplicateIdentityKey) == 1
         }
 
-        await controller.refreshDueAccountsForTesting()
-
         let remainingAccounts = try fetchRefreshAccounts(in: harness.modelContext)
             .filter { $0.identityKey == duplicateIdentityKey }
         #expect(remainingAccounts.count == 2)
+        #expect(remainingAccounts.allSatisfy { $0.sevenDayLimitUsedPercent == 92 })
+        #expect(remainingAccounts.allSatisfy { $0.fiveHourLimitUsedPercent == 44 })
+        #expect(remainingAccounts.allSatisfy { $0.sevenDayResetsAt != nil })
+        #expect(remainingAccounts.allSatisfy { $0.fiveHourResetsAt != nil })
     }
 
     @Test

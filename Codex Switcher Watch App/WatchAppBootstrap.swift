@@ -27,4 +27,13 @@ enum WatchAppBootstrap {
             return .failed(error.localizedDescription)
         }
     }
+
+    var modelContainerForPreview: ModelContainer {
+        switch self {
+        case let .ready(modelContainer):
+            modelContainer
+        case .failed:
+            WatchPreviewData.makeContainer()
+        }
+    }
 }

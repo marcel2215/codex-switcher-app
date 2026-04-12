@@ -59,6 +59,10 @@ final class WatchRateLimitRefreshController {
         await engine.refreshTrackedAccountsNow()
     }
 
+    func refreshNowAndWait(for identityKey: String) async {
+        await engine.refreshNowAndWait(for: identityKey)
+    }
+
     func hasSyncedCredential(for identityKey: String) async -> Bool {
         await engine.hasSyncedCredential(for: identityKey)
     }

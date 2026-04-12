@@ -9,13 +9,19 @@ import SwiftUI
 
 struct WatchStorageUnavailableView: View {
     let message: String
+    let onRetry: () -> Void
 
     var body: some View {
-        ContentUnavailableView(
-            "Storage Unavailable",
-            systemImage: "externaldrive.badge.xmark",
-            description: Text("Codex Switcher couldn't open its iCloud-backed account database. \(message)")
-        )
+        VStack(spacing: 12) {
+            ContentUnavailableView(
+                "Storage Unavailable",
+                systemImage: "externaldrive.badge.xmark",
+                description: Text("Codex Switcher couldn't open its iCloud-backed account database. \(message)")
+            )
+
+            Button("Retry", action: onRetry)
+                .buttonStyle(.borderedProminent)
+        }
         .padding()
     }
 }

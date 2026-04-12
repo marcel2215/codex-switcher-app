@@ -36,6 +36,9 @@ struct WatchAccountsRootView: View {
             Group {
                 if displayedAccounts.isEmpty {
                     WatchEmptyStateView(searchText: searchText)
+                        .onAppear {
+                            clearSelectedRateLimitTracking()
+                        }
                 } else {
                     List(displayedAccounts) { account in
                         NavigationLink {
@@ -56,6 +59,9 @@ struct WatchAccountsRootView: View {
                     }
                     .refreshable {
                         await refreshController.refreshTrackedAccountsNow()
+                    }
+                    .onAppear {
+                        clearSelectedRateLimitTracking()
                     }
                 }
             }
@@ -124,17 +130,6 @@ struct WatchAccountsRootView: View {
         }
     }
 
-    private func rowMenuLabel(title: String, isSelected: Bool) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-
-            if isSelected {
-                Image(systemName: "checkmark")
-            }
-        }
-    }
-
     private func restoreSortPreferences() {
         let resolvedCriterion = AccountSortCriterion(rawValue: sortPreferences.sortCriterionRawValue) ?? .dateAdded
         let resolvedDirection = AccountsPresentationLogic.normalizedSortDirection(
@@ -186,4 +181,24 @@ struct WatchAccountsRootView: View {
             sortDirectionRawValue: sortDirection.rawValue
         )
     }
+
+    private func clearSelectedRateLimitTracking() {
+        Task { @MainActor in
+            // Clear selection after the navigation stack settles so pushing into
+            // child editors under an account detail does not immediately drop
+            // the selected-account refresh cadence.
+            await Task.yield()
+            refreshController.setSelected(identityKey: nil)
+        }
+    }
+}
+
+#Preview("Accounts") {
+    WatchAccountsRootView()
+        .modelContainer(WatchPreviewData.makeContainer())
+}
+
+#Preview("Empty") {
+    WatchAccountsRootView()
+        .modelContainer(WatchAppBootstrap.make(isStoredInMemoryOnly: true).modelContainerForPreview)
 }

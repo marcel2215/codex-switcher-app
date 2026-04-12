@@ -171,6 +171,10 @@ final class ForegroundRateLimitRefreshController {
         }
     }
 
+    func refreshNowAndWait(for identityKey: String) async {
+        await refreshIfNeeded(identityKey: normalizedIdentityKey(identityKey), force: true)
+    }
+
     func hasSyncedCredential(for identityKey: String) async -> Bool {
         let normalizedIdentityKey = normalizedIdentityKey(identityKey)
         guard !normalizedIdentityKey.isEmpty else {
@@ -283,17 +287,19 @@ final class ForegroundRateLimitRefreshController {
             return
         }
 
-        guard
-            let modelContext,
-            let account = fetchAccount(identityKey: identityKey, in: modelContext)
-        else {
+        guard let modelContext, !Task.isCancelled else {
+            return
+        }
+
+        let accounts = fetchAccounts(identityKey: identityKey, in: modelContext)
+        guard let referenceAccount = refreshReferenceAccount(from: accounts) else {
             return
         }
 
         let now = Date()
         let hasUnauthorizedBackoff = unauthorizedFingerprintByIdentityKey[identityKey] != nil
         if !force && !hasUnauthorizedBackoff {
-            guard shouldRefresh(identityKey: identityKey, account: account, now: now) else {
+            guard shouldRefresh(identityKey: identityKey, account: referenceAccount, now: now) else {
                 return
             }
         }
@@ -318,7 +324,7 @@ final class ForegroundRateLimitRefreshController {
         }
 
         if !force, hasUnauthorizedBackoff, !credentialFingerprintChangedAfterUnauthorized {
-            guard shouldRefresh(identityKey: identityKey, account: account, now: now) else {
+            guard shouldRefresh(identityKey: identityKey, account: referenceAccount, now: now) else {
                 return
             }
         }
@@ -339,7 +345,12 @@ final class ForegroundRateLimitRefreshController {
             let adjustedSnapshot = snapshot.applyingResetBoundaries()
             snapshotsByIdentityKey[identityKey] = adjustedSnapshot
 
-            if RateLimitAccountUpdater.apply(adjustedSnapshot, to: account) {
+            var didChange = false
+            for account in accounts {
+                didChange = RateLimitAccountUpdater.apply(adjustedSnapshot, to: account) || didChange
+            }
+
+            if didChange {
                 do {
                     try modelContext.save()
                 } catch {
@@ -413,13 +424,13 @@ final class ForegroundRateLimitRefreshController {
         }
 
         do {
-            let accountsByIdentityKey = firstAccountByIdentityKey(
+            let accountsByIdentityKey = groupedAccountsByIdentityKey(
                 from: try modelContext.fetch(FetchDescriptor<StoredAccount>())
             )
             var didChange = false
 
-            for (identityKey, account) in accountsByIdentityKey {
-                guard let baseSnapshot = snapshotsByIdentityKey[identityKey] ?? storedSnapshot(from: account) else {
+            for (identityKey, accounts) in accountsByIdentityKey {
+                guard let baseSnapshot = snapshotsByIdentityKey[identityKey] ?? storedSnapshot(from: accounts) else {
                     continue
                 }
 
@@ -429,7 +440,9 @@ final class ForegroundRateLimitRefreshController {
                 }
 
                 snapshotsByIdentityKey[identityKey] = adjustedSnapshot
-                didChange = RateLimitAccountUpdater.apply(adjustedSnapshot, to: account) || didChange
+                for account in accounts {
+                    didChange = RateLimitAccountUpdater.apply(adjustedSnapshot, to: account) || didChange
+                }
             }
 
             if didChange {
@@ -440,11 +453,10 @@ final class ForegroundRateLimitRefreshController {
         }
     }
 
-    private func fetchAccount(identityKey: String, in modelContext: ModelContext) -> StoredAccount? {
+    private func fetchAccounts(identityKey: String, in modelContext: ModelContext) -> [StoredAccount] {
         let predicate = #Predicate<StoredAccount> { $0.identityKey == identityKey }
-        var descriptor = FetchDescriptor<StoredAccount>(predicate: predicate)
-        descriptor.fetchLimit = 1
-        return try? modelContext.fetch(descriptor).first
+        let descriptor = FetchDescriptor<StoredAccount>(predicate: predicate)
+        return (try? modelContext.fetch(descriptor)) ?? []
     }
 
     private func bestAvailableCredential(for identityKey: String) async -> SyncedRateLimitCredential? {
@@ -482,12 +494,36 @@ final class ForegroundRateLimitRefreshController {
         )
     }
 
+    private func storedSnapshot(from accounts: [StoredAccount]) -> CodexRateLimitSnapshot? {
+        accounts
+            .compactMap { storedSnapshot(from: $0) }
+            .max { lhs, rhs in
+                if lhs.observedAt == rhs.observedAt {
+                    return lhs.fetchedAt < rhs.fetchedAt
+                }
+
+                return lhs.observedAt < rhs.observedAt
+            }
+    }
+
     private func normalizedIdentityKey(_ identityKey: String?) -> String {
         identityKey?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    private func firstAccountByIdentityKey(from accounts: [StoredAccount]) -> [String: StoredAccount] {
-        var accountsByIdentityKey: [String: StoredAccount] = [:]
+    private func refreshReferenceAccount(from accounts: [StoredAccount]) -> StoredAccount? {
+        accounts.max { lhs, rhs in
+            let lhsObservedAt = lhs.rateLimitsObservedAt ?? .distantPast
+            let rhsObservedAt = rhs.rateLimitsObservedAt ?? .distantPast
+            if lhsObservedAt == rhsObservedAt {
+                return lhs.createdAt < rhs.createdAt
+            }
+
+            return lhsObservedAt < rhsObservedAt
+        }
+    }
+
+    private func groupedAccountsByIdentityKey(from accounts: [StoredAccount]) -> [String: [StoredAccount]] {
+        var accountsByIdentityKey: [String: [StoredAccount]] = [:]
 
         for account in accounts {
             let identityKey = normalizedIdentityKey(account.identityKey)
@@ -495,9 +531,7 @@ final class ForegroundRateLimitRefreshController {
                 continue
             }
 
-            if accountsByIdentityKey[identityKey] == nil {
-                accountsByIdentityKey[identityKey] = account
-            }
+            accountsByIdentityKey[identityKey, default: []].append(account)
         }
 
         return accountsByIdentityKey

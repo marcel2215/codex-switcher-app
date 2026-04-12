@@ -1,6 +1,6 @@
 //
 //  PresentedError.swift
-//  Codex Switcher Watch App
+//  Codex Switcher
 //
 //  Created by Codex on 2026-04-12.
 //

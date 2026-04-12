@@ -12,7 +12,8 @@ struct WatchAccountDetailView: View {
     private enum LiveRefreshStatus {
         case checking
         case available
-        case unavailable
+        case waitingForCredential
+        case unavailableForAPIKey
     }
 
     @Environment(\.dismiss) private var dismiss
@@ -58,28 +59,26 @@ struct WatchAccountDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if let observedAt = account.rateLimitsObservedAt {
                         Text("Updated \(observedAt, style: .relative)")
-                            .privacySensitive()
                     }
 
-                    if liveRefreshStatus == .unavailable {
-                        Text("Live refresh unavailable on this watch yet.")
+                    switch liveRefreshStatus {
+                    case .waitingForCredential:
+                        Text("Waiting for iCloud Keychain to sync this account.")
+                    case .unavailableForAPIKey:
+                        Text("Live refresh isn't available for API-key accounts.")
+                    case .checking, .available:
+                        EmptyView()
                     }
                 }
             }
 
             Section("Account") {
                 if let emailHint = normalized(account.emailHint) {
-                    LabeledContent("Email") {
-                        Text(emailHint)
-                            .privacySensitive()
-                    }
+                    WatchMetadataRow(title: "Email", value: emailHint, isSensitive: true)
                 }
 
                 if let accountID = normalized(account.accountIdentifier) {
-                    LabeledContent("ID") {
-                        Text(accountID)
-                            .privacySensitive()
-                    }
+                    WatchMetadataRow(title: "ID", value: accountID, isSensitive: true)
                 }
 
                 LabeledContent("Last Login") {
@@ -109,17 +108,12 @@ struct WatchAccountDetailView: View {
         }
         .navigationTitle(displayName)
         .refreshable {
-            await refreshController.refreshTrackedAccountsNow()
+            await refreshController.refreshNowAndWait(for: account.identityKey)
             await updateLiveRefreshAvailability()
         }
         .task(id: account.identityKey) {
             await updateLiveRefreshAvailability()
             refreshController.setSelected(identityKey: account.identityKey)
-            refreshController.refreshNow(for: account.identityKey)
-        }
-        .onDisappear {
-            refreshController.setSelected(identityKey: nil)
-            persistDraftName()
         }
         .confirmationDialog(
             "Remove this account?",
@@ -171,14 +165,46 @@ struct WatchAccountDetailView: View {
     }
 
     private func updateLiveRefreshAvailability() async {
+        if CodexAuthMode(rawValue: account.authModeRaw) == .apiKey {
+            liveRefreshStatus = .unavailableForAPIKey
+            return
+        }
+
         liveRefreshStatus = await refreshController.hasSyncedCredential(for: account.identityKey)
             ? .available
-            : .unavailable
+            : .waitingForCredential
     }
 
     private func normalized(_ value: String?) -> String? {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+private struct WatchMetadataRow: View {
+    let title: String
+    let value: String
+    let isSensitive: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            if isSensitive {
+                Text(value)
+                    .font(.footnote)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .privacySensitive()
+            } else {
+                Text(value)
+                    .font(.footnote)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+        }
     }
 }
 
@@ -200,11 +226,16 @@ private struct WatchRateLimitCard: View {
 
                 Text(AccountDisplayFormatter.compactPercentDescription(remainingPercent))
                     .font(.headline.monospacedDigit())
-                    .privacySensitive()
             }
 
-            Gauge(value: Double(AccountDisplayFormatter.clampedPercentValue(remainingPercent) ?? 0), in: 0...100) {
-                EmptyView()
+            if let percent = AccountDisplayFormatter.clampedPercentValue(remainingPercent) {
+                Gauge(value: Double(percent), in: 0...100) {
+                    EmptyView()
+                }
+            } else {
+                Text("Not available yet")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             if let resetsAt, resetsAt > now {
@@ -217,4 +248,50 @@ private struct WatchRateLimitCard: View {
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
     }
+}
+
+#Preview("Account Detail") {
+    let container = WatchPreviewData.makeContainer()
+    let descriptor = FetchDescriptor<StoredAccount>()
+    let account = try! container.mainContext.fetch(descriptor).first!
+
+    return NavigationStack {
+        WatchAccountDetailView(
+            account: account,
+            refreshController: WatchRateLimitRefreshController(),
+            onError: { _ in }
+        )
+    }
+    .modelContainer(container)
+}
+
+#Preview("Missing Limits") {
+    let container = WatchPreviewData.makeContainer()
+    let descriptor = FetchDescriptor<StoredAccount>()
+    let account = try! container.mainContext.fetch(descriptor).last!
+
+    return NavigationStack {
+        WatchAccountDetailView(
+            account: account,
+            refreshController: WatchRateLimitRefreshController(),
+            onError: { _ in }
+        )
+    }
+    .modelContainer(container)
+}
+
+#Preview("Reduced Luminance") {
+    let container = WatchPreviewData.makeContainer()
+    let descriptor = FetchDescriptor<StoredAccount>()
+    let account = try! container.mainContext.fetch(descriptor).first!
+
+    return NavigationStack {
+        WatchAccountDetailView(
+            account: account,
+            refreshController: WatchRateLimitRefreshController(),
+            onError: { _ in }
+        )
+    }
+    .modelContainer(container)
+    .environment(\.isLuminanceReduced, true)
 }
