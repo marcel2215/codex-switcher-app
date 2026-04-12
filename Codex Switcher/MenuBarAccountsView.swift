@@ -23,12 +23,11 @@ struct MenuBarAccountsView: View {
     }
 
     private var accountListHeight: CGFloat {
-        // Menu bar rows are two-line cells with icon padding, subtitle text,
-        // and inter-row spacing. Budget enough height per row so the panel
-        // can show the full visible account set before it needs to scroll.
-        let rowHeight: CGFloat = 58
-        let rowSpacing: CGFloat = 4
-        let bottomInset: CGFloat = 10
+        // Menu bar rows are intentionally denser than the main window list so
+        // the panel can show more accounts without wasting vertical space.
+        let rowHeight: CGFloat = 46
+        let rowSpacing: CGFloat = 2
+        let bottomInset: CGFloat = 4
         let visibleRows = min(max(displayedAccounts.count, 1), 14)
         let totalRowHeight = CGFloat(visibleRows) * rowHeight
         let totalSpacing = CGFloat(max(visibleRows - 1, 0)) * rowSpacing
@@ -40,7 +39,7 @@ struct MenuBarAccountsView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             header
 
             if controller.shouldShowAuthStatusBanner {
@@ -49,7 +48,7 @@ struct MenuBarAccountsView: View {
 
             accountSection
         }
-        .padding(14)
+        .padding(10)
         // Let the row list determine the natural content height so short menus
         // don't keep a stale fixed panel size with empty space at the bottom.
         .frame(width: 360, alignment: .top)
@@ -74,7 +73,7 @@ struct MenuBarAccountsView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Codex Switcher")
                     .font(.headline)
@@ -92,7 +91,7 @@ struct MenuBarAccountsView: View {
 
             Spacer()
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 chromeButton(
                     systemImage: "plus",
                     helpText: "Add Account",
@@ -138,18 +137,21 @@ struct MenuBarAccountsView: View {
                 // before they materialize children, which leaves a blank region
                 // instead of visible rows. Use an eager stack plus an explicit
                 // scroll height so the account list renders reliably here.
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     ForEach(displayedAccounts) { account in
+                        let isCurrentAccount = account.identityKey == controller.activeIdentityKey
                         Button {
                             controller.login(accountID: account.id)
                         } label: {
-                            HStack(spacing: 10) {
+                            HStack(spacing: 8) {
                                 Image(systemName: account.iconSystemName)
-                                    .frame(width: 18)
-                                    .foregroundStyle(.primary)
+                                    .font(.callout)
+                                    .frame(width: 20, height: 20)
+                                    .foregroundStyle(.secondary)
 
-                                VStack(alignment: .leading, spacing: 2) {
+                                VStack(alignment: .leading, spacing: 1) {
                                     Text(account.name)
+                                        .font(.callout.weight(.semibold))
                                         .lineLimit(1)
 
                                     AccountMetadataText(
@@ -160,25 +162,30 @@ struct MenuBarAccountsView: View {
                                     )
                                 }
 
-                                Spacer(minLength: 12)
+                                Spacer(minLength: 8)
 
-                                if account.identityKey == controller.activeIdentityKey {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.green)
+                                Group {
+                                    if isCurrentAccount {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.accent)
+                                    } else {
+                                        Color.clear
+                                    }
                                 }
+                                .frame(width: 16, height: 16)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background {
+                                if isCurrentAccount {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(currentAccountBackground)
+                                }
+                            }
+                            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
                         .buttonStyle(.plain)
-                        .overlay(alignment: .leading) {
-                            if account.identityKey == controller.activeIdentityKey {
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .strokeBorder(.secondary.opacity(0.25), lineWidth: 1)
-                            }
-                        }
                         .disabled(controller.isSwitching)
                         .onAppear {
                             controller.setRateLimitVisibility(true, for: account.identityKey)
@@ -192,6 +199,10 @@ struct MenuBarAccountsView: View {
             .scrollIndicators(.hidden)
             .frame(height: accountSectionHeight)
         }
+    }
+
+    private var currentAccountBackground: Color {
+        Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
     }
 
     private func openMainWindow() {
