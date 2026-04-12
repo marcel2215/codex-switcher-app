@@ -9,14 +9,14 @@ import Foundation
 import OSLog
 import Security
 
-nonisolated protocol SyncedRateLimitCredentialStoring: Sendable {
+protocol SyncedRateLimitCredentialStoring: Sendable {
     func save(_ credential: SyncedRateLimitCredential) async throws
     func load(forIdentityKey identityKey: String) async throws -> SyncedRateLimitCredential
     func delete(forIdentityKey identityKey: String) async throws
     func containsCredential(forIdentityKey identityKey: String) async -> Bool
 }
 
-nonisolated enum SyncedRateLimitCredentialStoreError: LocalizedError, Equatable {
+enum SyncedRateLimitCredentialStoreError: LocalizedError, Equatable {
     case invalidIdentityKey
     case missingCredential
     case invalidPayload
@@ -37,8 +37,6 @@ nonisolated enum SyncedRateLimitCredentialStoreError: LocalizedError, Equatable 
 }
 
 actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
-    private nonisolated static let service = "com.marcel2215.codexswitcher.syncedRateLimitCredentials"
-
     private let accessGroup: String
     private let logger: Logger
 
@@ -148,7 +146,7 @@ actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecUseDataProtectionKeychain as String: true,
-            kSecAttrService as String: Self.service,
+            kSecAttrService as String: "com.marcel2215.codexswitcher.syncedRateLimitCredentials",
             kSecAttrAccount as String: identityKey,
             kSecAttrAccessGroup as String: accessGroup,
             kSecAttrSynchronizable as String: kCFBooleanTrue as Any,

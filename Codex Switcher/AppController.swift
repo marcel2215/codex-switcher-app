@@ -3064,6 +3064,10 @@ final class AppController {
                     lastLoginAt: account.lastLoginAt,
                     sevenDayLimitUsedPercent: account.sevenDayLimitUsedPercent,
                     fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
+                    sevenDayResetsAt: account.sevenDayResetsAt,
+                    fiveHourResetsAt: account.fiveHourResetsAt,
+                    sevenDayDataStatusRaw: account.sevenDayDataStatus.rawValue,
+                    fiveHourDataStatusRaw: account.fiveHourDataStatus.rawValue,
                     rateLimitsObservedAt: account.rateLimitsObservedAt,
                     sortOrder: account.customOrder,
                     hasLocalSnapshot: account.hasLocalSnapshot

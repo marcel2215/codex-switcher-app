@@ -53,6 +53,10 @@ struct AccountsRootView: View {
         editMode == .active
     }
 
+    private var widgetSnapshotFingerprint: Int {
+        WidgetSnapshotPublisher.fingerprint(for: accounts)
+    }
+
     private var activeAlert: Binding<ActiveAlert?> {
         Binding(
             get: {
@@ -83,163 +87,172 @@ struct AccountsRootView: View {
     }
 
     var body: some View {
-        @Bindable var bindableController = controller
+        let searchTextBinding = Binding(
+            get: { controller.searchText },
+            set: { controller.searchText = $0 }
+        )
+        let rootContent = usesCompactNavigation
+            ? AnyView(compactRootView(searchText: searchTextBinding))
+            : AnyView(regularRootView(searchText: searchTextBinding))
 
-        Group {
-            if usesCompactNavigation {
-                NavigationStack {
-                    compactAccountsList
-                        .navigationTitle("Accounts")
-                        .navigationDestination(for: UUID.self, destination: compactAccountDestination)
-                        .searchable(text: $bindableController.searchText, prompt: "Search")
-                        .toolbar(content: rootToolbar)
-                }
-            } else {
-                NavigationSplitView {
-                    regularAccountsList
-                        .navigationTitle("Accounts")
-                        .searchable(text: $bindableController.searchText, prompt: "Search")
-                        .toolbar(content: rootToolbar)
-                } detail: {
-                    if let selectedAccount {
-                        accountDetailView(for: selectedAccount)
-                    } else {
-                        ContentUnavailableView(
-                            "Select an Account",
-                            systemImage: "person.crop.circle",
-                            description: Text("Choose an account to view and edit its details.")
-                        )
-                    }
-                }
-            }
-        }
-        .environment(\.editMode, $editMode)
-        .task {
-            sortPreferences.synchronize()
-            controller.restoreSortPreferences(
-                sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
-                sortDirectionRawValue: sortPreferences.sortDirectionRawValue
-            )
-            rateLimitRefreshController.configure(modelContext: modelContext)
-            rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
-            rateLimitRefreshController.setScenePhase(scenePhase)
-            syncRegularSelectedRateLimitTracking(for: selectedAccountID)
-        }
-        .onChange(of: controller.sortCriterion) { _, newValue in
-            sortPreferences.persist(
-                sortCriterionRawValue: newValue.rawValue,
-                sortDirectionRawValue: controller.sortDirection.rawValue
-            )
-        }
-        .onChange(of: controller.sortDirection) { _, newValue in
-            sortPreferences.persist(
-                sortCriterionRawValue: controller.sortCriterion.rawValue,
-                sortDirectionRawValue: newValue.rawValue
-            )
-        }
-        .onChange(of: sortPreferences.sortCriterionRawValue) { _, newValue in
-            controller.restoreSortPreferences(
-                sortCriterionRawValue: newValue,
-                sortDirectionRawValue: sortPreferences.sortDirectionRawValue
-            )
-        }
-        .onChange(of: sortPreferences.sortDirectionRawValue) { _, newValue in
-            controller.restoreSortPreferences(
-                sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
-                sortDirectionRawValue: newValue
-            )
-        }
-        .onChange(of: usesCompactNavigation) { _, isCompact in
-            if isCompact {
-                selectedAccountID = nil
-            }
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            rateLimitRefreshController.setScenePhase(newPhase)
-        }
-        .onChange(of: editMode) { _, newMode in
-            if newMode == .active {
-                selectedAccountID = nil
-                return
-            }
-
-            selectedAccountIDsForEditing.removeAll()
-        }
-        .onChange(of: selectedAccountID) { _, newSelection in
-            syncRegularSelectedRateLimitTracking(for: newSelection)
-        }
-        .onChange(of: accounts.map(\.id)) { _, ids in
-            if let selectedAccountID, !ids.contains(selectedAccountID) {
-                self.selectedAccountID = nil
-            }
-
-            selectedAccountIDsForEditing.formIntersection(Set(ids))
-        }
-        .onChange(of: displayedAccounts.map(\.id)) { _, ids in
-            selectedAccountIDsForEditing.formIntersection(Set(ids))
-        }
-        .onChange(of: accounts.map(\.identityKey)) { _, identityKeys in
-            rateLimitRefreshController.reconcileKnownIdentityKeys(identityKeys)
-        }
-        .sheet(isPresented: $showingSettings) {
-            NavigationStack {
-                IOSSettingsView()
-            }
-            .presentationDragIndicator(.visible)
-        }
-        .alert(item: activeAlert, content: makeAlert)
+        configuredRootContent(rootContent)
     }
 
-    @ViewBuilder
-    private var compactAccountsList: some View {
-        if displayedAccounts.isEmpty {
-            emptyState
-        } else if isEditing {
-            editableAccountsList
-        } else {
-            List {
-                ForEach(displayedAccounts) { account in
-                    NavigationLink(value: account.id) {
-                        IOSAccountRow(account: account)
-                    }
-                    .onAppear {
-                        rateLimitRefreshController.setVisible(true, for: account.identityKey)
-                    }
-                    .onDisappear {
-                        rateLimitRefreshController.setVisible(false, for: account.identityKey)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            accountPendingDeletion = account
-                        } label: {
-                            Label("Remove", systemImage: "trash")
-                        }
-                    }
-                }
-                .onMove { source, destination in
-                    controller.move(
-                        from: source,
-                        to: destination,
-                        visibleAccounts: displayedAccounts,
-                        in: modelContext
+    private func compactRootView(searchText: Binding<String>) -> some View {
+        AnyView(
+            NavigationStack {
+                compactAccountsList
+                    .navigationTitle("Accounts")
+                    .navigationDestination(for: UUID.self, destination: compactAccountDestination)
+                    .searchable(text: searchText, prompt: "Search")
+                    .toolbar(content: rootToolbar)
+            }
+        )
+    }
+
+    private func regularRootView(searchText: Binding<String>) -> some View {
+        AnyView(
+            NavigationSplitView {
+                regularAccountsList
+                    .navigationTitle("Accounts")
+                    .searchable(text: searchText, prompt: "Search")
+                    .toolbar(content: rootToolbar)
+            } detail: {
+                if let selectedAccount {
+                    accountDetailView(for: selectedAccount)
+                } else {
+                    ContentUnavailableView(
+                        "Select an Account",
+                        systemImage: "person.crop.circle",
+                        description: Text("Choose an account to view and edit its details.")
                     )
                 }
-                .moveDisabled(!controller.canEditCustomOrder)
             }
+        )
+    }
+
+    private func configuredRootContent(_ rootContent: AnyView) -> some View {
+        let contentWithObservers = AnyView(
+            rootContent
+            .environment(\.editMode, $editMode)
+            .task {
+                sortPreferences.synchronize()
+                controller.restoreSortPreferences(
+                    sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
+                    sortDirectionRawValue: sortPreferences.sortDirectionRawValue
+                )
+                rateLimitRefreshController.configure(modelContext: modelContext)
+                rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
+                rateLimitRefreshController.setScenePhase(scenePhase)
+                syncRegularSelectedRateLimitTracking(for: selectedAccountID)
+            }
+            .onChange(of: controller.sortCriterion) { _, newValue in
+                sortPreferences.persist(
+                    sortCriterionRawValue: newValue.rawValue,
+                    sortDirectionRawValue: controller.sortDirection.rawValue
+                )
+            }
+            .onChange(of: controller.sortDirection) { _, newValue in
+                sortPreferences.persist(
+                    sortCriterionRawValue: controller.sortCriterion.rawValue,
+                    sortDirectionRawValue: newValue.rawValue
+                )
+            }
+            .onChange(of: sortPreferences.sortCriterionRawValue) { _, newValue in
+                controller.restoreSortPreferences(
+                    sortCriterionRawValue: newValue,
+                    sortDirectionRawValue: sortPreferences.sortDirectionRawValue
+                )
+            }
+            .onChange(of: sortPreferences.sortDirectionRawValue) { _, newValue in
+                controller.restoreSortPreferences(
+                    sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
+                    sortDirectionRawValue: newValue
+                )
+            }
+            .onChange(of: usesCompactNavigation) { _, isCompact in
+                handleCompactNavigationChange(isCompact)
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                handleScenePhaseChange(newPhase)
+            }
+            .onChange(of: editMode) { _, newMode in
+                handleEditModeChange(newMode)
+            }
+            .onChange(of: selectedAccountID) { _, newSelection in
+                syncRegularSelectedRateLimitTracking(for: newSelection)
+            }
+            .onChange(of: accounts.map(\.id)) { _, ids in
+                handleAccountIDsChange(ids)
+            }
+            .onChange(of: displayedAccounts.map(\.id)) { _, ids in
+                selectedAccountIDsForEditing.formIntersection(Set(ids))
+            }
+            .onChange(of: accounts.map(\.identityKey)) { _, identityKeys in
+                handleIdentityKeysChange(identityKeys)
+            }
+            .task(id: widgetSnapshotFingerprint) {
+                WidgetSnapshotPublisher.publish(modelContext: modelContext)
+            }
+        )
+
+        return contentWithObservers
+            .sheet(isPresented: $showingSettings) {
+                settingsSheetView()
+            }
+            .alert(item: activeAlert, content: makeAlert)
+    }
+
+    private func settingsSheetView() -> some View {
+        NavigationStack {
+            IOSSettingsView()
+        }
+        .presentationDragIndicator(.visible)
+    }
+
+    private func handleCompactNavigationChange(_ isCompact: Bool) {
+        if isCompact {
+            selectedAccountID = nil
         }
     }
 
-    @ViewBuilder
-    private var regularAccountsList: some View {
+    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+        rateLimitRefreshController.setScenePhase(newPhase)
+    }
+
+    private func handleEditModeChange(_ newMode: EditMode) {
+        if newMode == .active {
+            selectedAccountID = nil
+            return
+        }
+
+        selectedAccountIDsForEditing.removeAll()
+    }
+
+    private func handleAccountIDsChange(_ ids: [UUID]) {
+        if let selectedAccountID, !ids.contains(selectedAccountID) {
+            self.selectedAccountID = nil
+        }
+
+        selectedAccountIDsForEditing.formIntersection(Set(ids))
+    }
+
+    private func handleIdentityKeysChange(_ identityKeys: [String]) {
+        rateLimitRefreshController.reconcileKnownIdentityKeys(identityKeys)
+    }
+
+    private var compactAccountsList: AnyView {
         if displayedAccounts.isEmpty {
-            emptyState
+            AnyView(emptyState)
         } else if isEditing {
-            editableAccountsList
+            AnyView(editableAccountsList)
         } else {
-            List(selection: $selectedAccountID) {
-                ForEach(displayedAccounts) { account in
-                    IOSAccountRow(account: account)
-                        .tag(account.id)
+            AnyView(
+                List {
+                    ForEach(displayedAccounts) { account in
+                        NavigationLink(value: account.id) {
+                            IOSAccountRow(account: account)
+                        }
                         .onAppear {
                             rateLimitRefreshController.setVisible(true, for: account.identityKey)
                         }
@@ -253,17 +266,57 @@ struct AccountsRootView: View {
                                 Label("Remove", systemImage: "trash")
                             }
                         }
+                    }
+                    .onMove { source, destination in
+                        controller.move(
+                            from: source,
+                            to: destination,
+                            visibleAccounts: displayedAccounts,
+                            in: modelContext
+                        )
+                    }
+                    .moveDisabled(!controller.canEditCustomOrder)
                 }
-                .onMove { source, destination in
-                    controller.move(
-                        from: source,
-                        to: destination,
-                        visibleAccounts: displayedAccounts,
-                        in: modelContext
-                    )
+            )
+        }
+    }
+
+    private var regularAccountsList: AnyView {
+        if displayedAccounts.isEmpty {
+            AnyView(emptyState)
+        } else if isEditing {
+            AnyView(editableAccountsList)
+        } else {
+            AnyView(
+                List(selection: $selectedAccountID) {
+                    ForEach(displayedAccounts) { account in
+                        IOSAccountRow(account: account)
+                            .tag(account.id)
+                            .onAppear {
+                                rateLimitRefreshController.setVisible(true, for: account.identityKey)
+                            }
+                            .onDisappear {
+                                rateLimitRefreshController.setVisible(false, for: account.identityKey)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    accountPendingDeletion = account
+                                } label: {
+                                    Label("Remove", systemImage: "trash")
+                                }
+                            }
+                    }
+                    .onMove { source, destination in
+                        controller.move(
+                            from: source,
+                            to: destination,
+                            visibleAccounts: displayedAccounts,
+                            in: modelContext
+                        )
+                    }
+                    .moveDisabled(!controller.canEditCustomOrder)
                 }
-                .moveDisabled(!controller.canEditCustomOrder)
-            }
+            )
         }
     }
 

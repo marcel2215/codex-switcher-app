@@ -5,7 +5,7 @@
 //  Created by Codex on 2026-04-10.
 //
 
-import AppIntents
+@preconcurrency import AppIntents
 import Foundation
 import UserNotifications
 
@@ -35,11 +35,7 @@ struct SetNotificationsIntent: AppIntent {
     )
     var state: CodexIntentToggleState
 
-    static var parameterSummary: some ParameterSummary {
-        Summary("Turn notifications \(\.$state)")
-    }
-
-    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
+    func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
         if state.isEnabled {
             let settings = await UNUserNotificationCenter.current().notificationSettings()
 
@@ -70,6 +66,7 @@ struct SetNotificationsIntent: AppIntent {
     }
 }
 
+#if os(macOS)
 struct SetMenuBarVisibilityIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Menu Bar Visibility"
     static let description = IntentDescription("Turns Codex Switcher's menu-bar item on or off.")
@@ -81,11 +78,7 @@ struct SetMenuBarVisibilityIntent: AppIntent {
     )
     var state: CodexIntentToggleState
 
-    static var parameterSummary: some ParameterSummary {
-        Summary("Turn Show in Menu Bar \(\.$state)")
-    }
-
-    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
+    func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
         let wasEnabled = CodexSharedPreferences.showMenuBarExtra
         let isEnabled = state.isEnabled
 
@@ -117,11 +110,7 @@ struct SetLaunchAtLoginIntent: AppIntent {
     )
     var state: CodexIntentToggleState
 
-    static var parameterSummary: some ParameterSummary {
-        Summary("Turn Launch at Login \(\.$state)")
-    }
-
-    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
+    func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
         let targetState = state.isEnabled
         let currentState = CodexSharedLaunchAtLoginService.currentState()
 
@@ -156,6 +145,7 @@ struct SetLaunchAtLoginIntent: AppIntent {
         }
     }
 }
+#endif
 
 struct SetAutomaticSwitchAccountIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Automatically Switch Account"
@@ -168,11 +158,7 @@ struct SetAutomaticSwitchAccountIntent: AppIntent {
     )
     var state: CodexIntentToggleState
 
-    static var parameterSummary: some ParameterSummary {
-        Summary("Turn Automatically Switch Account \(\.$state)")
-    }
-
-    nonisolated func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
+    func perform() async throws -> some IntentResult & ReturnsValue<CodexIntentToggleState> & ProvidesDialog {
         let wasEnabled = CodexSharedPreferences.autopilotEnabled
         let isEnabled = state.isEnabled
 

@@ -39,6 +39,10 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
     var lastLoginAt: Date?
     var sevenDayLimitUsedPercent: Int?
     var fiveHourLimitUsedPercent: Int?
+    var sevenDayResetsAt: Date?
+    var fiveHourResetsAt: Date?
+    var sevenDayDataStatusRaw: String
+    var fiveHourDataStatusRaw: String
     var rateLimitsObservedAt: Date?
     var sortOrder: Double
     var hasLocalSnapshot: Bool
@@ -53,6 +57,10 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         case lastLoginAt
         case sevenDayLimitUsedPercent
         case fiveHourLimitUsedPercent
+        case sevenDayResetsAt
+        case fiveHourResetsAt
+        case sevenDayDataStatusRaw
+        case fiveHourDataStatusRaw
         case rateLimitsObservedAt
         case sortOrder
         case hasLocalSnapshot
@@ -69,6 +77,10 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         lastLoginAt: Date?,
         sevenDayLimitUsedPercent: Int?,
         fiveHourLimitUsedPercent: Int?,
+        sevenDayResetsAt: Date?,
+        fiveHourResetsAt: Date?,
+        sevenDayDataStatusRaw: String,
+        fiveHourDataStatusRaw: String,
         rateLimitsObservedAt: Date?,
         sortOrder: Double,
         hasLocalSnapshot: Bool
@@ -82,6 +94,10 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         self.lastLoginAt = lastLoginAt
         self.sevenDayLimitUsedPercent = sevenDayLimitUsedPercent
         self.fiveHourLimitUsedPercent = fiveHourLimitUsedPercent
+        self.sevenDayResetsAt = sevenDayResetsAt
+        self.fiveHourResetsAt = fiveHourResetsAt
+        self.sevenDayDataStatusRaw = sevenDayDataStatusRaw
+        self.fiveHourDataStatusRaw = fiveHourDataStatusRaw
         self.rateLimitsObservedAt = rateLimitsObservedAt
         self.sortOrder = sortOrder
         self.hasLocalSnapshot = hasLocalSnapshot
@@ -98,6 +114,12 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         lastLoginAt = try container.decodeIfPresent(Date.self, forKey: .lastLoginAt)
         sevenDayLimitUsedPercent = try container.decodeIfPresent(Int.self, forKey: .sevenDayLimitUsedPercent)
         fiveHourLimitUsedPercent = try container.decodeIfPresent(Int.self, forKey: .fiveHourLimitUsedPercent)
+        sevenDayResetsAt = try container.decodeIfPresent(Date.self, forKey: .sevenDayResetsAt)
+        fiveHourResetsAt = try container.decodeIfPresent(Date.self, forKey: .fiveHourResetsAt)
+        sevenDayDataStatusRaw = try container.decodeIfPresent(String.self, forKey: .sevenDayDataStatusRaw)
+            ?? SharedCodexAccountRecord.defaultMetricStatusRaw(for: sevenDayLimitUsedPercent)
+        fiveHourDataStatusRaw = try container.decodeIfPresent(String.self, forKey: .fiveHourDataStatusRaw)
+            ?? SharedCodexAccountRecord.defaultMetricStatusRaw(for: fiveHourLimitUsedPercent)
         rateLimitsObservedAt = try container.decodeIfPresent(Date.self, forKey: .rateLimitsObservedAt)
         sortOrder = try container.decode(Double.self, forKey: .sortOrder)
         hasLocalSnapshot = try container.decodeIfPresent(Bool.self, forKey: .hasLocalSnapshot)
@@ -115,14 +137,45 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         try container.encodeIfPresent(lastLoginAt, forKey: .lastLoginAt)
         try container.encodeIfPresent(sevenDayLimitUsedPercent, forKey: .sevenDayLimitUsedPercent)
         try container.encodeIfPresent(fiveHourLimitUsedPercent, forKey: .fiveHourLimitUsedPercent)
+        try container.encodeIfPresent(sevenDayResetsAt, forKey: .sevenDayResetsAt)
+        try container.encode(sevenDayDataStatusRaw, forKey: .sevenDayDataStatusRaw)
+        try container.encode(fiveHourDataStatusRaw, forKey: .fiveHourDataStatusRaw)
+        try container.encodeIfPresent(fiveHourResetsAt, forKey: .fiveHourResetsAt)
         try container.encodeIfPresent(rateLimitsObservedAt, forKey: .rateLimitsObservedAt)
         try container.encode(sortOrder, forKey: .sortOrder)
         try container.encode(hasLocalSnapshot, forKey: .hasLocalSnapshot)
     }
+
+    nonisolated var sevenDayDataStatus: RateLimitMetricDataStatus {
+        resolvedMetricStatus(rawValue: sevenDayDataStatusRaw, value: sevenDayLimitUsedPercent)
+    }
+
+    nonisolated var fiveHourDataStatus: RateLimitMetricDataStatus {
+        resolvedMetricStatus(rawValue: fiveHourDataStatusRaw, value: fiveHourLimitUsedPercent)
+    }
+
+    private nonisolated static func defaultMetricStatusRaw(for value: Int?) -> String {
+        value == nil ? RateLimitMetricDataStatus.missing.rawValue : RateLimitMetricDataStatus.exact.rawValue
+    }
+
+    private nonisolated func resolvedMetricStatus(
+        rawValue: String,
+        value: Int?
+    ) -> RateLimitMetricDataStatus {
+        guard let status = RateLimitMetricDataStatus(rawValue: rawValue) else {
+            return value == nil ? .missing : .exact
+        }
+
+        if status == .missing, value != nil {
+            return .exact
+        }
+
+        return status
+    }
 }
 
 nonisolated struct SharedCodexState: Codable, Sendable {
-    nonisolated static let currentSchemaVersion = 4
+    nonisolated static let currentSchemaVersion = 5
 
     var schemaVersion: Int
     var authState: SharedCodexAuthState

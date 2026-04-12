@@ -6,6 +6,8 @@
 //
 
 import Foundation
+
+#if os(macOS)
 import ServiceManagement
 
 struct CodexSharedLaunchAtLoginState: Equatable, Sendable {
@@ -71,3 +73,4 @@ enum CodexSharedLaunchAtLoginService {
         }
     }
 }
+#endif

@@ -31,6 +31,10 @@ struct WatchAccountsRootView: View {
         )
     }
 
+    private var widgetSnapshotFingerprint: Int {
+        WidgetSnapshotPublisher.fingerprint(for: accounts)
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -127,6 +131,9 @@ struct WatchAccountsRootView: View {
         }
         .onChange(of: sortPreferences.sortDirectionRawValue) { _, _ in
             restoreSortPreferences()
+        }
+        .task(id: widgetSnapshotFingerprint) {
+            WidgetSnapshotPublisher.publish(modelContext: modelContext)
         }
     }
 

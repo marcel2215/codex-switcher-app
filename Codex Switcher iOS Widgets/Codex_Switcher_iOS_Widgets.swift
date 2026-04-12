@@ -2,83 +2,44 @@
 //  Codex_Switcher_iOS_Widgets.swift
 //  Codex Switcher iOS Widgets
 //
-//  Created by Marcel Kwiatkowski on 2026-04-12.
+//  Created by Codex on 2026-04-12.
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
-struct Provider: TimelineProvider {
-    func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), emoji: "😀")
-    }
-
-    func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = SimpleEntry(date: Date(), emoji: "😀")
-        completion(entry)
-    }
-
-    func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
-        var entries: [SimpleEntry] = []
-
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, emoji: "😀")
-            entries.append(entry)
+struct RateLimitAccessoryWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(
+            kind: CodexSharedSurfaceKinds.rateLimitAccessoryWidget,
+            intent: RateLimitAccessoryConfigurationIntent.self,
+            provider: RateLimitAccessoryProvider()
+        ) { entry in
+            RateLimitAccessoryWidgetEntryView(entry: entry)
         }
-
-        let timeline = Timeline(entries: entries, policy: .atEnd)
-        completion(timeline)
+        .configurationDisplayName("Rate Limit")
+        .description("Shows one account's remaining 5h or 7d limit.")
+        .supportedFamilies([.accessoryCircular, .accessoryRectangular])
     }
-
-//    func relevances() async -> WidgetRelevances<Void> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
 }
 
-struct SimpleEntry: TimelineEntry {
-    let date: Date
-    let emoji: String
-}
+private struct RateLimitAccessoryWidgetEntryView: View {
+    @Environment(\.widgetFamily) private var family
 
-struct Codex_Switcher_iOS_WidgetsEntryView : View {
-    var entry: Provider.Entry
+    let entry: RateLimitAccessoryEntry
 
     var body: some View {
-        VStack {
-            Text("Time:")
-            Text(entry.date, style: .time)
-
-            Text("Emoji:")
-            Text(entry.emoji)
+        switch family {
+        case .accessoryCircular:
+            RateLimitCircularAccessoryView(
+                account: entry.account,
+                window: entry.window
+            )
+        default:
+            RateLimitRectangularAccessoryView(
+                account: entry.account,
+                window: entry.window
+            )
         }
     }
-}
-
-struct Codex_Switcher_iOS_Widgets: Widget {
-    let kind: String = "Codex_Switcher_iOS_Widgets"
-
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            if #available(iOS 17.0, *) {
-                Codex_Switcher_iOS_WidgetsEntryView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
-            } else {
-                Codex_Switcher_iOS_WidgetsEntryView(entry: entry)
-                    .padding()
-                    .background()
-            }
-        }
-        .configurationDisplayName("My Widget")
-        .description("This is an example widget.")
-    }
-}
-
-#Preview(as: .systemSmall) {
-    Codex_Switcher_iOS_Widgets()
-} timeline: {
-    SimpleEntry(date: .now, emoji: "😀")
-    SimpleEntry(date: .now, emoji: "🤩")
 }

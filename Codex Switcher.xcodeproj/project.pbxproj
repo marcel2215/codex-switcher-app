@@ -199,12 +199,51 @@
 			);
 			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
 		};
+		1FA700010001000100010001 /* Exceptions for "Shared" folder in "Codex Switcher" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CodexSharedSettingsIntents.swift,
+				CodexSharedSwitchControlIntent.swift,
+				CodexWidgetEntities.swift,
+				CodexWidgetIntents.swift,
+				WidgetSnapshotPublisher.swift,
+			);
+			target = 1F87C9462F8406C7007DED25 /* Codex Switcher */;
+		};
+		1FA700020002000200020002 /* Exceptions for "Shared" folder in "Codex Switcher iOS App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CodexWidgetEntities.swift,
+				CodexWidgetIntents.swift,
+				CodexSharedSwitchControlIntent.swift,
+			);
+			target = 1F96B5A52F89BF5100044DB7 /* Codex Switcher iOS App */;
+		};
+		1FA700030003000300030003 /* Exceptions for "Shared" folder in "Codex Switcher Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CodexSharedAppIntents.swift,
+				CodexSharedSettingsIntents.swift,
+				CodexWidgetEntities.swift,
+				CodexWidgetIntents.swift,
+				CodexSharedSwitchControlIntent.swift,
+			);
+			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
+		};
 		1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AppIcon.icon,
 			);
 			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */;
+		};
+		5B8E7D6C5B4A392817161514 /* Exceptions for "Shared" folder in "Codex Switcher Watch Widgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CodexSharedAppIntents.swift,
+				CodexSharedSwitchControlIntent.swift,
+			);
+			target = 1F2923082F8C125900BE19D2 /* Codex Switcher Watch Widgets */;
 		};
 		8A2E8F932F9B120100123456 /* Exceptions for "Codex Switcher Watch App" folder in "Codex Switcher Watch App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -296,6 +335,11 @@
 			path = "Codex Switcher Watch App UI Tests";
 			sourceTree = "<group>";
 		};
+		5B2C4D6E7F8091A2B3C4D5E6 /* Shared Widgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Shared Widgets";
+			sourceTree = "<group>";
+		};
 		6AE84D562BE14E0FA0856BF2 /* Shared Core */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Shared Core";
@@ -303,6 +347,12 @@
 		};
 		7A1B2C3D4E5F60718293A4B5 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1FA700010001000100010001 /* Exceptions for "Shared" folder in "Codex Switcher" target */,
+				1FA700020002000200020002 /* Exceptions for "Shared" folder in "Codex Switcher iOS App" target */,
+				1FA700030003000300030003 /* Exceptions for "Shared" folder in "Codex Switcher Watch App" target */,
+				5B8E7D6C5B4A392817161514 /* Exceptions for "Shared" folder in "Codex Switcher Watch Widgets" target */,
+			);
 			path = Shared;
 			sourceTree = "<group>";
 		};
@@ -426,6 +476,7 @@
 				1FA035602F8AF68300367DD6 /* Codex Switcher Watch App */,
 				1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Tests */,
 				1FA035782F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */,
+				5B2C4D6E7F8091A2B3C4D5E6 /* Shared Widgets */,
 				1F2922F52F8C123700BE19D2 /* Codex Switcher iOS Widgets */,
 				1F29230C2F8C125900BE19D2 /* Codex Switcher Watch Widgets */,
 				1F28ABAD2F86DA4A00639A74 /* Frameworks */,
@@ -469,6 +520,8 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F28ABB22F86DA4B00639A74 /* Codex Switcher Widgets */,
+				5B2C4D6E7F8091A2B3C4D5E6 /* Shared Widgets */,
+				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
 				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher Widgets";
@@ -492,6 +545,9 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F2922F52F8C123700BE19D2 /* Codex Switcher iOS Widgets */,
+				5B2C4D6E7F8091A2B3C4D5E6 /* Shared Widgets */,
+				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
+				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher iOS Widgets";
 			packageProductDependencies = (
@@ -514,6 +570,9 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F29230C2F8C125900BE19D2 /* Codex Switcher Watch Widgets */,
+				5B2C4D6E7F8091A2B3C4D5E6 /* Shared Widgets */,
+				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
+				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher Watch Widgets";
 			packageProductDependencies = (
@@ -613,6 +672,7 @@
 			fileSystemSynchronizedGroups = (
 				1F96B5A72F89BF5100044DB7 /* Codex Switcher iOS App */,
 				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
+				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher iOS App";
 			packageProductDependencies = (
@@ -684,6 +744,7 @@
 			fileSystemSynchronizedGroups = (
 				1FA035602F8AF68300367DD6 /* Codex Switcher Watch App */,
 				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
+				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher Watch App";
 			packageProductDependencies = (
@@ -1441,7 +1502,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "";
+				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "AnyResolverProviding AppEntity AppEnum AppExtension AppIntent AppIntentsPackage AppShortcutProviding AppShortcutsProvider AppUnionValue AppUnionValueCasesProviding DynamicOptionsProvider EntityQuery ExtensionPointDefining IntentValueQuery Resolver TransientEntity _AssistantIntentsProvider _GenerativeFunctionExtractable _IntentValueRepresentable";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -1489,7 +1550,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "";
+				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "AnyResolverProviding AppEntity AppEnum AppExtension AppIntent AppIntentsPackage AppShortcutProviding AppShortcutsProvider AppUnionValue AppUnionValueCasesProviding DynamicOptionsProvider EntityQuery ExtensionPointDefining IntentValueQuery Resolver TransientEntity _AssistantIntentsProvider _GenerativeFunctionExtractable _IntentValueRepresentable";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;

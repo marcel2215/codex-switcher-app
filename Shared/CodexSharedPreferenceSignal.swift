@@ -15,9 +15,13 @@ enum CodexSharedPreferenceFeedback {
     /// Broadcast preference mutations that can affect already-running app
     /// behavior, such as Autopilot residency and menu-bar presentation.
     nonisolated static func postPreferencesDidChange() {
+#if os(macOS)
         DistributedNotificationCenter.default().post(
             name: didChangePreferencesNotification,
             object: nil
         )
+#else
+        NotificationCenter.default.post(name: didChangePreferencesNotification, object: nil)
+#endif
     }
 }

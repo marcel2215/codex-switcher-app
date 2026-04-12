@@ -32,6 +32,11 @@ final class StoredAccount {
     // user-facing "left" amount, not "used".
     var sevenDayLimitUsedPercent: Int?
     var fiveHourLimitUsedPercent: Int?
+    // Widgets and compact surfaces need to distinguish a truly unknown value
+    // from a cached fallback so they can preserve the last known bar fill
+    // without pretending the data is live.
+    var sevenDayDataStatusRaw: String = RateLimitMetricDataStatus.missing.rawValue
+    var fiveHourDataStatusRaw: String = RateLimitMetricDataStatus.missing.rawValue
     var sevenDayResetsAt: Date?
     var fiveHourResetsAt: Date?
     var rateLimitsObservedAt: Date?
@@ -52,6 +57,8 @@ final class StoredAccount {
         accountIdentifier: String? = nil,
         sevenDayLimitUsedPercent: Int? = nil,
         fiveHourLimitUsedPercent: Int? = nil,
+        sevenDayDataStatusRaw: String? = nil,
+        fiveHourDataStatusRaw: String? = nil,
         sevenDayResetsAt: Date? = nil,
         fiveHourResetsAt: Date? = nil,
         rateLimitsObservedAt: Date? = nil,
@@ -71,10 +78,51 @@ final class StoredAccount {
         self.accountIdentifier = accountIdentifier
         self.sevenDayLimitUsedPercent = sevenDayLimitUsedPercent
         self.fiveHourLimitUsedPercent = fiveHourLimitUsedPercent
+        self.sevenDayDataStatusRaw = sevenDayDataStatusRaw
+            ?? Self.defaultMetricStatusRaw(for: sevenDayLimitUsedPercent)
+        self.fiveHourDataStatusRaw = fiveHourDataStatusRaw
+            ?? Self.defaultMetricStatusRaw(for: fiveHourLimitUsedPercent)
         self.sevenDayResetsAt = sevenDayResetsAt
         self.fiveHourResetsAt = fiveHourResetsAt
         self.rateLimitsObservedAt = rateLimitsObservedAt
         self.rateLimitDisplayVersion = rateLimitDisplayVersion
         self.iconSystemName = iconSystemName
+    }
+
+    /// Older synced rows may predate explicit data-status tracking. In that
+    /// case, preserve the existing value as exact instead of regressing to a
+    /// fake "unknown" state just because the additive field was missing.
+    var sevenDayDataStatus: RateLimitMetricDataStatus {
+        get {
+            resolvedMetricStatus(rawValue: sevenDayDataStatusRaw, value: sevenDayLimitUsedPercent)
+        }
+        set {
+            sevenDayDataStatusRaw = newValue.rawValue
+        }
+    }
+
+    var fiveHourDataStatus: RateLimitMetricDataStatus {
+        get {
+            resolvedMetricStatus(rawValue: fiveHourDataStatusRaw, value: fiveHourLimitUsedPercent)
+        }
+        set {
+            fiveHourDataStatusRaw = newValue.rawValue
+        }
+    }
+
+    private static func defaultMetricStatusRaw(for value: Int?) -> String {
+        value == nil ? RateLimitMetricDataStatus.missing.rawValue : RateLimitMetricDataStatus.exact.rawValue
+    }
+
+    private func resolvedMetricStatus(rawValue: String, value: Int?) -> RateLimitMetricDataStatus {
+        guard let status = RateLimitMetricDataStatus(rawValue: rawValue) else {
+            return value == nil ? .missing : .exact
+        }
+
+        if status == .missing, value != nil {
+            return .exact
+        }
+
+        return status
     }
 }

@@ -31,6 +31,7 @@ enum CodexSharedSwitchFeedback {
             return
         }
 
+#if os(macOS)
         DistributedNotificationCenter.default().post(
             name: didSwitchAccountNotification,
             object: nil,
@@ -39,6 +40,16 @@ enum CodexSharedSwitchFeedback {
                 accountNameUserInfoKey: trimmedAccountName,
             ]
         )
+#else
+        NotificationCenter.default.post(
+            name: didSwitchAccountNotification,
+            object: nil,
+            userInfo: [
+                identityKeyUserInfoKey: trimmedIdentityKey,
+                accountNameUserInfoKey: trimmedAccountName,
+            ]
+        )
+#endif
     }
 
     nonisolated static func signal(from notification: Notification) -> CodexSharedSwitchSignal? {

@@ -148,11 +148,19 @@ enum CodexSharedAppCommandSignal {
     nonisolated static let mainApplicationBundleIdentifier = CodexSharedApplicationIdentity.mainApplicationBundleIdentifier
 
     nonisolated static func postCommandQueuedSignal() {
+#if os(macOS)
         DistributedNotificationCenter.default().post(
             name: didEnqueueCommandNotification,
             object: nil,
             userInfo: nil
         )
+#else
+        NotificationCenter.default.post(
+            name: didEnqueueCommandNotification,
+            object: nil,
+            userInfo: nil
+        )
+#endif
     }
 
     nonisolated static var isMainApplicationRunning: Bool {

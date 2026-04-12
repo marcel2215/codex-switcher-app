@@ -1,0 +1,112 @@
+//
+//  WidgetSnapshotPublisher.swift
+//  Codex Switcher
+//
+//  Created by Codex on 2026-04-12.
+//
+
+import Foundation
+import OSLog
+import SwiftData
+
+@MainActor
+enum WidgetSnapshotPublisher {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+        category: "WidgetSnapshotPublisher"
+    )
+
+    static func publish(
+        modelContext: ModelContext,
+        currentAccountID: String? = nil,
+        selectedAccountID: String? = nil,
+        selectedAccountIsLive: Bool = false
+    ) {
+        let descriptor = FetchDescriptor<StoredAccount>(
+            sortBy: [
+                SortDescriptor(\.customOrder),
+                SortDescriptor(\.createdAt),
+            ]
+        )
+
+        let accounts = (try? modelContext.fetch(descriptor)) ?? []
+        let sharedAccounts = accounts
+            .filter { !$0.identityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .map { account in
+                SharedCodexAccountRecord(
+                    id: account.identityKey,
+                    name: account.name,
+                    iconSystemName: account.iconSystemName,
+                    emailHint: account.emailHint,
+                    accountIdentifier: account.accountIdentifier,
+                    authModeRaw: account.authModeRaw,
+                    lastLoginAt: account.lastLoginAt,
+                    sevenDayLimitUsedPercent: account.sevenDayLimitUsedPercent,
+                    fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
+                    sevenDayResetsAt: account.sevenDayResetsAt,
+                    fiveHourResetsAt: account.fiveHourResetsAt,
+                    sevenDayDataStatusRaw: account.sevenDayDataStatus.rawValue,
+                    fiveHourDataStatusRaw: account.fiveHourDataStatus.rawValue,
+                    rateLimitsObservedAt: account.rateLimitsObservedAt,
+                    sortOrder: account.customOrder,
+                    hasLocalSnapshot: account.hasLocalSnapshot
+                )
+            }
+
+        let sharedState = SharedCodexState(
+            schemaVersion: SharedCodexState.currentSchemaVersion,
+            authState: .ready,
+            linkedFolderPath: nil,
+            currentAccountID: currentAccountID,
+            selectedAccountID: selectedAccountID,
+            selectedAccountIsLive: selectedAccountIsLive,
+            accounts: sharedAccounts,
+            updatedAt: .now
+        )
+
+        do {
+            try CodexSharedStateStore().save(sharedState)
+            CodexSharedSurfaceReloader.reloadAllRateLimitWidgets()
+        } catch {
+            logger.error("Couldn't publish widget snapshot: \(String(describing: error), privacy: .private)")
+        }
+    }
+
+    static func fingerprint(for accounts: [StoredAccount]) -> Int {
+        var hasher = Hasher()
+
+        for account in accounts.sorted(by: widgetSortComparator) {
+            hasher.combine(account.id)
+            hasher.combine(account.identityKey)
+            hasher.combine(account.name)
+            hasher.combine(account.iconSystemName)
+            hasher.combine(account.emailHint)
+            hasher.combine(account.accountIdentifier)
+            hasher.combine(account.authModeRaw)
+            hasher.combine(account.lastLoginAt)
+            hasher.combine(account.customOrder)
+            hasher.combine(account.sevenDayLimitUsedPercent)
+            hasher.combine(account.fiveHourLimitUsedPercent)
+            hasher.combine(account.sevenDayResetsAt)
+            hasher.combine(account.fiveHourResetsAt)
+            hasher.combine(account.sevenDayDataStatus.rawValue)
+            hasher.combine(account.fiveHourDataStatus.rawValue)
+            hasher.combine(account.rateLimitsObservedAt)
+            hasher.combine(account.hasLocalSnapshot)
+        }
+
+        return hasher.finalize()
+    }
+
+    private static func widgetSortComparator(lhs: StoredAccount, rhs: StoredAccount) -> Bool {
+        if lhs.customOrder != rhs.customOrder {
+            return lhs.customOrder < rhs.customOrder
+        }
+
+        if lhs.createdAt != rhs.createdAt {
+            return lhs.createdAt < rhs.createdAt
+        }
+
+        return lhs.id.uuidString < rhs.id.uuidString
+    }
+}

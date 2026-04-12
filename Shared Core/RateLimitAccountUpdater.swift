@@ -28,12 +28,42 @@ enum RateLimitAccountUpdater {
         }
 
         if account.sevenDayLimitUsedPercent != adjustedSnapshot.sevenDayRemainingPercent {
-            account.sevenDayLimitUsedPercent = adjustedSnapshot.sevenDayRemainingPercent
-            didChange = true
+            if let sevenDayRemainingPercent = adjustedSnapshot.sevenDayRemainingPercent {
+                account.sevenDayLimitUsedPercent = sevenDayRemainingPercent
+                didChange = true
+            }
         }
 
         if account.fiveHourLimitUsedPercent != adjustedSnapshot.fiveHourRemainingPercent {
-            account.fiveHourLimitUsedPercent = adjustedSnapshot.fiveHourRemainingPercent
+            if let fiveHourRemainingPercent = adjustedSnapshot.fiveHourRemainingPercent {
+                account.fiveHourLimitUsedPercent = fiveHourRemainingPercent
+                didChange = true
+            }
+        }
+
+        let sevenDayStatus: RateLimitMetricDataStatus = if adjustedSnapshot.sevenDayRemainingPercent != nil {
+            .exact
+        } else if account.sevenDayLimitUsedPercent != nil {
+            .cached
+        } else {
+            .missing
+        }
+
+        if account.sevenDayDataStatus != sevenDayStatus {
+            account.sevenDayDataStatus = sevenDayStatus
+            didChange = true
+        }
+
+        let fiveHourStatus: RateLimitMetricDataStatus = if adjustedSnapshot.fiveHourRemainingPercent != nil {
+            .exact
+        } else if account.fiveHourLimitUsedPercent != nil {
+            .cached
+        } else {
+            .missing
+        }
+
+        if account.fiveHourDataStatus != fiveHourStatus {
+            account.fiveHourDataStatus = fiveHourStatus
             didChange = true
         }
 

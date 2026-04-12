@@ -11,8 +11,7 @@ import SwiftUI
 @main
 struct CodexSwitcherWidgetsBundle: WidgetBundle {
     var body: some Widget {
-        CurrentAccountWidget()
-        SavedAccountWidget()
+        RateLimitOverviewWidget()
         QuickSwitchControl()
         OpenCodexSwitcherControl()
     }

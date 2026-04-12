@@ -5,10 +5,16 @@
 //  Created by Codex on 2026-04-08.
 //
 
-import AppIntents
-import CoreSpotlight
+@preconcurrency import AppIntents
 import SwiftUI
 import WidgetKit
+
+#if canImport(CoreSpotlight)
+import CoreSpotlight
+typealias CodexIndexedEntityProtocol = IndexedEntity
+#else
+protocol CodexIndexedEntityProtocol {}
+#endif
 
 private extension Optional where Wrapped == String {
     nonisolated var nilIfBlank: String? {
@@ -26,7 +32,7 @@ private extension String {
     }
 }
 
-struct CodexAccountEntity: AppEntity, IndexedEntity, Hashable, Sendable {
+struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Sendable {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Codex Account")
     static let defaultQuery = CodexAccountEntityQuery()
 
@@ -76,6 +82,7 @@ struct CodexAccountEntity: AppEntity, IndexedEntity, Hashable, Sendable {
         )
     }
 
+#if canImport(CoreSpotlight)
     nonisolated var attributeSet: CSSearchableItemAttributeSet {
         let attributeSet = defaultAttributeSet
         attributeSet.displayName = name
@@ -104,6 +111,7 @@ struct CodexAccountEntity: AppEntity, IndexedEntity, Hashable, Sendable {
 
         return attributeSet
     }
+#endif
 
     nonisolated init(record: SharedCodexAccountRecord, currentAccountID: String?) {
         self.id = record.id
@@ -338,22 +346,7 @@ enum CodexSharedAccountIntentResolver {
     }
 }
 
-enum CodexAccountComparator: Sendable, Equatable {
-    case nameContains(String)
-    case emailContains(String)
-    case identifierContains(String)
-    case isCurrent(Bool)
-    case lastLoginAfter(Date)
-    case lastLoginBefore(Date)
-    case fiveHourLimitAtLeast(Int)
-    case fiveHourLimitAtMost(Int)
-    case sevenDayLimitAtLeast(Int)
-    case sevenDayLimitAtMost(Int)
-}
-
-struct CodexAccountEntityQuery: EntityStringQuery, EntityPropertyQuery {
-    typealias ComparatorMappingType = CodexAccountComparator
-
+struct CodexAccountEntityQuery: EntityStringQuery {
     private let store: CodexSharedStateStore
 
     nonisolated init() {
@@ -362,46 +355,6 @@ struct CodexAccountEntityQuery: EntityStringQuery, EntityPropertyQuery {
 
     nonisolated init(store: CodexSharedStateStore) {
         self.store = store
-    }
-
-    static var findIntentDescription: IntentDescription? {
-        IntentDescription(
-            "Finds saved Codex accounts by name, email, identifier, current status, last login, or rate-limit usage."
-        )
-    }
-
-    nonisolated(unsafe) static let properties = QueryProperties {
-        Property(\CodexAccountEntity.$name) {
-            ContainsComparator { CodexAccountComparator.nameContains($0) }
-        }
-        Property(\CodexAccountEntity.$emailHint) {
-            ContainsComparator { CodexAccountComparator.emailContains($0) }
-        }
-        Property(\CodexAccountEntity.$accountIdentifier) {
-            ContainsComparator { CodexAccountComparator.identifierContains($0) }
-        }
-        Property(\CodexAccountEntity.$isCurrent) {
-            EqualToComparator { CodexAccountComparator.isCurrent($0) }
-        }
-        Property(\CodexAccountEntity.$lastLoginAt) {
-            GreaterThanComparator { CodexAccountComparator.lastLoginAfter($0) }
-            LessThanComparator { CodexAccountComparator.lastLoginBefore($0) }
-        }
-        Property(\CodexAccountEntity.$fiveHourLimitUsedPercent) {
-            GreaterThanOrEqualToComparator { CodexAccountComparator.fiveHourLimitAtLeast($0) }
-            LessThanOrEqualToComparator { CodexAccountComparator.fiveHourLimitAtMost($0) }
-        }
-        Property(\CodexAccountEntity.$sevenDayLimitUsedPercent) {
-            GreaterThanOrEqualToComparator { CodexAccountComparator.sevenDayLimitAtLeast($0) }
-            LessThanOrEqualToComparator { CodexAccountComparator.sevenDayLimitAtMost($0) }
-        }
-    }
-
-    nonisolated(unsafe) static let sortingOptions = SortingOptions {
-        SortableBy(\CodexAccountEntity.$name)
-        SortableBy(\CodexAccountEntity.$lastLoginAt)
-        SortableBy(\CodexAccountEntity.$fiveHourLimitUsedPercent)
-        SortableBy(\CodexAccountEntity.$sevenDayLimitUsedPercent)
     }
 
     nonisolated func entities(for identifiers: [String]) async throws -> [CodexAccountEntity] {
@@ -432,190 +385,6 @@ struct CodexAccountEntityQuery: EntityStringQuery, EntityPropertyQuery {
             }
         }
     }
-
-    nonisolated func entities(
-        matching comparators: [CodexAccountComparator],
-        mode: ComparatorMode,
-        sortedBy sorts: [Sort<CodexAccountEntity>],
-        limit: Int?
-    ) async throws -> [CodexAccountEntity] {
-        let state = try CodexSharedAccountIntentResolver.loadState(store: store)
-        var entities = CodexSharedAccountIntentResolver.allEntities(in: state)
-
-        if !comparators.isEmpty {
-            entities = entities.filter { entity in
-                let comparatorMatches = comparators.map { comparator in
-                    self.matches(comparator, entity: entity)
-                }
-
-                switch mode {
-                case .and:
-                    return comparatorMatches.allSatisfy(\.self)
-                case .or:
-                    return comparatorMatches.contains(true)
-                }
-            }
-        }
-
-        entities = sorted(entities, by: sorts)
-
-        if let limit {
-            return Array(entities.prefix(limit))
-        }
-
-        return entities
-    }
-
-    private nonisolated func matches(
-        _ comparator: CodexAccountComparator,
-        entity: CodexAccountEntity
-    ) -> Bool {
-        switch comparator {
-        case let .nameContains(value):
-            return entity.name.localizedCaseInsensitiveContains(value)
-        case let .emailContains(value):
-            return entity.emailHint?.localizedCaseInsensitiveContains(value) == true
-        case let .identifierContains(value):
-            return entity.accountIdentifier?.localizedCaseInsensitiveContains(value) == true
-        case let .isCurrent(expected):
-            return entity.isCurrent == expected
-        case let .lastLoginAfter(date):
-            return entity.lastLoginAt.map { $0 > date } == true
-        case let .lastLoginBefore(date):
-            return entity.lastLoginAt.map { $0 < date } == true
-        case let .fiveHourLimitAtLeast(value):
-            return entity.fiveHourLimitUsedPercent.map { $0 >= value } == true
-        case let .fiveHourLimitAtMost(value):
-            return entity.fiveHourLimitUsedPercent.map { $0 <= value } == true
-        case let .sevenDayLimitAtLeast(value):
-            return entity.sevenDayLimitUsedPercent.map { $0 >= value } == true
-        case let .sevenDayLimitAtMost(value):
-            return entity.sevenDayLimitUsedPercent.map { $0 <= value } == true
-        }
-    }
-
-    private nonisolated func sorted(
-        _ entities: [CodexAccountEntity],
-        by sorts: [Sort<CodexAccountEntity>]
-    ) -> [CodexAccountEntity] {
-        guard !sorts.isEmpty else {
-            return entities
-        }
-
-        return entities.sorted { lhs, rhs in
-            for sort in sorts {
-                let comparison = comparisonResult(lhs, rhs, for: sort)
-                guard comparison != .orderedSame else {
-                    continue
-                }
-
-                switch sort.order {
-                case .ascending:
-                    return comparison == .orderedAscending
-                case .descending:
-                    return comparison == .orderedDescending
-                }
-            }
-
-            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
-        }
-    }
-
-    private nonisolated func comparisonResult(
-        _ lhs: CodexAccountEntity,
-        _ rhs: CodexAccountEntity,
-        for sort: Sort<CodexAccountEntity>
-    ) -> ComparisonResult {
-        switch sort.by {
-        case \CodexAccountEntity.$name:
-            return lhs.name.localizedStandardCompare(rhs.name)
-
-        case \CodexAccountEntity.$lastLoginAt:
-            return compareOptionalComparable(lhs.lastLoginAt, rhs.lastLoginAt)
-
-        case \CodexAccountEntity.$fiveHourLimitUsedPercent:
-            return compareOptionalComparable(lhs.fiveHourLimitUsedPercent, rhs.fiveHourLimitUsedPercent)
-
-        case \CodexAccountEntity.$sevenDayLimitUsedPercent:
-            return compareOptionalComparable(lhs.sevenDayLimitUsedPercent, rhs.sevenDayLimitUsedPercent)
-
-        default:
-            return .orderedSame
-        }
-    }
-
-    private nonisolated func compareOptionalComparable<T: Comparable>(
-        _ lhs: T?,
-        _ rhs: T?
-    ) -> ComparisonResult {
-        switch (lhs, rhs) {
-        case let (lhs?, rhs?):
-            if lhs < rhs {
-                return .orderedAscending
-            }
-
-            if lhs > rhs {
-                return .orderedDescending
-            }
-
-            return .orderedSame
-
-        case (nil, nil):
-            return .orderedSame
-
-        case (nil, _?):
-            return .orderedDescending
-
-        case (_?, nil):
-            return .orderedAscending
-        }
-    }
-}
-
-struct SwitchAccountControlIntent: AppIntent, ControlConfigurationIntent {
-    static let title: LocalizedStringResource = "Switch Codex Account"
-    static let description = IntentDescription("Switches Codex to one of your saved accounts.")
-    static let supportedModes: IntentModes = .background
-    static let isDiscoverable = false
-
-    @Parameter(title: "Account")
-    var account: CodexAccountEntity?
-
-    static var parameterSummary: some ParameterSummary {
-        Summary("Switch to \(\.$account)")
-    }
-
-    init() {}
-
-    init(account: CodexAccountEntity) {
-        self.account = account
-    }
-
-    nonisolated func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard let account else {
-            throw $account.needsValueError(IntentDialog("Choose an account first."))
-        }
-
-        do {
-            let outcome = try await CodexSharedAccountSwitchService().switchToAccount(identityKey: account.id)
-
-            if outcome.didChangeAccount {
-                await CodexSharedSwitchFeedback.postLocalSwitchNotificationIfAuthorized(
-                    accountName: outcome.account.name
-                )
-            }
-
-            return .result(
-                dialog: IntentDialog(
-                    outcome.didChangeAccount
-                        ? "Now using \"\(outcome.account.name)\"."
-                        : "Already using \"\(outcome.account.name)\"."
-                )
-            )
-        } catch {
-            throw mappedSwitchIntentError(from: error)
-        }
-    }
 }
 
 struct OpenCodexSwitcherIntent: AppIntent {
@@ -623,39 +392,7 @@ struct OpenCodexSwitcherIntent: AppIntent {
     static let description = IntentDescription("Opens Codex Switcher.")
     static let supportedModes: IntentModes = .foreground
 
-    nonisolated func perform() async throws -> some IntentResult {
+    func perform() async throws -> some IntentResult {
         .result()
-    }
-}
-
-nonisolated func mappedSwitchIntentError(from error: Error) -> Error {
-    guard let error = error as? CodexSharedSwitchError else {
-        return error
-    }
-
-    switch error {
-    case .missingBookmark,
-         .bookmarkRefreshRequired,
-         .accessDenied,
-         .linkedFolderUnavailable,
-         .verificationFailed,
-         .unreadable,
-         .unwritable,
-         .unsupportedAuthState(.unlinked),
-         .unsupportedAuthState(.locationUnavailable),
-         .unsupportedAuthState(.accessDenied),
-         .unsupportedAuthState(.unsupportedCredentialStore):
-        return AppIntentError.UserActionRequired.accountSetup
-
-    case .unsupportedAuthState(.loggedOut), .unsupportedAuthState(.corruptAuthFile):
-        return AppIntentError.UserActionRequired.signin
-
-    case .accountSelectionRequired,
-         .accountNotFound,
-         .noBestAccountAvailable,
-         .missingStoredSnapshot,
-         .invalidStoredSnapshot,
-         .unsupportedAuthState(.ready):
-        return error
     }
 }
