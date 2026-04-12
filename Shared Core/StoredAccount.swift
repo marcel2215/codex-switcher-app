@@ -32,6 +32,8 @@ final class StoredAccount {
     // user-facing "left" amount, not "used".
     var sevenDayLimitUsedPercent: Int?
     var fiveHourLimitUsedPercent: Int?
+    var sevenDayResetsAt: Date?
+    var fiveHourResetsAt: Date?
     var rateLimitsObservedAt: Date?
     var rateLimitDisplayVersion: Int?
     var iconSystemName: String = "key.fill"
@@ -50,6 +52,8 @@ final class StoredAccount {
         accountIdentifier: String? = nil,
         sevenDayLimitUsedPercent: Int? = nil,
         fiveHourLimitUsedPercent: Int? = nil,
+        sevenDayResetsAt: Date? = nil,
+        fiveHourResetsAt: Date? = nil,
         rateLimitsObservedAt: Date? = nil,
         rateLimitDisplayVersion: Int? = 1,
         iconSystemName: String = "key.fill"
@@ -67,6 +71,8 @@ final class StoredAccount {
         self.accountIdentifier = accountIdentifier
         self.sevenDayLimitUsedPercent = sevenDayLimitUsedPercent
         self.fiveHourLimitUsedPercent = fiveHourLimitUsedPercent
+        self.sevenDayResetsAt = sevenDayResetsAt
+        self.fiveHourResetsAt = fiveHourResetsAt
         self.rateLimitsObservedAt = rateLimitsObservedAt
         self.rateLimitDisplayVersion = rateLimitDisplayVersion
         self.iconSystemName = iconSystemName

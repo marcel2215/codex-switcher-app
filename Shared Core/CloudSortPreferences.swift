@@ -1,8 +1,8 @@
 //
-//  IOSCloudSortPreferences.swift
-//  Codex Switcher iOS App
+//  CloudSortPreferences.swift
+//  Codex Switcher
 //
-//  Created by Codex on 2026-04-11.
+//  Created by Codex on 2026-04-12.
 //
 
 import Foundation
@@ -10,8 +10,10 @@ import Observation
 
 @MainActor
 @Observable
-final class IOSCloudSortPreferences {
+final class CloudSortPreferences {
     private enum Key {
+        // Keep the original key names so existing iOS installs keep their
+        // saved preference values when watchOS starts reading the same store.
         static let sortCriterion = "ios.sortCriterion"
         static let sortDirection = "ios.sortDirection"
     }
@@ -72,7 +74,7 @@ final class IOSCloudSortPreferences {
     }
 
     /// Persist to both local defaults and iCloud key-value storage so the
-    /// current device updates immediately while other iOS devices pick it up.
+    /// current device updates immediately while paired devices pick it up.
     func persist(sortCriterionRawValue: String, sortDirectionRawValue: String) {
         guard
             self.sortCriterionRawValue != sortCriterionRawValue

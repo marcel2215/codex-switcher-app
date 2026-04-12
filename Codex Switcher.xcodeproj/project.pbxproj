@@ -10,6 +10,7 @@
 		1F28ABAF2F86DA4B00639A74 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */; };
 		1F28ABB12F86DA4B00639A74 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */; };
 		1F28ABBE2F86DA4C00639A74 /* Codex Switcher Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1F28ABAC2F86DA4A00639A74 /* Codex Switcher Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1FA0357F2F8AF68400367DD6 /* Codex Switcher Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 1FA0355F2F8AF68300367DD6 /* Codex Switcher Watch App.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +49,27 @@
 			remoteGlobalIDString = 1F96B5A52F89BF5100044DB7;
 			remoteInfo = "Codex Switcher iOS App";
 		};
+		1FA0356C2F8AF68400367DD6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1FA0355E2F8AF68300367DD6;
+			remoteInfo = "Codex Switcher Watch App Watch App";
+		};
+		1FA035762F8AF68400367DD6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1FA0355E2F8AF68300367DD6;
+			remoteInfo = "Codex Switcher Watch App Watch App";
+		};
+		1FA0357D2F8AF68400367DD6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1FA0355E2F8AF68300367DD6;
+			remoteInfo = "Codex Switcher Watch App Watch App";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -62,6 +84,17 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		1FA035802F8AF68400367DD6 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				1FA0357F2F8AF68400367DD6 /* Codex Switcher Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -74,6 +107,9 @@
 		1F96B5A62F89BF5100044DB7 /* Codex Switcher iOS App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Codex Switcher iOS App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F96B5B62F89BF5200044DB7 /* Codex Switcher iOS App Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher iOS App Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F96B5C02F89BF5200044DB7 /* Codex Switcher iOS App UI Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher iOS App UI Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1FA0355F2F8AF68300367DD6 /* Codex Switcher Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Codex Switcher Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1FA0356B2F8AF68400367DD6 /* Codex Switcher Watch App Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher Watch App Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1FA035752F8AF68400367DD6 /* Codex Switcher Watch App UI Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher Watch App UI Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -98,6 +134,20 @@
 			);
 			target = 1F96B5A52F89BF5100044DB7 /* Codex Switcher iOS App */;
 		};
+		1FA0358B2F8AF7D600367DD6 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
+		};
+		8A2E8F932F9B120100123456 /* Exceptions for "Codex Switcher Watch App" folder in "Codex Switcher Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
+		};
 		1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -121,6 +171,7 @@
 			exceptions = (
 				1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */,
 				1F96B7502F89D34B00044DB7 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS App" target */,
+				1FA0358B2F8AF7D600367DD6 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App" target */,
 			);
 			path = "Codex Switcher";
 			sourceTree = "<group>";
@@ -151,6 +202,24 @@
 		1F96B5C32F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Codex Switcher iOS App UI Tests";
+			sourceTree = "<group>";
+		};
+		1FA035602F8AF68300367DD6 /* Codex Switcher Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8A2E8F932F9B120100123456 /* Exceptions for "Codex Switcher Watch App" folder in "Codex Switcher Watch App" target */,
+			);
+			path = "Codex Switcher Watch App";
+			sourceTree = "<group>";
+		};
+		1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Codex Switcher Watch App Tests";
+			sourceTree = "<group>";
+		};
+		1FA035782F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Codex Switcher Watch App UI Tests";
 			sourceTree = "<group>";
 		};
 		6AE84D562BE14E0FA0856BF2 /* Shared Core */ = {
@@ -217,6 +286,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		1FA0355C2F8AF68300367DD6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1FA035682F8AF68400367DD6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1FA035722F8AF68400367DD6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -241,6 +331,9 @@
 				1F96B5A72F89BF5100044DB7 /* Codex Switcher iOS App */,
 				1F96B5B92F89BF5200044DB7 /* Codex Switcher iOS App Tests */,
 				1F96B5C32F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */,
+				1FA035602F8AF68300367DD6 /* Codex Switcher Watch App */,
+				1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Tests */,
+				1FA035782F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */,
 				1F28ABAD2F86DA4A00639A74 /* Frameworks */,
 				1F87C9482F8406C7007DED25 /* Products */,
 			);
@@ -256,6 +349,9 @@
 				1F96B5A62F89BF5100044DB7 /* Codex Switcher iOS App.app */,
 				1F96B5B62F89BF5200044DB7 /* Codex Switcher iOS App Tests.xctest */,
 				1F96B5C02F89BF5200044DB7 /* Codex Switcher iOS App UI Tests.xctest */,
+				1FA0355F2F8AF68300367DD6 /* Codex Switcher Watch App.app */,
+				1FA0356B2F8AF68400367DD6 /* Codex Switcher Watch App Tests.xctest */,
+				1FA035752F8AF68400367DD6 /* Codex Switcher Watch App UI Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -294,11 +390,13 @@
 				1F87C9442F8406C7007DED25 /* Frameworks */,
 				1F87C9452F8406C7007DED25 /* Resources */,
 				1F28ABC32F86DA4C00639A74 /* Embed Foundation Extensions */,
+				1FA035802F8AF68400367DD6 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				1F28ABBD2F86DA4C00639A74 /* PBXTargetDependency */,
+				1FA0357E2F8AF68400367DD6 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1F87C9492F8406C7007DED25 /* Codex Switcher */,
@@ -427,6 +525,75 @@
 			productReference = 1F96B5C02F89BF5200044DB7 /* Codex Switcher iOS App UI Tests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1FA035872F8AF68400367DD6 /* Build configuration list for PBXNativeTarget "Codex Switcher Watch App" */;
+			buildPhases = (
+				1FA0355B2F8AF68300367DD6 /* Sources */,
+				1FA0355C2F8AF68300367DD6 /* Frameworks */,
+				1FA0355D2F8AF68300367DD6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				1FA035602F8AF68300367DD6 /* Codex Switcher Watch App */,
+				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
+			);
+			name = "Codex Switcher Watch App";
+			packageProductDependencies = (
+			);
+			productName = "Codex Switcher Watch App Watch App";
+			productReference = 1FA0355F2F8AF68300367DD6 /* Codex Switcher Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		1FA0356A2F8AF68400367DD6 /* Codex Switcher Watch App Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1FA035882F8AF68400367DD6 /* Build configuration list for PBXNativeTarget "Codex Switcher Watch App Tests" */;
+			buildPhases = (
+				1FA035672F8AF68400367DD6 /* Sources */,
+				1FA035682F8AF68400367DD6 /* Frameworks */,
+				1FA035692F8AF68400367DD6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1FA0356D2F8AF68400367DD6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Tests */,
+			);
+			name = "Codex Switcher Watch App Tests";
+			packageProductDependencies = (
+			);
+			productName = "Codex Switcher Watch App Watch AppTests";
+			productReference = 1FA0356B2F8AF68400367DD6 /* Codex Switcher Watch App Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		1FA035742F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1FA035892F8AF68400367DD6 /* Build configuration list for PBXNativeTarget "Codex Switcher Watch App UI Tests" */;
+			buildPhases = (
+				1FA035712F8AF68400367DD6 /* Sources */,
+				1FA035722F8AF68400367DD6 /* Frameworks */,
+				1FA035732F8AF68400367DD6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1FA035772F8AF68400367DD6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				1FA035782F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */,
+			);
+			name = "Codex Switcher Watch App UI Tests";
+			packageProductDependencies = (
+			);
+			productName = "Codex Switcher Watch App Watch AppUITests";
+			productReference = 1FA035752F8AF68400367DD6 /* Codex Switcher Watch App UI Tests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -462,6 +629,17 @@
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = 1F96B5A52F89BF5100044DB7;
 					};
+					1FA0355E2F8AF68300367DD6 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+					1FA0356A2F8AF68400367DD6 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = 1FA0355E2F8AF68300367DD6;
+					};
+					1FA035742F8AF68400367DD6 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = 1FA0355E2F8AF68300367DD6;
+					};
 				};
 			};
 			buildConfigurationList = 1F87C9422F8406C7007DED25 /* Build configuration list for PBXProject "Codex Switcher" */;
@@ -485,6 +663,9 @@
 				1F96B5A52F89BF5100044DB7 /* Codex Switcher iOS App */,
 				1F96B5B52F89BF5200044DB7 /* Codex Switcher iOS App Tests */,
 				1F96B5BF2F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */,
+				1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */,
+				1FA0356A2F8AF68400367DD6 /* Codex Switcher Watch App Tests */,
+				1FA035742F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */,
 			);
 		};
 /* End PBXProject section */
@@ -533,6 +714,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		1F96B5BE2F89BF5200044DB7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1FA0355D2F8AF68300367DD6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1FA035692F8AF68400367DD6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1FA035732F8AF68400367DD6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -591,6 +793,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		1FA0355B2F8AF68300367DD6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1FA035672F8AF68400367DD6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1FA035712F8AF68400367DD6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -618,6 +841,22 @@
 			isa = PBXTargetDependency;
 			target = 1F96B5A52F89BF5100044DB7 /* Codex Switcher iOS App */;
 			targetProxy = 1F96B5C12F89BF5200044DB7 /* PBXContainerItemProxy */;
+		};
+		1FA0356D2F8AF68400367DD6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
+			targetProxy = 1FA0356C2F8AF68400367DD6 /* PBXContainerItemProxy */;
+		};
+		1FA035772F8AF68400367DD6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
+			targetProxy = 1FA035762F8AF68400367DD6 /* PBXContainerItemProxy */;
+		};
+		1FA0357E2F8AF68400367DD6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
+			targetProxy = 1FA0357D2F8AF68400367DD6 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -874,6 +1113,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -921,6 +1161,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -1184,6 +1425,179 @@
 			};
 			name = Release;
 		};
+		1FA035812F8AF68400367DD6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Codex Switcher Watch App/CodexSwitcherWatchApp.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
+				INFOPLIST_FILE = "Codex Switcher Watch App/Info.plist";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.marcel2215.codexswitcher;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcel2215.codexswitcher.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Debug;
+		};
+		1FA035822F8AF68400367DD6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Codex Switcher Watch App/CodexSwitcherWatchApp.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
+				INFOPLIST_FILE = "Codex Switcher Watch App/Info.plist";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.marcel2215.codexswitcher;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcel2215.codexswitcher.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Release;
+		};
+		1FA035832F8AF68400367DD6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.marcel2215.Codex-Switcher-Watch-App-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codex Switcher Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Codex Switcher Watch App";
+				TEST_TARGET_NAME = "Codex Switcher Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Debug;
+		};
+		1FA035842F8AF68400367DD6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.marcel2215.Codex-Switcher-Watch-App-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codex Switcher Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Codex Switcher Watch App";
+				TEST_TARGET_NAME = "Codex Switcher Watch App";
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Release;
+		};
+		1FA035852F8AF68400367DD6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.marcel2215.Codex-Switcher-Watch-App-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "Codex Switcher Watch App Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		1FA035862F8AF68400367DD6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.marcel2215.Codex-Switcher-Watch-App-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_CONST_VALUE_PROTOCOLS = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "Codex Switcher Watch App Watch App";
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1255,6 +1669,33 @@
 			buildConfigurations = (
 				1F96B5CC2F89BF5200044DB7 /* Debug */,
 				1F96B5CD2F89BF5200044DB7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1FA035872F8AF68400367DD6 /* Build configuration list for PBXNativeTarget "Codex Switcher Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1FA035812F8AF68400367DD6 /* Debug */,
+				1FA035822F8AF68400367DD6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1FA035882F8AF68400367DD6 /* Build configuration list for PBXNativeTarget "Codex Switcher Watch App Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1FA035832F8AF68400367DD6 /* Debug */,
+				1FA035842F8AF68400367DD6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1FA035892F8AF68400367DD6 /* Build configuration list for PBXNativeTarget "Codex Switcher Watch App UI Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1FA035852F8AF68400367DD6 /* Debug */,
+				1FA035862F8AF68400367DD6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

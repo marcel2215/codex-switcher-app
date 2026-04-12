@@ -62,8 +62,16 @@ actor CodexRateLimitProvider: CodexRateLimitProviding {
         } else {
             let configuration = URLSessionConfiguration.ephemeral
             configuration.waitsForConnectivity = false
+#if os(watchOS)
+            // watchOS requests may go through the paired phone, Wi-Fi, or the
+            // watch's own network path, so give the foreground fetch a slightly
+            // larger budget before treating it as transiently unavailable.
+            configuration.timeoutIntervalForRequest = 15
+            configuration.timeoutIntervalForResource = 30
+#else
             configuration.timeoutIntervalForRequest = 8
             configuration.timeoutIntervalForResource = 12
+#endif
             configuration.httpAdditionalHeaders = [
                 "Accept": "application/json",
                 "User-Agent": "Codex Switcher",

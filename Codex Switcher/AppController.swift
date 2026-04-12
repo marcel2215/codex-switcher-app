@@ -2922,6 +2922,8 @@ final class AppController {
             survivor.rateLimitsObservedAt = duplicate.rateLimitsObservedAt
             survivor.sevenDayLimitUsedPercent = duplicate.sevenDayLimitUsedPercent
             survivor.fiveHourLimitUsedPercent = duplicate.fiveHourLimitUsedPercent
+            survivor.sevenDayResetsAt = duplicate.sevenDayResetsAt
+            survivor.fiveHourResetsAt = duplicate.fiveHourResetsAt
             survivor.rateLimitDisplayVersion = duplicate.rateLimitDisplayVersion
             didChange = true
         }

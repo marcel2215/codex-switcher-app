@@ -43,7 +43,7 @@ actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
     private let logger: Logger
 
     init(
-        accessGroup: String = "group.com.marcel2215.codexswitcher",
+        accessGroup: String = CodexAppGroup.identifier,
         logger: Logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
             category: "SyncedRateLimitCredentialStore"
@@ -101,7 +101,9 @@ actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
 
             do {
                 let credential = try JSONDecoder().decode(SyncedRateLimitCredential.self, from: data)
-                guard credential.schemaVersion == SyncedRateLimitCredential.currentSchemaVersion else {
+                // Older clients only need the required fields, so tolerate newer
+                // payload versions as long as decoding still succeeds.
+                guard credential.schemaVersion >= 1 else {
                     throw SyncedRateLimitCredentialStoreError.invalidPayload
                 }
                 return credential

@@ -1,8 +1,8 @@
 //
 //  PresentedError.swift
-//  Codex Switcher iOS App
+//  Codex Switcher
 //
-//  Created by Codex on 2026-04-11.
+//  Created by Codex on 2026-04-12.
 //
 
 import Foundation
