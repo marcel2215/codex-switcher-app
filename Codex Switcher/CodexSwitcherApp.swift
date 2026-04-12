@@ -543,11 +543,7 @@ private struct SettingsView: View {
 
             Section("About") {
                 LabeledContent("Version") {
-                    Text(AppAboutInfo.current.version)
-                }
-
-                LabeledContent("Build") {
-                    Text(AppAboutInfo.current.build)
+                    Text(AppAboutInfo.current.formattedVersion)
                 }
             }
 
