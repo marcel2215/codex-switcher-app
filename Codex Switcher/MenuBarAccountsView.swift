@@ -17,25 +17,35 @@ struct MenuBarAccountsView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
     @Query private var accounts: [StoredAccount]
+    @State private var measuredAccountListContentHeight: CGFloat = 0
+
+    private static let maxVisibleAccountRows = 5
+    private static let accountRowSpacing: CGFloat = 2
+    private static let accountSectionBottomInset: CGFloat = 4
+    private static let fallbackRowHeight: CGFloat = 58
 
     private var displayedAccounts: [StoredAccount] {
         controller.displayedAccounts(from: accounts)
     }
 
     private var accountListHeight: CGFloat {
-        // Menu bar rows are intentionally denser than the main window list so
-        // the panel can show more accounts without wasting vertical space.
-        let rowHeight: CGFloat = 46
-        let rowSpacing: CGFloat = 2
-        let bottomInset: CGFloat = 4
-        let visibleRows = min(max(displayedAccounts.count, 1), 14)
-        let totalRowHeight = CGFloat(visibleRows) * rowHeight
-        let totalSpacing = CGFloat(max(visibleRows - 1, 0)) * rowSpacing
-        return totalRowHeight + totalSpacing + bottomInset
+        // Derive the panel height from the rendered list content so future row
+        // design changes do not leave the menu clipped or padded incorrectly.
+        let rowCount = max(displayedAccounts.count, 1)
+        let totalMeasuredSpacing = CGFloat(max(rowCount - 1, 0)) * Self.accountRowSpacing
+        let measuredRowHeight = if measuredAccountListContentHeight > totalMeasuredSpacing {
+            (measuredAccountListContentHeight - totalMeasuredSpacing) / CGFloat(rowCount)
+        } else {
+            Self.fallbackRowHeight
+        }
+
+        let visibleRows = min(rowCount, Self.maxVisibleAccountRows)
+        let visibleSpacing = CGFloat(max(visibleRows - 1, 0)) * Self.accountRowSpacing
+        return (CGFloat(visibleRows) * measuredRowHeight) + visibleSpacing + Self.accountSectionBottomInset
     }
 
     private var accountSectionHeight: CGFloat {
-        displayedAccounts.isEmpty ? 180 : min(accountListHeight, 640)
+        displayedAccounts.isEmpty ? 180 : accountListHeight
     }
 
     var body: some View {
@@ -137,7 +147,7 @@ struct MenuBarAccountsView: View {
                 // before they materialize children, which leaves a blank region
                 // instead of visible rows. Use an eager stack plus an explicit
                 // scroll height so the account list renders reliably here.
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Self.accountRowSpacing) {
                     ForEach(displayedAccounts) { account in
                         let isCurrentAccount = account.identityKey == controller.activeIdentityKey
                         Button {
@@ -195,9 +205,23 @@ struct MenuBarAccountsView: View {
                         }
                     }
                 }
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: AccountListHeightPreferenceKey.self,
+                            value: proxy.size.height
+                        )
+                    }
+                }
             }
             .scrollIndicators(.hidden)
             .frame(height: accountSectionHeight)
+            .onPreferenceChange(AccountListHeightPreferenceKey.self) { newHeight in
+                guard newHeight > 0, abs(newHeight - measuredAccountListContentHeight) > 0.5 else {
+                    return
+                }
+                measuredAccountListContentHeight = newHeight
+            }
         }
     }
 
@@ -231,5 +255,13 @@ struct MenuBarAccountsView: View {
         .disabled(isDisabled)
         .help(helpText)
         .accessibilityLabel(helpText)
+    }
+}
+
+private struct AccountListHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
