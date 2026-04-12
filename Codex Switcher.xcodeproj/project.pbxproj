@@ -141,19 +141,19 @@
 			);
 			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
 		};
-		8A2E8F932F9B120100123456 /* Exceptions for "Codex Switcher Watch App" folder in "Codex Switcher Watch App" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
-		};
 		1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AppIcon.icon,
 			);
 			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */;
+		};
+		8A2E8F932F9B120100123456 /* Exceptions for "Codex Switcher Watch App" folder in "Codex Switcher Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -1437,8 +1437,8 @@
 				DEVELOPMENT_TEAM = YN958LW8P7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
 				INFOPLIST_FILE = "Codex Switcher Watch App/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.marcel2215.codexswitcher;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
@@ -1474,8 +1474,8 @@
 				DEVELOPMENT_TEAM = YN958LW8P7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
 				INFOPLIST_FILE = "Codex Switcher Watch App/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.marcel2215.codexswitcher;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
