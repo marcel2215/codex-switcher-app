@@ -23,19 +23,57 @@ struct IOSAccountRow: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                Text(AccountDisplayFormatter.compactUsageListDescription(
-                    sevenDayRemainingPercent: account.sevenDayLimitUsedPercent,
-                    fiveHourRemainingPercent: account.fiveHourLimitUsedPercent
-                ))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .accessibilityLabel(AccountDisplayFormatter.accessibilityUsageListDescription(
-                    sevenDayRemainingPercent: account.sevenDayLimitUsedPercent,
-                    fiveHourRemainingPercent: account.fiveHourLimitUsedPercent
-                ))
+                HStack(spacing: 12) {
+                    IOSRateLimitProgressBar(
+                        title: "5h",
+                        remainingPercent: account.fiveHourLimitUsedPercent
+                    )
+
+                    IOSRateLimitProgressBar(
+                        title: "7d",
+                        remainingPercent: account.sevenDayLimitUsedPercent
+                    )
+                }
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(AccountsPresentationLogic.displayName(for: account)), \(AccountDisplayFormatter.accessibilityUsageListDescription(sevenDayRemainingPercent: account.sevenDayLimitUsedPercent, fiveHourRemainingPercent: account.fiveHourLimitUsedPercent))"
+        )
+    }
+}
+
+private struct IOSRateLimitProgressBar: View {
+    let title: String
+    let remainingPercent: Int?
+
+    private var normalizedProgress: Double? {
+        guard let clampedPercent = AccountDisplayFormatter.clampedPercentValue(remainingPercent) else {
+            return nil
+        }
+
+        return Double(clampedPercent) / 100
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Group {
+                if let normalizedProgress {
+                    ProgressView(value: normalizedProgress, total: 1)
+                        .progressViewStyle(.linear)
+                        .tint(.secondary)
+                } else {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(.tertiary.opacity(0.25))
+                        .frame(height: 4)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
     }
 }
