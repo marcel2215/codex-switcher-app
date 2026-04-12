@@ -115,11 +115,11 @@ struct AccountMetadataText: View {
         resetAt: Date?,
         relativeTo now: Date
     ) -> String {
-        guard let resetAt else {
-            return fallbackTitle
-        }
-
-        return AccountDisplayFormatter.resetCountdownDescription(until: resetAt, relativeTo: now)
+        AccountDisplayFormatter.progressResetLabel(
+            until: resetAt,
+            fallbackTitle: fallbackTitle,
+            relativeTo: now
+        )
     }
 
     @ViewBuilder

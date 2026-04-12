@@ -159,6 +159,18 @@ enum AccountDisplayFormatter {
         }
     }
 
+    static func progressResetLabel(
+        until resetAt: Date?,
+        fallbackTitle: String,
+        relativeTo now: Date = .now
+    ) -> String {
+        guard resetAt != nil else {
+            return fallbackTitle
+        }
+
+        return resetCountdownDescription(until: resetAt, relativeTo: now)
+    }
+
     static func clampedPercentValue(_ value: Int?) -> Int? {
         guard let value else {
             return nil

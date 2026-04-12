@@ -25,12 +25,18 @@ struct IOSAccountRow: View {
 
                 HStack(spacing: 12) {
                     IOSRateLimitProgressBar(
-                        title: "5h",
+                        title: AccountDisplayFormatter.progressResetLabel(
+                            until: account.fiveHourResetsAt,
+                            fallbackTitle: "5h"
+                        ),
                         remainingPercent: account.fiveHourLimitUsedPercent
                     )
 
                     IOSRateLimitProgressBar(
-                        title: "7d",
+                        title: AccountDisplayFormatter.progressResetLabel(
+                            until: account.sevenDayResetsAt,
+                            fallbackTitle: "7d"
+                        ),
                         remainingPercent: account.sevenDayLimitUsedPercent
                     )
                 }
