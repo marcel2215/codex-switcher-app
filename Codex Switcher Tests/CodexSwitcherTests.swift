@@ -1339,6 +1339,23 @@ struct CodexSwitcherTests {
         #expect(missingMatches.isEmpty)
     }
 
+    @Test func widgetSnapshotPublisherKeepsExistingAccountsWhenLocalStoreIsTemporarilyEmpty() {
+        let existingAccount = makeSharedAccountRecord(
+            identityKey: "chatgpt:existing",
+            name: "Existing",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 84,
+            fiveHourLimitUsedPercent: 92
+        )
+
+        let preservedAccounts = WidgetSnapshotPublisher.mergedAccounts(
+            localAccounts: [],
+            existingState: makeSharedState(accounts: [existingAccount])
+        )
+
+        #expect(preservedAccounts == [existingAccount])
+    }
+
     @Test func restoreSortPreferencesUsesStoredValuesAndFallsBackSafely() {
         let controller = makeController(
             authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))

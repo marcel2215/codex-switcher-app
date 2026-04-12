@@ -145,6 +145,7 @@ struct AccountsRootView: View {
                 rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
                 rateLimitRefreshController.setScenePhase(scenePhase)
                 syncRegularSelectedRateLimitTracking(for: selectedAccountID)
+                WidgetSnapshotPublisher.publish(modelContext: modelContext)
             }
             .onChange(of: controller.sortCriterion) { _, newValue in
                 sortPreferences.persist(
@@ -218,6 +219,12 @@ struct AccountsRootView: View {
 
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {
         rateLimitRefreshController.setScenePhase(newPhase)
+
+        guard newPhase == .active else {
+            return
+        }
+
+        WidgetSnapshotPublisher.publish(modelContext: modelContext)
     }
 
     private func handleEditModeChange(_ newMode: EditMode) {

@@ -119,9 +119,16 @@ struct WatchAccountsRootView: View {
             refreshController.configure(modelContext: modelContext)
             refreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
             refreshController.setScenePhase(scenePhase)
+            WidgetSnapshotPublisher.publish(modelContext: modelContext)
         }
         .onChange(of: scenePhase) { _, newPhase in
             refreshController.setScenePhase(newPhase)
+
+            guard newPhase == .active else {
+                return
+            }
+
+            WidgetSnapshotPublisher.publish(modelContext: modelContext)
         }
         .onChange(of: accounts.map(\.identityKey)) { _, newIdentityKeys in
             refreshController.reconcileKnownIdentityKeys(newIdentityKeys)

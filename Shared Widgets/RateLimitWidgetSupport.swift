@@ -279,6 +279,10 @@ enum WidgetRateLimitResolver {
             return nil
         }
 
+        guard identityKey != WidgetCodexAccountEntity.automaticID else {
+            return nil
+        }
+
         return identityKey
     }
 
@@ -326,10 +330,6 @@ struct RateLimitOverviewProvider: AppIntentTimelineProvider {
             .sorted(by: WidgetRateLimitResolver.accountRecordComparator)
             .prefix(5)
             .map(WidgetCodexAccountEntity.live(from:))
-
-        guard !suggestedAccounts.isEmpty else {
-            return []
-        }
 
         let intent = RateLimitOverviewConfigurationIntent()
         intent.account1 = suggestedAccounts[safe: 0]
@@ -511,7 +511,7 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
 #endif
 
         let state = WidgetRateLimitResolver.loadState()
-        return state.accounts
+        let recommendations = state.accounts
             .sorted(by: WidgetRateLimitResolver.accountRecordComparator)
             .prefix(2)
             .flatMap { record in
@@ -542,6 +542,17 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
                     ),
                 ]
             }
+
+        guard !recommendations.isEmpty else {
+            let intent = RateLimitAccessoryConfigurationIntent()
+            intent.window = .fiveHour
+
+            return [
+                AppIntentRecommendation(intent: intent, description: "Rate Limit")
+            ]
+        }
+
+        return recommendations
     }
 
     func placeholder(in context: Context) -> RateLimitAccessoryEntry {

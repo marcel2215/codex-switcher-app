@@ -28,10 +28,15 @@ enum RateLimitWindow: String, AppEnum, Codable, Sendable {
     }
 }
 
+#if !os(watchOS)
 struct RateLimitOverviewConfigurationIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Rate Limits"
-    static let description = IntentDescription("Show selected Codex accounts and their 5h / 7d remaining limits. Any empty slot automatically uses the next account from the app's sort order.")
+    static let description = IntentDescription("Show selected Codex accounts and their 5h / 7d remaining limits. Leave a slot empty to automatically use the next account from the app's sort order.")
 
+    // Keep widget account parameters optional. WidgetKit may add or restore a
+    // widget before a person has picked a concrete entity value, and treating
+    // nil as "Automatic" avoids unresolved configurations that stay stuck in
+    // placeholder state on iPhone or show an exclamation mark on watchOS.
     @Parameter(title: "Primary Account")
     var account1: WidgetCodexAccountEntity?
 
@@ -72,10 +77,11 @@ struct RateLimitOverviewConfigurationIntent: WidgetConfigurationIntent {
         }
     }
 }
+#endif
 
 struct RateLimitAccessoryConfigurationIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Rate Limit"
-    static let description = IntentDescription("Show one account's remaining 5h or 7d limit.")
+    static let description = IntentDescription("Show one account's remaining 5h or 7d limit. Leave the account empty to automatically use the first account from the app's sort order.")
 
     @Parameter(title: "Account")
     var account: WidgetCodexAccountEntity?

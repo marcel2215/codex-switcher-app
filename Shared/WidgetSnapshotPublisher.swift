@@ -22,6 +22,7 @@ enum WidgetSnapshotPublisher {
         selectedAccountID: String? = nil,
         selectedAccountIsLive: Bool = false
     ) {
+        let store = CodexSharedStateStore()
         let descriptor = FetchDescriptor<StoredAccount>(
             sortBy: [
                 SortDescriptor(\.customOrder),
@@ -53,6 +54,11 @@ enum WidgetSnapshotPublisher {
                 )
             }
 
+        let existingState = (try? store.load()) ?? .empty
+        let resolvedAccounts = mergedAccounts(
+            localAccounts: sharedAccounts,
+            existingState: existingState
+        )
         let sharedState = SharedCodexState(
             schemaVersion: SharedCodexState.currentSchemaVersion,
             authState: .ready,
@@ -60,16 +66,31 @@ enum WidgetSnapshotPublisher {
             currentAccountID: currentAccountID,
             selectedAccountID: selectedAccountID,
             selectedAccountIsLive: selectedAccountIsLive,
-            accounts: sharedAccounts,
+            accounts: resolvedAccounts,
             updatedAt: .now
         )
 
         do {
-            try CodexSharedStateStore().save(sharedState)
+            try store.save(sharedState)
             CodexSharedSurfaceReloader.reloadAllRateLimitWidgets()
         } catch {
             logger.error("Couldn't publish widget snapshot: \(String(describing: error), privacy: .private)")
         }
+    }
+
+    static func mergedAccounts(
+        localAccounts: [SharedCodexAccountRecord],
+        existingState: SharedCodexState
+    ) -> [SharedCodexAccountRecord] {
+        guard localAccounts.isEmpty, !existingState.accounts.isEmpty else {
+            return localAccounts
+        }
+
+        // iPhone/watch frequently launch before CloudKit finishes replaying the
+        // local account database. Preserve the last non-empty shared snapshot
+        // instead of replacing it with an empty list and leaving widgets stuck
+        // in placeholder state.
+        return existingState.accounts
     }
 
     static func fingerprint(for accounts: [StoredAccount]) -> Int {
