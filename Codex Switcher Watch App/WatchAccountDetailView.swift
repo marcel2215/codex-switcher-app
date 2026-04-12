@@ -9,6 +9,11 @@ import SwiftData
 import SwiftUI
 
 struct WatchAccountDetailView: View {
+    private enum ResetRow: Hashable {
+        case fiveHour
+        case sevenDay
+    }
+
     private enum LiveRefreshStatus {
         case checking
         case available
@@ -26,6 +31,10 @@ struct WatchAccountDetailView: View {
 
     @State private var draftName: String
     @State private var liveRefreshStatus: LiveRefreshStatus = .checking
+    @State private var resetDisplayModes: [ResetRow: AccountDisplayFormatter.ResetTimeDisplayMode] = [
+        .fiveHour: .relative,
+        .sevenDay: .relative,
+    ]
     @State private var showingRemoveConfirmation = false
 
     init(
@@ -40,21 +49,62 @@ struct WatchAccountDetailView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                WatchRateLimitCard(
-                    title: "5-Hour Remaining",
-                    remainingPercent: account.fiveHourLimitUsedPercent,
-                    resetsAt: account.fiveHourResetsAt,
-                    dimSecondaryContent: isLuminanceReduced
-                )
+        Form {
+            Section("Account") {
+                NavigationLink {
+                    WatchAccountNameEditorView(
+                        draftName: $draftName,
+                        placeholder: normalized(account.emailHint) ?? "",
+                        onSave: persistDraftName
+                    )
+                } label: {
+                    LabeledContent("Name") {
+                        Text(displayName)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
 
-                WatchRateLimitCard(
-                    title: "7-Day Remaining",
-                    remainingPercent: account.sevenDayLimitUsedPercent,
-                    resetsAt: account.sevenDayResetsAt,
-                    dimSecondaryContent: isLuminanceReduced
-                )
+                NavigationLink {
+                    WatchAccountIconPickerView(account: account, onError: onError)
+                } label: {
+                    LabeledContent("Icon") {
+                        HStack(spacing: 8) {
+                            Image(systemName: selectedIcon.systemName)
+
+                            Text(selectedIcon.title)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                }
+
+                LabeledContent("Last Login") {
+                    Text(AccountDisplayFormatter.lastLoginValueDescription(from: account.lastLoginAt))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
+                LabeledContent("5-Hour Remaining") {
+                    usageValueText(account.fiveHourLimitUsedPercent)
+                }
+
+                LabeledContent("5-Hour Reset") {
+                    resetValueButton(account.fiveHourResetsAt, row: .fiveHour)
+                }
+
+                LabeledContent("7-Day Remaining") {
+                    usageValueText(account.sevenDayLimitUsedPercent)
+                }
+
+                LabeledContent("7-Day Reset") {
+                    resetValueButton(account.sevenDayResetsAt, row: .sevenDay)
+                }
+            } header: {
+                Text("Rate Limits")
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     if let observedAt = account.rateLimitsObservedAt {
@@ -70,40 +120,15 @@ struct WatchAccountDetailView: View {
                         EmptyView()
                     }
                 }
-            }
-
-            Section("Account") {
-                if let emailHint = normalized(account.emailHint) {
-                    WatchMetadataRow(title: "Email", value: emailHint, isSensitive: true)
-                }
-
-                if let accountID = normalized(account.accountIdentifier) {
-                    WatchMetadataRow(title: "ID", value: accountID, isSensitive: true)
-                }
-
-                LabeledContent("Last Login") {
-                    Text(AccountDisplayFormatter.lastLoginValueDescription(from: account.lastLoginAt))
-                }
-            }
-
-            Section("Edit") {
-                NavigationLink("Name") {
-                    WatchAccountNameEditorView(
-                        draftName: $draftName,
-                        placeholder: normalized(account.emailHint) ?? "",
-                        onSave: persistDraftName
-                    )
-                }
-
-                NavigationLink("Icon") {
-                    WatchAccountIconPickerView(account: account, onError: onError)
-                }
+                .opacity(isLuminanceReduced ? 0.72 : 1)
             }
 
             Section {
                 Button("Remove Account", role: .destructive) {
                     showingRemoveConfirmation = true
                 }
+            } header: {
+                Text("Danger Zone")
             }
         }
         .navigationTitle(displayName)
@@ -146,6 +171,37 @@ struct WatchAccountDetailView: View {
         )
     }
 
+    private var selectedIcon: AccountIconOption {
+        AccountIconOption.resolve(from: account.iconSystemName)
+    }
+
+    private func usageValueText(_ value: Int?) -> some View {
+        Text(AccountDisplayFormatter.detailedPercentDescription(value))
+            .foregroundStyle(.secondary)
+    }
+
+    private func resetValueButton(_ value: Date?, row: ResetRow) -> some View {
+        Button {
+            toggleResetDisplayMode(for: row)
+        } label: {
+            Text(
+                AccountDisplayFormatter.resetTimeDescription(
+                    until: value,
+                    displayMode: resetDisplayModes[row] ?? .relative
+                )
+            )
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .disabled(value == nil)
+        .accessibilityHint(value == nil ? "Reset time unavailable" : "Double tap to switch between relative and absolute time")
+    }
+
+    private func toggleResetDisplayMode(for row: ResetRow) {
+        let currentMode = resetDisplayModes[row] ?? .relative
+        resetDisplayModes[row] = currentMode == .relative ? .absolute : .relative
+    }
+
     private func persistDraftName() {
         guard !account.isDeleted else {
             return
@@ -178,75 +234,6 @@ struct WatchAccountDetailView: View {
     private func normalized(_ value: String?) -> String? {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
-    }
-}
-
-private struct WatchMetadataRow: View {
-    let title: String
-    let value: String
-    let isSensitive: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-
-            if isSensitive {
-                Text(value)
-                    .font(.footnote)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                    .privacySensitive()
-            } else {
-                Text(value)
-                    .font(.footnote)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-            }
-        }
-    }
-}
-
-private struct WatchRateLimitCard: View {
-    let title: String
-    let remainingPercent: Int?
-    let resetsAt: Date?
-    let dimSecondaryContent: Bool
-
-    var body: some View {
-        let now = Date()
-
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title)
-                    .font(.headline)
-
-                Spacer()
-
-                Text(AccountDisplayFormatter.compactPercentDescription(remainingPercent))
-                    .font(.headline.monospacedDigit())
-            }
-
-            if let percent = AccountDisplayFormatter.clampedPercentValue(remainingPercent) {
-                Gauge(value: Double(percent), in: 0...100) {
-                    EmptyView()
-                }
-            } else {
-                Text("Not available yet")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let resetsAt, resetsAt > now {
-                Text("Resets \(resetsAt, style: .relative)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .opacity(dimSecondaryContent ? 0.65 : 1)
-            }
-        }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
     }
 }
 

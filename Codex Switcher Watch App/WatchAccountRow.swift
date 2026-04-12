@@ -11,47 +11,96 @@ struct WatchAccountRow: View {
     let account: StoredAccount
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label(
-                AccountsPresentationLogic.displayName(for: account),
-                systemImage: AccountIconOption.resolve(from: account.iconSystemName).systemName
-            )
-            .lineLimit(1)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: AccountIconOption.resolve(from: account.iconSystemName).systemName)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+                .padding(.top, 1)
 
-            HStack(spacing: 6) {
-                WatchUsageBadge(title: "5h", value: account.fiveHourLimitUsedPercent)
-                WatchUsageBadge(title: "7d", value: account.sevenDayLimitUsedPercent)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(AccountsPresentationLogic.displayName(for: account))
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                WatchRateLimitProgressBar(
+                    title: AccountDisplayFormatter.progressResetLabel(
+                        until: account.fiveHourResetsAt,
+                        fallbackTitle: "5h"
+                    ),
+                    remainingPercent: account.fiveHourLimitUsedPercent
+                )
+
+                WatchRateLimitProgressBar(
+                    title: AccountDisplayFormatter.progressResetLabel(
+                        until: account.sevenDayResetsAt,
+                        fallbackTitle: "7d"
+                    ),
+                    remainingPercent: account.sevenDayLimitUsedPercent
+                )
             }
         }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(AccountsPresentationLogic.displayName(for: account)), " +
-            AccountDisplayFormatter.accessibilityUsageListDescription(
-                sevenDayRemainingPercent: account.sevenDayLimitUsedPercent,
-                fiveHourRemainingPercent: account.fiveHourLimitUsedPercent
-            )
+            "\(AccountsPresentationLogic.displayName(for: account)), \(AccountDisplayFormatter.accessibilityUsageListDescription(sevenDayRemainingPercent: account.sevenDayLimitUsedPercent, fiveHourRemainingPercent: account.fiveHourLimitUsedPercent))"
         )
     }
 }
 
-private struct WatchUsageBadge: View {
-    let title: String
-    let value: Int?
+private struct WatchRateLimitProgressBar: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
-    var body: some View {
-        Text("\(title) \(AccountDisplayFormatter.compactPercentDescription(value))")
-            .font(.caption2.monospacedDigit())
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                Capsule()
-                    .fill(backgroundColor)
-            )
+    let title: String
+    let remainingPercent: Int?
+
+    private var normalizedProgress: Double? {
+        guard let clampedPercent = AccountDisplayFormatter.clampedPercentValue(remainingPercent) else {
+            return nil
+        }
+
+        return Double(clampedPercent) / 100
     }
 
-    private var backgroundColor: Color {
-        .secondary.opacity(0.12)
+    private var progressTint: Color {
+        let clampedPercent = AccountDisplayFormatter.clampedPercentValue(remainingPercent) ?? 0
+        let components = AccountDisplayFormatter.adaptiveUsageColorComponents(
+            forRemainingPercent: clampedPercent,
+            colorScheme: colorScheme,
+            contrast: colorSchemeContrast
+        )
+
+        return Color(.sRGB, red: components.red, green: components.green, blue: components.blue)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
+
+                Text(AccountDisplayFormatter.compactPercentDescription(remainingPercent))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            Group {
+                if let normalizedProgress {
+                    ProgressView(value: normalizedProgress, total: 1)
+                        .progressViewStyle(.linear)
+                        .tint(progressTint)
+                } else {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(.tertiary.opacity(0.25))
+                        .frame(height: 4)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
     }
 }

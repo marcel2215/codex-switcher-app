@@ -67,12 +67,10 @@ private struct IOSRateLimitProgressBar: View {
 
     private var progressTint: Color {
         let clampedPercent = AccountDisplayFormatter.clampedPercentValue(remainingPercent) ?? 0
-        let ramp = Self.colorRamp(for: colorScheme, contrast: colorSchemeContrast)
-        let components = Self.interpolatedColorComponents(
+        let components = AccountDisplayFormatter.adaptiveUsageColorComponents(
             forRemainingPercent: clampedPercent,
-            low: ramp.low,
-            mid: ramp.mid,
-            high: ramp.high
+            colorScheme: colorScheme,
+            contrast: colorSchemeContrast
         )
 
         return Color(.sRGB, red: components.red, green: components.green, blue: components.blue)
@@ -105,75 +103,5 @@ private struct IOSRateLimitProgressBar: View {
             }
             .frame(maxWidth: .infinity)
         }
-    }
-
-    private static func colorRamp(
-        for colorScheme: ColorScheme,
-        contrast: ColorSchemeContrast
-    ) -> (
-        low: (red: Double, green: Double, blue: Double),
-        mid: (red: Double, green: Double, blue: Double),
-        high: (red: Double, green: Double, blue: Double)
-    ) {
-        // The row uses slightly deeper tones in light mode and brighter tones
-        // in dark mode so the narrow progress fill stays readable against the
-        // system list background in both appearances.
-        switch (colorScheme, contrast) {
-        case (.light, .increased):
-            return (
-                low: (0.68, 0.12, 0.10),
-                mid: (0.78, 0.34, 0.00),
-                high: (0.08, 0.46, 0.17)
-            )
-        case (.dark, .increased):
-            return (
-                low: (1.00, 0.48, 0.45),
-                mid: (1.00, 0.73, 0.28),
-                high: (0.46, 0.95, 0.54)
-            )
-        case (.dark, _):
-            return (
-                low: (1.00, 0.39, 0.36),
-                mid: (1.00, 0.62, 0.18),
-                high: (0.35, 0.84, 0.43)
-            )
-        case (.light, _):
-            return (
-                low: (0.78, 0.19, 0.17),
-                mid: (0.87, 0.46, 0.07),
-                high: (0.12, 0.56, 0.23)
-            )
-        @unknown default:
-            return (
-                low: (0.78, 0.19, 0.17),
-                mid: (0.87, 0.46, 0.07),
-                high: (0.12, 0.56, 0.23)
-            )
-        }
-    }
-
-    private static func interpolatedColorComponents(
-        forRemainingPercent percent: Int,
-        low: (red: Double, green: Double, blue: Double),
-        mid: (red: Double, green: Double, blue: Double),
-        high: (red: Double, green: Double, blue: Double)
-    ) -> (red: Double, green: Double, blue: Double) {
-        let normalized = min(max(Double(percent), 0), 100)
-
-        if normalized <= 50 {
-            let progress = normalized / 50
-            return (
-                red: low.red + ((mid.red - low.red) * progress),
-                green: low.green + ((mid.green - low.green) * progress),
-                blue: low.blue + ((mid.blue - low.blue) * progress)
-            )
-        }
-
-        let progress = (normalized - 50) / 50
-        return (
-            red: mid.red + ((high.red - mid.red) * progress),
-            green: mid.green + ((high.green - mid.green) * progress),
-            blue: mid.blue + ((high.blue - mid.blue) * progress)
-        )
     }
 }

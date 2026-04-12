@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(SwiftUI)
+import SwiftUI
+#endif
 
 enum AccountDisplayFormatter {
     enum ResetTimeDisplayMode: Sendable {
@@ -194,4 +197,73 @@ enum AccountDisplayFormatter {
         let progress = (normalized - 50) / 50
         return (red: 1 - progress, green: 0.38 + (0.62 * progress), blue: 0)
     }
+
+#if canImport(SwiftUI)
+    static func adaptiveUsageColorComponents(
+        forRemainingPercent value: Int,
+        colorScheme: ColorScheme,
+        contrast: ColorSchemeContrast
+    ) -> (red: Double, green: Double, blue: Double) {
+        let ramp = usageColorRamp(for: colorScheme, contrast: contrast)
+        let normalized = min(max(Double(value), 0), 100)
+
+        if normalized <= 50 {
+            let progress = normalized / 50
+            return (
+                red: ramp.low.red + ((ramp.mid.red - ramp.low.red) * progress),
+                green: ramp.low.green + ((ramp.mid.green - ramp.low.green) * progress),
+                blue: ramp.low.blue + ((ramp.mid.blue - ramp.low.blue) * progress)
+            )
+        }
+
+        let progress = (normalized - 50) / 50
+        return (
+            red: ramp.mid.red + ((ramp.high.red - ramp.mid.red) * progress),
+            green: ramp.mid.green + ((ramp.high.green - ramp.mid.green) * progress),
+            blue: ramp.mid.blue + ((ramp.high.blue - ramp.mid.blue) * progress)
+        )
+    }
+
+    private static func usageColorRamp(
+        for colorScheme: ColorScheme,
+        contrast: ColorSchemeContrast
+    ) -> (
+        low: (red: Double, green: Double, blue: Double),
+        mid: (red: Double, green: Double, blue: Double),
+        high: (red: Double, green: Double, blue: Double)
+    ) {
+        switch (colorScheme, contrast) {
+        case (.light, .increased):
+            return (
+                low: (0.68, 0.12, 0.10),
+                mid: (0.78, 0.34, 0.00),
+                high: (0.08, 0.46, 0.17)
+            )
+        case (.dark, .increased):
+            return (
+                low: (1.00, 0.48, 0.45),
+                mid: (1.00, 0.73, 0.28),
+                high: (0.46, 0.95, 0.54)
+            )
+        case (.dark, _):
+            return (
+                low: (1.00, 0.39, 0.36),
+                mid: (1.00, 0.62, 0.18),
+                high: (0.35, 0.84, 0.43)
+            )
+        case (.light, _):
+            return (
+                low: (0.78, 0.19, 0.17),
+                mid: (0.87, 0.46, 0.07),
+                high: (0.12, 0.56, 0.23)
+            )
+        @unknown default:
+            return (
+                low: (0.78, 0.19, 0.17),
+                mid: (0.87, 0.46, 0.07),
+                high: (0.12, 0.56, 0.23)
+            )
+        }
+    }
+#endif
 }
