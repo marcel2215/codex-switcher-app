@@ -167,17 +167,19 @@ enum AccountDisplayFormatter {
         return min(max(value, 0), 100)
     }
 
-    // The list uses a deterministic remaining-capacity gradient:
-    // 0% -> red, 50% -> yellow, 100% -> green.
+    // The compact usage bars use a deterministic remaining-capacity gradient:
+    // 0% -> red, 50% -> orange, 100% -> green.
+    // This keeps low remaining capacity highly visible without relying on
+    // yellow, which is harder to read against light list backgrounds.
     static func usageColorComponents(forRemainingPercent value: Int) -> (red: Double, green: Double, blue: Double) {
         let normalized = min(max(Double(value), 0), 100)
 
         if normalized <= 50 {
             let progress = normalized / 50
-            return (red: 1, green: progress, blue: 0)
+            return (red: 1, green: 0.38 * progress, blue: 0)
         }
 
         let progress = (normalized - 50) / 50
-        return (red: 1 - progress, green: 1, blue: 0)
+        return (red: 1 - progress, green: 0.38 + (0.62 * progress), blue: 0)
     }
 }
