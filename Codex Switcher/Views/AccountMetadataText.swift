@@ -14,17 +14,23 @@ struct AccountMetadataText: View {
     let lastLoginAt: Date?
     let sevenDayLimitUsedPercent: Int?
     let fiveHourLimitUsedPercent: Int?
+    let sevenDayResetsAt: Date?
+    let fiveHourResetsAt: Date?
     let font: Font
 
     init(
         lastLoginAt: Date?,
         sevenDayLimitUsedPercent: Int?,
         fiveHourLimitUsedPercent: Int?,
+        sevenDayResetsAt: Date? = nil,
+        fiveHourResetsAt: Date? = nil,
         font: Font = .subheadline
     ) {
         self.lastLoginAt = lastLoginAt
         self.sevenDayLimitUsedPercent = sevenDayLimitUsedPercent
         self.fiveHourLimitUsedPercent = fiveHourLimitUsedPercent
+        self.sevenDayResetsAt = sevenDayResetsAt
+        self.fiveHourResetsAt = fiveHourResetsAt
         self.font = font
     }
 
@@ -32,8 +38,14 @@ struct AccountMetadataText: View {
         // Keep the existing initializer surface so the macOS list and menu bar
         // call sites remain stable while the row UI now mirrors iOS.
         HStack(spacing: 6) {
-            progressBar(title: "5h", remainingPercent: fiveHourLimitUsedPercent)
-            progressBar(title: "7d", remainingPercent: sevenDayLimitUsedPercent)
+            progressBar(
+                title: progressLabel(fallbackTitle: "5h", resetAt: fiveHourResetsAt),
+                remainingPercent: fiveHourLimitUsedPercent
+            )
+            progressBar(
+                title: progressLabel(fallbackTitle: "7d", resetAt: sevenDayResetsAt),
+                remainingPercent: sevenDayLimitUsedPercent
+            )
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
@@ -47,14 +59,27 @@ struct AccountMetadataText: View {
     static func makeAttributedDescription(
         lastLoginAt: Date?,
         sevenDayLimitUsedPercent: Int?,
-        fiveHourLimitUsedPercent: Int?
+        fiveHourLimitUsedPercent: Int?,
+        sevenDayResetsAt: Date? = nil,
+        fiveHourResetsAt: Date? = nil,
+        relativeTo now: Date = .now
     ) -> AttributedString {
         var result = lastLoginFragment(lastLoginAt)
 
         result.append(AttributedString(" • "))
-        result.append(limitFragment(label: "7d", value: sevenDayLimitUsedPercent))
+        result.append(
+            limitFragment(
+                label: progressLabel(fallbackTitle: "7d", resetAt: sevenDayResetsAt, relativeTo: now),
+                value: sevenDayLimitUsedPercent
+            )
+        )
         result.append(AttributedString(" • "))
-        result.append(limitFragment(label: "5h", value: fiveHourLimitUsedPercent))
+        result.append(
+            limitFragment(
+                label: progressLabel(fallbackTitle: "5h", resetAt: fiveHourResetsAt, relativeTo: now),
+                value: fiveHourLimitUsedPercent
+            )
+        )
 
         return result
     }
@@ -79,6 +104,22 @@ struct AccountMetadataText: View {
         }
 
         return AttributedString("\(clampedValue)%")
+    }
+
+    private func progressLabel(fallbackTitle: String, resetAt: Date?) -> String {
+        Self.progressLabel(fallbackTitle: fallbackTitle, resetAt: resetAt, relativeTo: .now)
+    }
+
+    private static func progressLabel(
+        fallbackTitle: String,
+        resetAt: Date?,
+        relativeTo now: Date
+    ) -> String {
+        guard let resetAt else {
+            return fallbackTitle
+        }
+
+        return AccountDisplayFormatter.resetCountdownDescription(until: resetAt, relativeTo: now)
     }
 
     @ViewBuilder

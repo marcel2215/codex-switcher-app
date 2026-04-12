@@ -155,8 +155,8 @@ struct MenuBarAccountsView: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: account.iconSystemName)
-                                    .font(.callout)
-                                    .frame(width: 20, height: 20)
+                                    .font(.title3)
+                                    .frame(width: 24, height: 24)
                                     .foregroundStyle(.secondary)
 
                                 VStack(alignment: .leading, spacing: 1) {
@@ -168,6 +168,8 @@ struct MenuBarAccountsView: View {
                                         lastLoginAt: account.lastLoginAt,
                                         sevenDayLimitUsedPercent: account.sevenDayLimitUsedPercent,
                                         fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
+                                        sevenDayResetsAt: account.sevenDayResetsAt,
+                                        fiveHourResetsAt: account.fiveHourResetsAt,
                                         font: .caption
                                     )
                                 }

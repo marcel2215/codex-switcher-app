@@ -67,6 +67,8 @@ struct AccountRowView: View {
                     lastLoginAt: account.lastLoginAt,
                     sevenDayLimitUsedPercent: account.sevenDayLimitUsedPercent,
                     fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
+                    sevenDayResetsAt: account.sevenDayResetsAt,
+                    fiveHourResetsAt: account.fiveHourResetsAt,
                     font: .subheadline
                 )
             }
