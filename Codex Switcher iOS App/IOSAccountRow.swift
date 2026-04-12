@@ -58,9 +58,17 @@ private struct IOSRateLimitProgressBar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
+
+                Text(AccountDisplayFormatter.compactPercentDescription(remainingPercent))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
 
             Group {
                 if let normalizedProgress {
