@@ -78,15 +78,6 @@ struct AccountMetadataText: View {
             return AttributedString("?")
         }
 
-        let components = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: clampedValue)
-        var result = AttributedString("\(clampedValue)%")
-        result.foregroundColor = Color(
-            .sRGB,
-            red: components.red,
-            green: components.green,
-            blue: components.blue,
-            opacity: 1
-        )
-        return result
+        return AttributedString("\(clampedValue)%")
     }
 }

@@ -131,22 +131,7 @@ struct AccountDetailView: View {
         let description = AccountDisplayFormatter.detailedPercentDescription(value)
 
         return Text(description)
-            .foregroundStyle(usageColor(for: value))
-    }
-
-    private func usageColor(for value: Int?) -> Color {
-        guard let clampedValue = AccountDisplayFormatter.clampedPercentValue(value) else {
-            return .secondary
-        }
-
-        let components = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: clampedValue)
-        return Color(
-            .sRGB,
-            red: components.red,
-            green: components.green,
-            blue: components.blue,
-            opacity: 1
-        )
+            .foregroundStyle(.secondary)
     }
 
     private func resetValueButton(_ value: Date?, row: ResetRow) -> some View {

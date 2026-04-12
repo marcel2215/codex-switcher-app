@@ -42,7 +42,7 @@ private struct WatchUsageBadge: View {
     var body: some View {
         Text("\(title) \(AccountDisplayFormatter.compactPercentDescription(value))")
             .font(.caption2.monospacedDigit())
-            .foregroundStyle(value == nil ? .secondary : .primary)
+            .foregroundStyle(.secondary)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(
@@ -52,11 +52,6 @@ private struct WatchUsageBadge: View {
     }
 
     private var backgroundColor: Color {
-        guard let clampedValue = AccountDisplayFormatter.clampedPercentValue(value) else {
-            return .secondary.opacity(0.12)
-        }
-
-        let color = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: clampedValue)
-        return Color(.sRGB, red: color.red, green: color.green, blue: color.blue, opacity: 0.16)
+        .secondary.opacity(0.12)
     }
 }
