@@ -70,14 +70,9 @@ struct WatchAccountDetailView: View {
                     WatchAccountIconPickerView(account: account, onError: onError)
                 } label: {
                     LabeledContent("Icon") {
-                        HStack(spacing: 8) {
-                            Image(systemName: selectedIcon.systemName)
-
-                            Text(selectedIcon.title)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                        .foregroundStyle(.secondary)
+                        Image(systemName: selectedIcon.systemName)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel(selectedIcon.title)
                     }
                 }
 
@@ -107,10 +102,6 @@ struct WatchAccountDetailView: View {
                 Text("Rate Limits")
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
-                    if let observedAt = account.rateLimitsObservedAt {
-                        Text("Updated \(observedAt, style: .relative)")
-                    }
-
                     switch liveRefreshStatus {
                     case .waitingForCredential:
                         Text("Waiting for iCloud Keychain to sync this account.")

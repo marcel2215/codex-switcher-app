@@ -11,12 +11,11 @@ struct WatchAccountRow: View {
     let account: StoredAccount
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             Image(systemName: AccountIconOption.resolve(from: account.iconSystemName).systemName)
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .frame(width: 24, height: 24)
-                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(AccountsPresentationLogic.displayName(for: account))

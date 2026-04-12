@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct WatchSortOptionsView: View {
-    @Environment(\.dismiss) private var dismiss
-
     let sortCriterion: AccountSortCriterion
     let sortDirection: SortDirection
     let onSelectCriterion: (AccountSortCriterion) -> Void
@@ -48,13 +46,6 @@ struct WatchSortOptionsView: View {
             }
         }
         .navigationTitle("Sort")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
-        }
     }
 
     private func rowLabel(title: String, isSelected: Bool) -> some View {
