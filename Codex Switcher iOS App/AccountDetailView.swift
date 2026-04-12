@@ -14,6 +14,11 @@ struct AccountDetailView: View {
         case icon
     }
 
+    private enum ResetRow: Hashable {
+        case sevenDay
+        case fiveHour
+    }
+
     @Environment(\.modelContext) private var modelContext
 
     let account: StoredAccount
@@ -21,6 +26,10 @@ struct AccountDetailView: View {
     let onRemove: () -> Void
 
     @State private var draftName: String
+    @State private var resetDisplayModes: [ResetRow: AccountDisplayFormatter.ResetTimeDisplayMode] = [
+        .sevenDay: .relative,
+        .fiveHour: .relative,
+    ]
 
     init(
         account: StoredAccount,
@@ -69,7 +78,7 @@ struct AccountDetailView: View {
                 }
 
                 LabeledContent("7-Day Reset") {
-                    resetValueText(account.sevenDayResetsAt)
+                    resetValueButton(account.sevenDayResetsAt, row: .sevenDay)
                 }
 
                 LabeledContent("5-Hour Remaining") {
@@ -77,7 +86,7 @@ struct AccountDetailView: View {
                 }
 
                 LabeledContent("5-Hour Reset") {
-                    resetValueText(account.fiveHourResetsAt)
+                    resetValueButton(account.fiveHourResetsAt, row: .fiveHour)
                 }
             }
 
@@ -140,11 +149,26 @@ struct AccountDetailView: View {
         )
     }
 
-    private func resetValueText(_ value: Date?) -> some View {
-        let description = AccountDisplayFormatter.resetCountdownDescription(until: value)
-
-        return Text(description)
+    private func resetValueButton(_ value: Date?, row: ResetRow) -> some View {
+        Button {
+            toggleResetDisplayMode(for: row)
+        } label: {
+            Text(
+                AccountDisplayFormatter.resetTimeDescription(
+                    until: value,
+                    displayMode: resetDisplayModes[row] ?? .relative
+                )
+            )
             .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .disabled(value == nil)
+        .accessibilityHint(value == nil ? "Reset time unavailable" : "Double tap to switch between relative and absolute time")
+    }
+
+    private func toggleResetDisplayMode(for row: ResetRow) {
+        let currentMode = resetDisplayModes[row] ?? .relative
+        resetDisplayModes[row] = currentMode == .relative ? .absolute : .relative
     }
 
     @ViewBuilder

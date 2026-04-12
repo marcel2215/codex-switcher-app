@@ -8,6 +8,11 @@
 import Foundation
 
 enum AccountDisplayFormatter {
+    enum ResetTimeDisplayMode: Sendable {
+        case relative
+        case absolute
+    }
+
     static func lastLoginValueDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
         guard let lastLoginAt else {
             return "never"
@@ -135,6 +140,23 @@ enum AccountDisplayFormatter {
         }
 
         return "\(days)d \(remainingHours)h"
+    }
+
+    static func resetTimeDescription(
+        until resetAt: Date?,
+        displayMode: ResetTimeDisplayMode,
+        relativeTo now: Date = .now
+    ) -> String {
+        switch displayMode {
+        case .relative:
+            return resetCountdownDescription(until: resetAt, relativeTo: now)
+        case .absolute:
+            guard let resetAt else {
+                return "Unavailable"
+            }
+
+            return resetAt.formatted(date: .abbreviated, time: .shortened)
+        }
     }
 
     static func clampedPercentValue(_ value: Int?) -> Int? {
