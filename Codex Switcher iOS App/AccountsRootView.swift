@@ -165,6 +165,7 @@ struct AccountsRootView: View {
             NavigationStack {
                 IOSSettingsView()
             }
+            .presentationDragIndicator(.visible)
         }
         .alert(item: activeAlert) { alert in
             switch alert {

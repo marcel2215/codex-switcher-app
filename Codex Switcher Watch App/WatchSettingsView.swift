@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct WatchSettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-
     var body: some View {
         Form {
             Section("About") {
@@ -19,12 +17,5 @@ struct WatchSettingsView: View {
             }
         }
         .navigationTitle("Settings")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
-        }
     }
 }
