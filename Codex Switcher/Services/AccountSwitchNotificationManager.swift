@@ -15,13 +15,11 @@ protocol AccountSwitchNotifying: AnyObject {
 }
 
 @MainActor
-final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
+final class AccountSwitchNotificationManager: AccountSwitchNotifying {
     private let center: UNUserNotificationCenter
 
     init(center: UNUserNotificationCenter = .current()) {
         self.center = center
-        super.init()
-        self.center.delegate = self
     }
 
     func postSwitchNotification(for accountName: String, kind: CodexSwitchNotificationKind) async {
@@ -68,15 +66,5 @@ final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
                 }
             }
         }
-    }
-}
-
-extension AccountSwitchNotificationManager: UNUserNotificationCenterDelegate {
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner])
     }
 }

@@ -146,6 +146,12 @@ struct AccountsRootView: View {
                 rateLimitRefreshController.setScenePhase(scenePhase)
                 syncRegularSelectedRateLimitTracking(for: selectedAccountID)
                 WidgetSnapshotPublisher.publish(modelContext: modelContext)
+                openNotificationSettingsIfRequested()
+            }
+            .onReceive(NotificationCenter.default.publisher(
+                for: CodexInAppNotificationSettingsSignal.didRequestOpenNotificationSettings
+            )) { _ in
+                openNotificationSettingsIfRequested()
             }
             .onChange(of: controller.sortCriterion) { _, newValue in
                 sortPreferences.persist(
@@ -225,6 +231,17 @@ struct AccountsRootView: View {
         }
 
         WidgetSnapshotPublisher.publish(modelContext: modelContext)
+        openNotificationSettingsIfRequested()
+    }
+
+    private func openNotificationSettingsIfRequested() {
+        guard scenePhase == .active,
+              CodexInAppNotificationSettingsSignal.consumePendingOpenNotificationSettingsRequest()
+        else {
+            return
+        }
+
+        showingSettings = true
     }
 
     private func handleEditModeChange(_ newMode: EditMode) {

@@ -7,6 +7,7 @@
 
 import AppKit
 import OSLog
+import UserNotifications
 
 final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     /// Tracks whether the user wants Codex Switcher to remain available from
@@ -20,6 +21,15 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let notificationCenter = UNUserNotificationCenter.current()
+        notificationCenter.delegate = self
+
+        Task {
+            await CodexNotificationAuthorization.ensureProvidesAppNotificationSettingsIfAuthorized(
+                center: notificationCenter
+            )
+        }
+
         do {
             let terminatedInstances = try singleInstanceCoordinator.requestTerminationOfOlderInstances()
             guard !terminatedInstances.isEmpty else {
@@ -87,5 +97,31 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         restoreForegroundPresentation()
         return true
+    }
+
+    @MainActor
+    private func openNotificationSettings() {
+        restoreForegroundPresentation()
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+}
+
+extension ApplicationDelegate: UNUserNotificationCenterDelegate {
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner])
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        openSettingsFor notification: UNNotification?
+    ) {
+        Task { @MainActor in
+            openNotificationSettings()
+        }
     }
 }

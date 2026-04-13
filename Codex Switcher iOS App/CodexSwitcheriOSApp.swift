@@ -10,6 +10,7 @@ import SwiftUI
 
 @main
 struct CodexSwitcheriOSApp: App {
+    @UIApplicationDelegateAdaptor(IOSApplicationDelegate.self) private var applicationDelegate
     private let bootstrap = IOSAppBootstrap.make()
 
     init() {
