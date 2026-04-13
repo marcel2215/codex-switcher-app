@@ -87,7 +87,7 @@ private struct IOSRateLimitProgressBar: View {
 
                 Text(AccountDisplayFormatter.compactPercentDescription(remainingPercent))
                     .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
             }
 
             Group {
