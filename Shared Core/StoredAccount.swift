@@ -20,7 +20,10 @@ final class StoredAccount {
 
     // Migration-only legacy field. New builds move auth snapshots into the
     // shared keychain and clear this value so SwiftData/CloudKit only carry
-    // metadata, not the raw auth.json contents.
+    // metadata, not the raw auth.json contents. Keep the field on CloudKit's
+    // encrypted path as defense in depth for any old rows that still haven't
+    // been scrubbed yet.
+    @Attribute(.allowsCloudEncryption)
     var authFileContents: String?
     var hasLocalSnapshot: Bool = false
     var authModeRaw: String = "chatgpt"
