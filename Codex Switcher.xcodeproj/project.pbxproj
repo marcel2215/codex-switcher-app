@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1F1413342F8C7C930013386A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */; };
+		1F1413352F8C7C930013386A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */; };
+		1F1413402F8C7C940013386A /* Codex Switcher iOS Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1F1413332F8C7C930013386A /* Codex Switcher iOS Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1F28ABAF2F86DA4B00639A74 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */; };
 		1F28ABB12F86DA4B00639A74 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */; };
 		1F28ABBE2F86DA4C00639A74 /* Codex Switcher Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1F28ABAC2F86DA4A00639A74 /* Codex Switcher Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -14,6 +17,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		1F14133E2F8C7C940013386A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1F1413322F8C7C930013386A;
+			remoteInfo = "Codex Switcher iOS WidgetsExtension";
+		};
 		1F28ABBC2F86DA4C00639A74 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
@@ -90,6 +100,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				1F1413402F8C7C940013386A /* Codex Switcher iOS Widgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -118,6 +129,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1F1413332F8C7C930013386A /* Codex Switcher iOS Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Codex Switcher iOS Widgets.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F28ABAC2F86DA4A00639A74 /* Codex Switcher Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Codex Switcher Widgets.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -133,6 +145,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1F1413442F8C7C940013386A /* Exceptions for "Codex Switcher iOS Widgets" folder in "Codex Switcher iOS Widgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1F1413322F8C7C930013386A /* Codex Switcher iOS Widgets */;
+		};
 		1F28ABBF2F86DA4C00639A74 /* Exceptions for "Codex Switcher Widgets" folder in "Codex Switcher Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -219,6 +238,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		1F1413362F8C7C930013386A /* Codex Switcher iOS Widgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1F1413442F8C7C940013386A /* Exceptions for "Codex Switcher iOS Widgets" folder in "Codex Switcher iOS Widgets" target */,
+			);
+			path = "Codex Switcher iOS Widgets";
+			sourceTree = "<group>";
+		};
 		1F28ABB22F86DA4B00639A74 /* Codex Switcher Widgets */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -307,6 +334,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1F1413302F8C7C930013386A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1F1413352F8C7C930013386A /* SwiftUI.framework in Frameworks */,
+				1F1413342F8C7C930013386A /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1F28ABA92F86DA4A00639A74 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -407,6 +443,7 @@
 				1FA0356E2F8AF68400367DD6 /* Codex Switcher Watch App Tests */,
 				1FA035782F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */,
 				5B2C4D6E7F8091A2B3C4D5E6 /* Shared Widgets */,
+				1F1413362F8C7C930013386A /* Codex Switcher iOS Widgets */,
 				1F28ABAD2F86DA4A00639A74 /* Frameworks */,
 				1F87C9482F8406C7007DED25 /* Products */,
 			);
@@ -425,6 +462,7 @@
 				1FA0355F2F8AF68300367DD6 /* Codex Switcher Watch App.app */,
 				1FA0356B2F8AF68400367DD6 /* Codex Switcher Watch App Tests.xctest */,
 				1FA035752F8AF68400367DD6 /* Codex Switcher Watch App UI Tests.xctest */,
+				1F1413332F8C7C930013386A /* Codex Switcher iOS Widgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -432,6 +470,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		1F1413322F8C7C930013386A /* Codex Switcher iOS Widgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1F1413412F8C7C940013386A /* Build configuration list for PBXNativeTarget "Codex Switcher iOS Widgets" */;
+			buildPhases = (
+				1F14132F2F8C7C930013386A /* Sources */,
+				1F1413302F8C7C930013386A /* Frameworks */,
+				1F1413312F8C7C930013386A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				1F1413362F8C7C930013386A /* Codex Switcher iOS Widgets */,
+			);
+			name = "Codex Switcher iOS Widgets";
+			packageProductDependencies = (
+			);
+			productName = "Codex Switcher iOS WidgetsExtension";
+			productReference = 1F1413332F8C7C930013386A /* Codex Switcher iOS Widgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1F28ABC02F86DA4C00639A74 /* Build configuration list for PBXNativeTarget "Codex Switcher Widgets" */;
@@ -543,6 +603,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				1F14133F2F8C7C940013386A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1F96B5A72F89BF5100044DB7 /* Codex Switcher iOS App */,
@@ -683,6 +744,9 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					1F1413322F8C7C930013386A = {
+						CreatedOnToolsVersion = 26.4;
+					};
 					1F28ABAB2F86DA4A00639A74 = {
 						CreatedOnToolsVersion = 26.4;
 					};
@@ -745,11 +809,19 @@
 				1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */,
 				1FA0356A2F8AF68400367DD6 /* Codex Switcher Watch App Tests */,
 				1FA035742F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */,
+				1F1413322F8C7C930013386A /* Codex Switcher iOS Widgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1F1413312F8C7C930013386A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1F28ABAA2F86DA4A00639A74 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -823,6 +895,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1F14132F2F8C7C930013386A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1F28ABA82F86DA4A00639A74 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -896,6 +975,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		1F14133F2F8C7C940013386A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1F1413322F8C7C930013386A /* Codex Switcher iOS Widgets */;
+			targetProxy = 1F14133E2F8C7C940013386A /* PBXContainerItemProxy */;
+		};
 		1F28ABBD2F86DA4C00639A74 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */;
@@ -940,6 +1024,71 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		1F1413422F8C7C940013386A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Codex Switcher iOS Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher iOS Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcel2215.codexswitcher.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1F1413432F8C7C940013386A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Codex Switcher iOS Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher iOS Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcel2215.codexswitcher.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		1F28ABC12F86DA4C00639A74 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1682,6 +1831,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1F1413412F8C7C940013386A /* Build configuration list for PBXNativeTarget "Codex Switcher iOS Widgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1F1413422F8C7C940013386A /* Debug */,
+				1F1413432F8C7C940013386A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		1F28ABC02F86DA4C00639A74 /* Build configuration list for PBXNativeTarget "Codex Switcher Widgets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

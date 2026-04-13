@@ -16,7 +16,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1F2922F12F8C123700BE19D2"
+               BlueprintIdentifier = "1F1413322F8C7C930013386A"
                BuildableName = "Codex Switcher iOS Widgets.appex"
                BlueprintName = "Codex Switcher iOS Widgets"
                ReferencedContainer = "container:Codex Switcher.xcodeproj">
