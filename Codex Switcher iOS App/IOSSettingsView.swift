@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import UserNotifications
 import UIKit
 
@@ -15,14 +16,55 @@ struct IOSSettingsView: View {
         case sevenDayReset
     }
 
-    private struct PresentedSettingsAlert: Identifiable {
-        let id = UUID()
-        let title: String
-        let message: String
+    private enum DangerZoneAction: String, Identifiable {
+        case resetSettings
+        case removeAllAccounts
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .resetSettings:
+                "Reset Settings"
+            case .removeAllAccounts:
+                "Remove All Accounts"
+            }
+        }
+
+        var message: String {
+            switch self {
+            case .resetSettings:
+                "Reset notification preferences on this iPhone?"
+            case .removeAllAccounts:
+                "Remove every account from this iPhone? You can add them again later."
+            }
+        }
+
+        var confirmationTitle: String {
+            switch self {
+            case .resetSettings:
+                "Reset"
+            case .removeAllAccounts:
+                "Remove All"
+            }
+        }
+    }
+
+    private enum PresentedSettingsAlert: Identifiable {
+        case error(title: String, message: String)
+
+        var id: String {
+            switch self {
+            case let .error(title, message):
+                "error-\(title)-\(message)"
+            }
+        }
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Query private var accounts: [StoredAccount]
     @AppStorage(
         CodexSharedPreferenceKey.fiveHourResetNotificationsEnabled,
         store: CodexSharedPreferences.userDefaults
@@ -33,6 +75,7 @@ struct IOSSettingsView: View {
     ) private var sevenDayResetNotificationsEnabled = CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
     @State private var isUpdatingNotificationPreferences = false
     @State private var presentedSettingsAlert: PresentedSettingsAlert?
+    @State private var presentedDangerZoneAction: DangerZoneAction?
     @State private var notificationAuthorizationStatus: UNAuthorizationStatus?
 
     var body: some View {
@@ -74,6 +117,32 @@ struct IOSSettingsView: View {
                     }
                 }
             }
+
+            Section("Danger Zone") {
+                Button(role: .destructive) {
+                    presentedDangerZoneAction = .resetSettings
+                } label: {
+                    dangerZoneLabel(
+                        "Reset Settings",
+                        systemImage: "arrow.counterclockwise",
+                        isEnabled: isResetSettingsEnabled
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(!isResetSettingsEnabled)
+
+                Button(role: .destructive) {
+                    presentedDangerZoneAction = .removeAllAccounts
+                } label: {
+                    dangerZoneLabel(
+                        "Remove All Accounts",
+                        systemImage: "trash",
+                        isEnabled: hasSavedAccounts
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasSavedAccounts)
+            }
         }
         .navigationTitle("Settings")
         .task {
@@ -89,11 +158,26 @@ struct IOSSettingsView: View {
             }
         }
         .alert(item: $presentedSettingsAlert) { alert in
-            Alert(
-                title: Text(alert.title),
-                message: Text(alert.message),
-                dismissButton: .default(Text("OK"))
-            )
+            switch alert {
+            case let .error(title, message):
+                Alert(
+                    title: Text(title),
+                    message: Text(message),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+        }
+        .confirmationDialog(
+            presentedDangerZoneAction?.title ?? "",
+            isPresented: dangerZoneDialogIsPresented,
+            titleVisibility: .visible,
+            presenting: presentedDangerZoneAction
+        ) { action in
+            Button(action.confirmationTitle, role: .destructive) {
+                performDangerZoneAction(action)
+            }
+        } message: { action in
+            Text(action.message)
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -109,6 +193,28 @@ struct IOSSettingsView: View {
 
     private var applicationSettingsURL: URL? {
         URL(string: UIApplication.openSettingsURLString)
+    }
+
+    private var hasSavedAccounts: Bool {
+        !accounts.isEmpty
+    }
+
+    private var isResetSettingsEnabled: Bool {
+        fiveHourResetNotificationsEnabled != CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
+            || sevenDayResetNotificationsEnabled != CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
+    }
+
+    private var dangerZoneDialogIsPresented: Binding<Bool> {
+        Binding(
+            get: {
+                presentedDangerZoneAction != nil
+            },
+            set: { isPresented in
+                if !isPresented {
+                    presentedDangerZoneAction = nil
+                }
+            }
+        )
     }
 
     @ViewBuilder
@@ -168,13 +274,13 @@ struct IOSSettingsView: View {
                 setNotificationPreference(kind, isEnabled: true)
             case .denied:
                 setNotificationPreference(kind, isEnabled: false)
-                presentedSettingsAlert = PresentedSettingsAlert(
+                presentedSettingsAlert = .error(
                     title: "Notifications Disabled",
                     message: "Codex Switcher can only show notifications after you allow them in Settings > Notifications."
                 )
             case let .failed(message):
                 setNotificationPreference(kind, isEnabled: false)
-                presentedSettingsAlert = PresentedSettingsAlert(
+                presentedSettingsAlert = .error(
                     title: "Couldn't Enable Notifications",
                     message: message
                 )
@@ -193,6 +299,45 @@ struct IOSSettingsView: View {
         case .sevenDayReset:
             sevenDayResetNotificationsEnabled = isEnabled
             synchronizeResetNotifications()
+        }
+    }
+
+    private func dangerZoneLabel(
+        _ title: String,
+        systemImage: String,
+        isEnabled: Bool
+    ) -> some View {
+        Label(title, systemImage: systemImage)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(isEnabled ? .red : .secondary)
+            .contentShape(Rectangle())
+    }
+
+    private func performDangerZoneAction(_ action: DangerZoneAction) {
+        switch action {
+        case .resetSettings:
+            resetSettingsToDefaults()
+        case .removeAllAccounts:
+            removeAllAccounts()
+        }
+
+        presentedDangerZoneAction = nil
+    }
+
+    private func resetSettingsToDefaults() {
+        fiveHourResetNotificationsEnabled = CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
+        sevenDayResetNotificationsEnabled = CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
+        synchronizeResetNotifications()
+    }
+
+    private func removeAllAccounts() {
+        do {
+            try StoredAccountMutations.removeAll(accounts, in: modelContext)
+        } catch {
+            presentedSettingsAlert = .error(
+                title: "Couldn't Remove Accounts",
+                message: error.localizedDescription
+            )
         }
     }
 

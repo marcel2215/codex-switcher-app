@@ -59,4 +59,21 @@ enum StoredAccountMutations {
         modelContext.delete(account)
         try modelContext.save()
     }
+
+    @MainActor
+    static func removeAll(
+        _ accounts: [StoredAccount],
+        in modelContext: ModelContext
+    ) throws {
+        let accountsToRemove = accounts.filter { !$0.isDeleted }
+        guard !accountsToRemove.isEmpty else {
+            return
+        }
+
+        for account in accountsToRemove {
+            modelContext.delete(account)
+        }
+
+        try modelContext.save()
+    }
 }
