@@ -826,6 +826,7 @@ private struct RateLimitMetricBarFill: View {
 struct RateLimitCircularAccessoryView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
 
     let account: WidgetRateLimitAccount?
     let window: RateLimitWindow
@@ -842,7 +843,7 @@ struct RateLimitCircularAccessoryView: View {
             }
         }
         .gaugeStyle(.accessoryCircularCapacity)
-        .tint(metric.tint(colorScheme: colorScheme, contrast: colorSchemeContrast))
+        .tint(gaugeTint)
 #if os(watchOS)
         .widgetLabel {
             Text(window.shortLabel)
@@ -854,6 +855,14 @@ struct RateLimitCircularAccessoryView: View {
 
     private var metric: WidgetRateLimitMetric {
         account?.metric(for: window) ?? .init(remainingPercent: nil, resetsAt: nil, status: .missing)
+    }
+
+    private var gaugeTint: Color {
+        if widgetRenderingMode == .vibrant {
+            return .white
+        }
+
+        return metric.tint(colorScheme: colorScheme, contrast: colorSchemeContrast)
     }
 
     private var iconSystemName: String {
@@ -883,35 +892,35 @@ struct RateLimitCircularAccessoryView: View {
 struct RateLimitRectangularAccessoryView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
 
     let account: WidgetRateLimitAccount?
     let window: RateLimitWindow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: account?.iconSystemName ?? "questionmark.circle.fill")
-                    .foregroundStyle(.secondary)
-
-                Text(account?.displayName ?? "Missing Account")
-                    .lineLimit(1)
-
-                Spacer(minLength: 4)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .center, spacing: 6) {
+                Image(systemName: iconSystemName)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
 
                 Text(metric.percentText)
+                    .font(.system(.title3, design: .rounded).weight(.semibold))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
+
+                Spacer(minLength: 0)
             }
-            .font(.caption.weight(.semibold))
 
             Gauge(value: metric.fraction) {
                 EmptyView()
             }
             .gaugeStyle(.accessoryLinearCapacity)
-            .tint(metric.tint(colorScheme: colorScheme, contrast: colorSchemeContrast))
+            .tint(gaugeTint)
 
-            statusLine
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.secondary)
+            Text(subtitle)
+                .font(.caption)
                 .lineLimit(1)
         }
         .accessibilityLabel("\(account?.displayName ?? "Missing Account") \(window.shortLabel)")
@@ -922,6 +931,29 @@ struct RateLimitRectangularAccessoryView: View {
         account?.metric(for: window) ?? .init(remainingPercent: nil, resetsAt: nil, status: .missing)
     }
 
+    private var iconSystemName: String {
+        account?.iconSystemName ?? "questionmark.circle.fill"
+    }
+
+    private var subtitle: String {
+        switch metric.status {
+        case .exact:
+            return "\(account?.displayName ?? "Missing Account") • \(window.shortLabel)"
+        case .cached:
+            return "\(account?.displayName ?? "Missing Account") • \(window.shortLabel) • Cached"
+        case .missing:
+            return "Missing Account • \(window.shortLabel)"
+        }
+    }
+
+    private var gaugeTint: Color {
+        if widgetRenderingMode == .vibrant {
+            return .white
+        }
+
+        return metric.tint(colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
+
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
@@ -930,29 +962,6 @@ struct RateLimitRectangularAccessoryView: View {
             return "\(metric.percentText) remaining, cached"
         case .missing:
             return "Unavailable"
-        }
-    }
-
-    @ViewBuilder
-    private var statusLine: some View {
-        switch metric.status {
-        case .exact:
-            if let resetsAt = metric.resetsAt {
-                HStack(spacing: 4) {
-                    Text(window.shortLabel)
-                    if resetsAt <= .now {
-                        Text("now")
-                    } else {
-                        Text(resetsAt, style: .timer)
-                    }
-                }
-            } else {
-                Text("Unavailable")
-            }
-        case .cached:
-            Text("Cached")
-        case .missing:
-            Text("Unavailable")
         }
     }
 }

@@ -12,5 +12,6 @@ import SwiftUI
 struct Codex_Switcher_iOS_WidgetsBundle: WidgetBundle {
     var body: some Widget {
         IOSRateLimitOverviewWidget()
+        IOSRateLimitAccessoryWidget()
     }
 }
