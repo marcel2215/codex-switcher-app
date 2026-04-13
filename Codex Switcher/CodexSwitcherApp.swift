@@ -195,6 +195,16 @@ struct CodexSwitcherApp: App {
     }
 
     private func configureControllerIfPossible() {
+        let controller = controller
+        applicationDelegate.configureDockAccounts(
+            provider: { [weak controller] limit in
+                controller?.dockAccounts(limit: limit) ?? []
+            },
+            onSelect: { [weak controller] accountID in
+                controller?.login(accountID: accountID)
+            }
+        )
+
         guard let sharedModelContainer else {
             return
         }

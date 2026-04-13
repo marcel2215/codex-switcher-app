@@ -426,6 +426,41 @@ final class AppController {
         )
     }
 
+    /// AppKit asks for the Dock menu synchronously on the main thread, so this
+    /// intentionally limits itself to already-persisted account metadata and
+    /// only returns accounts that can be switched immediately on this Mac.
+    /// The menu reuses the app's active sort settings so the Dock reflects the
+    /// same account order without inheriting transient search filtering.
+    /// The currently active account remains visible and is marked in the menu.
+    func dockAccounts(limit: Int) -> [DockAccountItem] {
+        guard limit > 0 else {
+            return []
+        }
+
+        do {
+            let orderedAccounts = AccountsPresentationLogic.sortedAccounts(
+                from: try fetchAccounts().filter { account in
+                    account.hasLocalSnapshot
+                        && !account.identityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                },
+                sortCriterion: sortCriterion,
+                sortDirection: sortDirection
+            )
+
+            return Array(orderedAccounts.prefix(limit)).map { account in
+                DockAccountItem(
+                    id: account.id,
+                    title: AccountsPresentationLogic.displayName(for: account),
+                    iconSystemName: AccountIconOption.resolve(from: account.iconSystemName).systemName,
+                    isCurrentAccount: account.identityKey == activeIdentityKey
+                )
+            }
+        } catch {
+            logger.error("Couldn't prepare Dock accounts: \(String(describing: error), privacy: .private)")
+            return []
+        }
+    }
+
     func beginLinkingCodexLocation() {
         pendingLocationAction = nil
         isShowingLocationPicker = true

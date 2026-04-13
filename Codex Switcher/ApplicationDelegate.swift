@@ -9,7 +9,16 @@ import AppKit
 import OSLog
 import UserNotifications
 
+struct DockAccountItem: Equatable, Sendable {
+    let id: UUID
+    let title: String
+    let iconSystemName: String
+    let isCurrentAccount: Bool
+}
+
 final class ApplicationDelegate: NSObject, NSApplicationDelegate {
+    private nonisolated static let dockAccountsMenuLimit = 5
+
     /// Tracks whether the user wants Codex Switcher to remain available from
     /// the menu bar after all windows are closed.
     private(set) var keepsRunningInMenuBar = true
@@ -19,6 +28,8 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
         category: "ApplicationDelegate"
     )
+    private var dockAccountsProvider: (@MainActor (Int) -> [DockAccountItem])?
+    private var dockAccountSelectionHandler: (@MainActor (UUID) -> Void)?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let notificationCenter = UNUserNotificationCenter.current()
@@ -100,10 +111,70 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     }
 
     @MainActor
+    func configureDockAccounts(
+        provider: @escaping @MainActor (Int) -> [DockAccountItem],
+        onSelect: @escaping @MainActor (UUID) -> Void
+    ) {
+        dockAccountsProvider = provider
+        dockAccountSelectionHandler = onSelect
+    }
+
+    @MainActor
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        guard let dockAccountsProvider else {
+            return nil
+        }
+
+        let menu = NSMenu(title: "Codex Switcher")
+        let accounts = dockAccountsProvider(Self.dockAccountsMenuLimit)
+
+        if accounts.isEmpty {
+            let emptyStateItem = NSMenuItem(title: "No Switchable Accounts", action: nil, keyEquivalent: "")
+            emptyStateItem.isEnabled = false
+            menu.addItem(emptyStateItem)
+        } else {
+            for account in accounts {
+                menu.addItem(makeDockAccountMenuItem(for: account))
+            }
+        }
+
+        return menu
+    }
+
+    @MainActor
     private func openNotificationSettings() {
         restoreForegroundPresentation()
         NSApp.activate(ignoringOtherApps: true)
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+
+    @MainActor
+    @objc private func handleDockAccountMenuSelection(_ sender: NSMenuItem) {
+        guard
+            let accountIDString = sender.representedObject as? String,
+            let accountID = UUID(uuidString: accountIDString)
+        else {
+            return
+        }
+
+        dockAccountSelectionHandler?(accountID)
+    }
+
+    @MainActor
+    private func makeDockAccountMenuItem(for account: DockAccountItem) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: account.title,
+            action: #selector(handleDockAccountMenuSelection(_:)),
+            keyEquivalent: ""
+        )
+        item.target = self
+        item.representedObject = account.id.uuidString
+        item.state = account.isCurrentAccount ? .on : .off
+        item.image = NSImage(
+            systemSymbolName: account.iconSystemName,
+            accessibilityDescription: account.title
+        )
+        return item
     }
 }
 

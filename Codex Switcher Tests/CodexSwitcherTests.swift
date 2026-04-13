@@ -293,6 +293,136 @@ struct CodexSwitcherTests {
         #expect(notificationManager.postedAccountNames.isEmpty)
     }
 
+    @Test func dockAccountsFollowAppSortOrderAndLimitSwitchableAccounts() async throws {
+        let container = try makeInMemoryContainer()
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-current")
+        let authFileManager = FakeAuthFileManager(contents: currentContents)
+        let controller = makeController(authFileManager: authFileManager)
+
+        let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
+        let currentAccount = StoredAccount(
+            identityKey: currentSnapshot.identityKey,
+            name: "Delta",
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: currentSnapshot.authMode.rawValue,
+            emailHint: currentSnapshot.email,
+            accountIdentifier: currentSnapshot.accountIdentifier
+        )
+
+        let bravoContents = makeChatGPTAuthJSON(accountID: "acct-bravo")
+        let bravoSnapshot = try CodexAuthFile.parse(contents: bravoContents)
+        let bravoAccount = StoredAccount(
+            identityKey: bravoSnapshot.identityKey,
+            name: "Bravo",
+            customOrder: 1,
+            hasLocalSnapshot: true,
+            authModeRaw: bravoSnapshot.authMode.rawValue,
+            emailHint: bravoSnapshot.email,
+            accountIdentifier: bravoSnapshot.accountIdentifier,
+            iconSystemName: AccountIconOption.briefcase.systemName
+        )
+
+        let echoContents = makeChatGPTAuthJSON(accountID: "acct-echo")
+        let echoSnapshot = try CodexAuthFile.parse(contents: echoContents)
+        let echoAccount = StoredAccount(
+            identityKey: echoSnapshot.identityKey,
+            name: "Echo",
+            customOrder: 2,
+            hasLocalSnapshot: true,
+            authModeRaw: echoSnapshot.authMode.rawValue,
+            emailHint: echoSnapshot.email,
+            accountIdentifier: echoSnapshot.accountIdentifier,
+            iconSystemName: AccountIconOption.house.systemName
+        )
+
+        let alphaContents = makeChatGPTAuthJSON(accountID: "acct-alpha")
+        let alphaSnapshot = try CodexAuthFile.parse(contents: alphaContents)
+        let alphaAccount = StoredAccount(
+            identityKey: alphaSnapshot.identityKey,
+            name: "Alpha",
+            customOrder: 3,
+            hasLocalSnapshot: true,
+            authModeRaw: alphaSnapshot.authMode.rawValue,
+            emailHint: alphaSnapshot.email,
+            accountIdentifier: alphaSnapshot.accountIdentifier
+        )
+
+        let charlieContents = makeChatGPTAuthJSON(accountID: "acct-charlie")
+        let charlieSnapshot = try CodexAuthFile.parse(contents: charlieContents)
+        let charlieAccount = StoredAccount(
+            identityKey: charlieSnapshot.identityKey,
+            name: "Charlie",
+            customOrder: 4,
+            hasLocalSnapshot: true,
+            authModeRaw: charlieSnapshot.authMode.rawValue,
+            emailHint: charlieSnapshot.email,
+            accountIdentifier: charlieSnapshot.accountIdentifier
+        )
+
+        let foxtrotContents = makeChatGPTAuthJSON(accountID: "acct-foxtrot")
+        let foxtrotSnapshot = try CodexAuthFile.parse(contents: foxtrotContents)
+        let foxtrotAccount = StoredAccount(
+            identityKey: foxtrotSnapshot.identityKey,
+            name: "Foxtrot",
+            customOrder: 5,
+            hasLocalSnapshot: true,
+            authModeRaw: foxtrotSnapshot.authMode.rawValue,
+            emailHint: foxtrotSnapshot.email,
+            accountIdentifier: foxtrotSnapshot.accountIdentifier
+        )
+
+        let noSnapshotContents = makeChatGPTAuthJSON(accountID: "acct-no-snapshot")
+        let noSnapshotSnapshot = try CodexAuthFile.parse(contents: noSnapshotContents)
+        let noSnapshotAccount = StoredAccount(
+            identityKey: noSnapshotSnapshot.identityKey,
+            name: "Able",
+            customOrder: 6,
+            hasLocalSnapshot: false,
+            authModeRaw: noSnapshotSnapshot.authMode.rawValue,
+            emailHint: noSnapshotSnapshot.email,
+            accountIdentifier: noSnapshotSnapshot.accountIdentifier
+        )
+
+        container.mainContext.insert(currentAccount)
+        container.mainContext.insert(bravoAccount)
+        container.mainContext.insert(echoAccount)
+        container.mainContext.insert(alphaAccount)
+        container.mainContext.insert(charlieAccount)
+        container.mainContext.insert(foxtrotAccount)
+        container.mainContext.insert(noSnapshotAccount)
+        try container.mainContext.save()
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+        controller.sortCriterion = .name
+        controller.sortDirection = .ascending
+
+        let dockAccounts = controller.dockAccounts(limit: 5)
+        let expectedIDs = [
+            alphaAccount.id,
+            bravoAccount.id,
+            charlieAccount.id,
+            currentAccount.id,
+            echoAccount.id,
+        ]
+        let expectedTitles = ["Alpha", "Bravo", "Charlie", "Delta", "Echo"]
+        let expectedIcons = [
+            AccountIconOption.defaultOption.systemName,
+            AccountIconOption.briefcase.systemName,
+            AccountIconOption.defaultOption.systemName,
+            AccountIconOption.defaultOption.systemName,
+            AccountIconOption.house.systemName,
+        ]
+        let expectedCurrentFlags = [false, false, false, true, false]
+
+        #expect(dockAccounts.count == 5)
+        #expect(dockAccounts.map(\.id) == expectedIDs)
+        #expect(dockAccounts.map(\.title) == expectedTitles)
+        #expect(dockAccounts.map(\.iconSystemName) == expectedIcons)
+        #expect(dockAccounts.map(\.isCurrentAccount) == expectedCurrentFlags)
+    }
+
     @Test func autopilotSwitchesToTheBestRateLimitAccountAndNotifiesOnlyOnRealChange() async throws {
         let container = try makeInMemoryContainer()
         let currentContents = makeChatGPTAuthJSON(accountID: "acct-current")
