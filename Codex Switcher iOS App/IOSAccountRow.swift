@@ -51,30 +51,8 @@ struct IOSAccountRow: View {
 }
 
 private struct IOSRateLimitProgressBar: View {
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
-
     let title: String
     let remainingPercent: Int?
-
-    private var normalizedProgress: Double? {
-        guard let clampedPercent = AccountDisplayFormatter.clampedPercentValue(remainingPercent) else {
-            return nil
-        }
-
-        return Double(clampedPercent) / 100
-    }
-
-    private var progressTint: Color {
-        let clampedPercent = AccountDisplayFormatter.clampedPercentValue(remainingPercent) ?? 0
-        let components = AccountDisplayFormatter.adaptiveUsageColorComponents(
-            forRemainingPercent: clampedPercent,
-            colorScheme: colorScheme,
-            contrast: colorSchemeContrast
-        )
-
-        return Color(.sRGB, red: components.red, green: components.green, blue: components.blue)
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -90,17 +68,11 @@ private struct IOSRateLimitProgressBar: View {
                     .foregroundStyle(.primary)
             }
 
-            Group {
-                if let normalizedProgress {
-                    ProgressView(value: normalizedProgress, total: 1)
-                        .progressViewStyle(.linear)
-                        .tint(progressTint)
-                } else {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(.tertiary.opacity(0.25))
-                        .frame(height: 4)
-                }
-            }
+            RateLimitLinearProgressBar(
+                remainingPercent: remainingPercent,
+                height: 4,
+                trackOpacity: 0.25
+            )
             .frame(maxWidth: .infinity)
         }
     }

@@ -72,6 +72,9 @@ enum WidgetSnapshotPublisher {
 
         do {
             try store.save(sharedState)
+            Task(priority: .utility) {
+                await RateLimitResetNotificationScheduler.shared.synchronize(with: sharedState)
+            }
             CodexSharedSurfaceReloader.reloadAllRateLimitWidgets()
         } catch {
             logger.error("Couldn't publish widget snapshot: \(String(describing: error), privacy: .private)")

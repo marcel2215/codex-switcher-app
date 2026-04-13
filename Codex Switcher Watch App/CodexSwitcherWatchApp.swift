@@ -12,6 +12,10 @@ import SwiftUI
 struct CodexSwitcherWatchApp: App {
     @State private var bootstrap = WatchAppBootstrap.make()
 
+    init() {
+        CodexSharedPreferences.migrateLegacyPreferencesIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             switch bootstrap {

@@ -8,12 +8,6 @@
 import Foundation
 import UserNotifications
 
-enum NotificationAuthorizationRequestResult: Equatable {
-    case enabled
-    case denied
-    case failed(String)
-}
-
 @MainActor
 protocol AccountSwitchNotifying: AnyObject {
     func postSwitchNotification(for accountName: String, kind: CodexSwitchNotificationKind) async
@@ -31,7 +25,7 @@ final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
     }
 
     func postSwitchNotification(for accountName: String, kind: CodexSwitchNotificationKind) async {
-        guard CodexSharedPreferences.notificationsEnabled else {
+        guard CodexSharedPreferences.accountSwitchNotificationsEnabled else {
             return
         }
 
@@ -43,7 +37,7 @@ final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
         }
 
         let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+        guard CodexNotificationAuthorization.isDeliveryAuthorized(settings.authorizationStatus) else {
             return
         }
 
@@ -61,23 +55,7 @@ final class AccountSwitchNotificationManager: NSObject, AccountSwitchNotifying {
     }
 
     func requestAuthorizationForNotificationsPreference() async -> NotificationAuthorizationRequestResult {
-        let settings = await center.notificationSettings()
-
-        switch settings.authorizationStatus {
-        case .authorized, .provisional:
-            return .enabled
-        case .denied, .ephemeral:
-            return .denied
-        case .notDetermined:
-            do {
-                let isGranted = try await center.requestAuthorization(options: [.alert])
-                return isGranted ? .enabled : .denied
-            } catch {
-                return .failed(error.localizedDescription)
-            }
-        @unknown default:
-            return .failed("macOS returned an unknown notification authorization state.")
-        }
+        await CodexNotificationAuthorization.requestAuthorizationIfNeeded(center: center)
     }
 
     private func add(_ request: UNNotificationRequest) async throws {

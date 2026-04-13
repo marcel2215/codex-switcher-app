@@ -1038,14 +1038,14 @@
 /* Begin XCBuildConfiguration section */
 		1F1413422F8C7C940013386A /* Debug */ = {
 			isa = XCBuildConfiguration;
-				buildSettings = {
-					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-					ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-					CODE_SIGN_ENTITLEMENTS = "Codex Switcher iOS Widgets/Codex Switcher iOS Widgets.entitlements";
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 1;
-					DEVELOPMENT_TEAM = YN958LW8P7;
-					GENERATE_INFOPLIST_FILE = YES;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Codex Switcher iOS Widgets/Codex Switcher iOS Widgets.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Codex Switcher iOS Widgets/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher iOS Widgets";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1071,14 +1071,14 @@
 		};
 		1F1413432F8C7C940013386A /* Release */ = {
 			isa = XCBuildConfiguration;
-				buildSettings = {
-					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-					ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-					CODE_SIGN_ENTITLEMENTS = "Codex Switcher iOS Widgets/Codex Switcher iOS Widgets.entitlements";
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 1;
-					DEVELOPMENT_TEAM = YN958LW8P7;
-					GENERATE_INFOPLIST_FILE = YES;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Codex Switcher iOS Widgets/Codex Switcher iOS Widgets.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YN958LW8P7;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Codex Switcher iOS Widgets/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher iOS Widgets";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";

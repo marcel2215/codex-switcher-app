@@ -83,7 +83,7 @@ enum CodexSharedSwitchFeedback {
         accountName: String,
         kind: CodexSwitchNotificationKind = .backgroundConfirmation
     ) async {
-        guard CodexSharedPreferences.notificationsEnabled else {
+        guard CodexSharedPreferences.accountSwitchNotificationsEnabled else {
             return
         }
 
@@ -96,10 +96,7 @@ enum CodexSharedSwitchFeedback {
 
         let center = UNUserNotificationCenter.current()
         let finalSettings = await center.notificationSettings()
-        guard
-            finalSettings.authorizationStatus == .authorized
-                || finalSettings.authorizationStatus == .provisional
-        else {
+        guard CodexNotificationAuthorization.isDeliveryAuthorized(finalSettings.authorizationStatus) else {
             return
         }
 

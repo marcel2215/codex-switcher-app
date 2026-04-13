@@ -24,6 +24,7 @@ enum CodexIntentToggleState: String, AppEnum, CaseIterable {
     }
 }
 
+#if os(macOS)
 struct SetNotificationsIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Notifications"
     static let description = IntentDescription("Turns Codex Switcher account-switch notifications on or off.")
@@ -41,18 +42,27 @@ struct SetNotificationsIntent: AppIntent {
 
             switch settings.authorizationStatus {
             case .authorized, .provisional:
-                CodexSharedPreferences.userDefaults.set(true, forKey: CodexSharedPreferenceKey.notificationsEnabled)
+                CodexSharedPreferences.userDefaults.set(
+                    true,
+                    forKey: CodexSharedPreferenceKey.accountSwitchNotificationsEnabled
+                )
                 CodexSharedPreferenceFeedback.postPreferencesDidChange()
                 return .result(value: .on, dialog: IntentDialog("Notifications are on."))
             case .denied, .ephemeral, .notDetermined:
-                CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.notificationsEnabled)
+                CodexSharedPreferences.userDefaults.set(
+                    false,
+                    forKey: CodexSharedPreferenceKey.accountSwitchNotificationsEnabled
+                )
                 CodexSharedPreferenceFeedback.postPreferencesDidChange()
                 return .result(
                     value: .off,
                     dialog: IntentDialog("Notifications stay off until you allow them in System Settings > Notifications.")
                 )
             @unknown default:
-                CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.notificationsEnabled)
+                CodexSharedPreferences.userDefaults.set(
+                    false,
+                    forKey: CodexSharedPreferenceKey.accountSwitchNotificationsEnabled
+                )
                 CodexSharedPreferenceFeedback.postPreferencesDidChange()
                 throw CodexSettingsIntentError.notificationsUpdateFailed(
                     "macOS returned an unknown notification authorization state."
@@ -60,11 +70,15 @@ struct SetNotificationsIntent: AppIntent {
             }
         }
 
-        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.notificationsEnabled)
+        CodexSharedPreferences.userDefaults.set(
+            false,
+            forKey: CodexSharedPreferenceKey.accountSwitchNotificationsEnabled
+        )
         CodexSharedPreferenceFeedback.postPreferencesDidChange()
         return .result(value: .off, dialog: IntentDialog("Notifications are off."))
     }
 }
+#endif
 
 #if os(macOS)
 struct SetMenuBarVisibilityIntent: AppIntent {

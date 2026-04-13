@@ -3030,6 +3030,8 @@ final class AppController {
                 }
                 try CodexSharedStateStore().save(sharedState)
                 try Task.checkCancellation()
+                await RateLimitResetNotificationScheduler.shared.synchronize(with: sharedState)
+                try Task.checkCancellation()
                 do {
                     try await Self.refreshSpotlightIndex(with: sharedState)
                 } catch {

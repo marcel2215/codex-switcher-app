@@ -9,13 +9,22 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 import AppIntents
+import UserNotifications
 
 @main
 struct CodexSwitcherApp: App {
     @AppStorage(
-        CodexSharedPreferenceKey.notificationsEnabled,
+        CodexSharedPreferenceKey.accountSwitchNotificationsEnabled,
         store: CodexSharedPreferences.userDefaults
-    ) private var showNotifications = CodexSharedPreferenceDefaults.notificationsEnabled
+    ) private var accountSwitchNotificationsEnabled = CodexSharedPreferenceDefaults.accountSwitchNotificationsEnabled
+    @AppStorage(
+        CodexSharedPreferenceKey.fiveHourResetNotificationsEnabled,
+        store: CodexSharedPreferences.userDefaults
+    ) private var fiveHourResetNotificationsEnabled = CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
+    @AppStorage(
+        CodexSharedPreferenceKey.sevenDayResetNotificationsEnabled,
+        store: CodexSharedPreferences.userDefaults
+    ) private var sevenDayResetNotificationsEnabled = CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
     @AppStorage(
         CodexSharedPreferenceKey.autopilotEnabled,
         store: CodexSharedPreferences.userDefaults
@@ -35,7 +44,7 @@ struct CodexSwitcherApp: App {
     private let storageRecoveryMessage: String?
 
     init() {
-        CodexSharedPreferences.migrateLegacyMenuBarPreferenceIfNeeded()
+        CodexSharedPreferences.migrateLegacyPreferencesIfNeeded()
         CodexSwitcherAppShortcuts.updateAppShortcutParameters()
         let bootstrap = AppBootstrap.make()
         self.sharedModelContainer = bootstrap.modelContainer
@@ -72,14 +81,16 @@ struct CodexSwitcherApp: App {
         Settings {
             SettingsView(
                 controller: controller,
-                showNotifications: $showNotifications,
+                accountSwitchNotificationsEnabled: $accountSwitchNotificationsEnabled,
+                fiveHourResetNotificationsEnabled: $fiveHourResetNotificationsEnabled,
+                sevenDayResetNotificationsEnabled: $sevenDayResetNotificationsEnabled,
                 autopilotEnabled: autopilotBinding,
                 showMenuBarExtra: showMenuBarExtraBinding,
                 menuBarIcon: menuBarIconBinding,
                 areAppPreferencesAtDefaults: areAppPreferencesAtDefaults,
                 onResetSettings: resetStoredSettingsToDefaults
             )
-            .frame(width: 520, height: 590)
+            .frame(width: 520, height: 680)
             .task {
                 await performAppStartupTasksIfNeeded()
             }
@@ -165,7 +176,9 @@ struct CodexSwitcherApp: App {
     }
 
     private func resetStoredSettingsToDefaults() {
-        showNotifications = CodexSharedPreferenceDefaults.notificationsEnabled
+        accountSwitchNotificationsEnabled = CodexSharedPreferenceDefaults.accountSwitchNotificationsEnabled
+        fiveHourResetNotificationsEnabled = CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
+        sevenDayResetNotificationsEnabled = CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
         autopilotBinding.wrappedValue = CodexSharedPreferenceDefaults.autopilotEnabled
         showMenuBarExtraBinding.wrappedValue = CodexSharedPreferenceDefaults.showMenuBarExtra
         menuBarIconBinding.wrappedValue = MenuBarIconOption.defaultOption
@@ -175,6 +188,10 @@ struct CodexSwitcherApp: App {
             sortCriterionRawValue: persistedSortCriterionRawValue,
             sortDirectionRawValue: persistedSortDirectionRawValue
         )
+        CodexSharedPreferenceFeedback.postPreferencesDidChange()
+        Task {
+            await RateLimitResetNotificationScheduler.shared.synchronizeWithStoredState()
+        }
     }
 
     private func configureControllerIfPossible() {
@@ -197,7 +214,9 @@ struct CodexSwitcherApp: App {
     }
 
     private var areAppPreferencesAtDefaults: Bool {
-        showNotifications == CodexSharedPreferenceDefaults.notificationsEnabled
+        accountSwitchNotificationsEnabled == CodexSharedPreferenceDefaults.accountSwitchNotificationsEnabled
+            && fiveHourResetNotificationsEnabled == CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
+            && sevenDayResetNotificationsEnabled == CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
             && autopilotEnabled == CodexSharedPreferenceDefaults.autopilotEnabled
             && showMenuBarExtra == CodexSharedPreferenceDefaults.showMenuBarExtra
             && persistedMenuBarIconSystemName == AppPreferenceDefaults.menuBarIconSystemName
@@ -231,7 +250,9 @@ struct CodexSwitcherApp: App {
     }
 
     private func synchronizeRuntimePreferencesFromSharedStore() {
-        showNotifications = CodexSharedPreferences.notificationsEnabled
+        accountSwitchNotificationsEnabled = CodexSharedPreferences.accountSwitchNotificationsEnabled
+        fiveHourResetNotificationsEnabled = CodexSharedPreferences.fiveHourResetNotificationsEnabled
+        sevenDayResetNotificationsEnabled = CodexSharedPreferences.sevenDayResetNotificationsEnabled
         autopilotEnabled = CodexSharedPreferences.autopilotEnabled
         showMenuBarExtra = CodexSharedPreferences.showMenuBarExtra
         applyRuntimePreferences()
@@ -481,39 +502,50 @@ private struct MenuBarStorageRecoveryView: View {
 
 private struct SettingsView: View {
     @Bindable var controller: AppController
-    @Binding var showNotifications: Bool
+    @Environment(\.scenePhase) private var scenePhase
+    @Binding var accountSwitchNotificationsEnabled: Bool
+    @Binding var fiveHourResetNotificationsEnabled: Bool
+    @Binding var sevenDayResetNotificationsEnabled: Bool
     @Binding var autopilotEnabled: Bool
     @Binding var showMenuBarExtra: Bool
     @Binding var menuBarIcon: MenuBarIconOption
     let areAppPreferencesAtDefaults: Bool
     let onResetSettings: () -> Void
     @State private var isShowingLocationPicker = false
-    @State private var isUpdatingNotificationsPreference = false
+    @State private var isUpdatingNotificationPreferences = false
     @State private var launchAtLoginState = CodexSharedLaunchAtLoginState.disabled
     @State private var presentedSettingsAlert: SettingsAlert?
     @State private var settingsChangeObservationTask: Task<Void, Never>?
+    @State private var notificationAuthorizationStatus: UNAuthorizationStatus?
 
     var body: some View {
         Form {
-            Section("General") {
-                Toggle("Show Notifications", isOn: notificationsBinding)
-                    .disabled(isUpdatingNotificationsPreference)
+            Section("Codex Folder") {
+                LabeledContent("Path") {
+                    Text(controller.linkedFolderPath ?? "Not selected")
+                        .font(.body.monospaced())
+                        .textSelection(.enabled)
+                        .foregroundStyle(controller.linkedFolderPath == nil ? .secondary : .primary)
+                }
 
-                Toggle("Launch at Login", isOn: launchAtLoginBinding)
-
-                if launchAtLoginState.requiresApproval {
-                    Text("Requires approval in System Settings > General > Login Items.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Button(controller.settingsLinkButtonTitle) {
+                    isShowingLocationPicker = true
                 }
             }
 
-            Section("Autopilot") {
-                Toggle("Automatically Switch Account", isOn: $autopilotEnabled)
+            Section {
+                Toggle("Launch at Login", isOn: launchAtLoginBinding)
+                Toggle("Automatic Switching", isOn: $autopilotEnabled)
+            } header: {
+                Text("General")
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    if launchAtLoginState.requiresApproval {
+                        Text("Requires approval in System Settings > General > Login Items.")
+                    }
 
-                Text("Run in the background and automatically switch to the account with the most rate limit reamining.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                    Text("Run in the background and automatically switch to the account with the most rate limit remaining.")
+                }
             }
 
             Section("Menu Bar") {
@@ -528,17 +560,19 @@ private struct SettingsView: View {
                 .disabled(!showMenuBarExtra)
             }
 
-            Section("Codex Folder") {
-                LabeledContent("Path") {
-                    Text(controller.linkedFolderPath ?? "Not selected")
-                        .font(.body.monospaced())
-                        .textSelection(.enabled)
-                        .foregroundStyle(controller.linkedFolderPath == nil ? .secondary : .primary)
-                }
+            Section {
+                Toggle("Account Switch", isOn: accountSwitchNotificationsBinding)
+                    .disabled(isUpdatingNotificationPreferences)
 
-                Button(controller.settingsLinkButtonTitle) {
-                    isShowingLocationPicker = true
-                }
+                Toggle("5-Hour Limit Reset", isOn: fiveHourResetNotificationsBinding)
+                    .disabled(isUpdatingNotificationPreferences)
+
+                Toggle("7-Day Limit Reset", isOn: sevenDayResetNotificationsBinding)
+                    .disabled(isUpdatingNotificationPreferences)
+            } header: {
+                Text("Notifications")
+            } footer: {
+                notificationSettingsFooter
             }
 
             Section("About") {
@@ -594,6 +628,16 @@ private struct SettingsView: View {
         .task {
             launchAtLoginState = CodexSharedLaunchAtLoginService.currentState()
             startSettingsChangeObservationIfNeeded()
+            await refreshNotificationAuthorizationStatus()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else {
+                return
+            }
+
+            Task {
+                await refreshNotificationAuthorizationStatus()
+            }
         }
         .onDisappear {
             settingsChangeObservationTask?.cancel()
@@ -641,13 +685,44 @@ private struct SettingsView: View {
         !areAppPreferencesAtDefaults || launchAtLoginState.isEnabled
     }
 
-    private var notificationsBinding: Binding<Bool> {
+    @ViewBuilder
+    private var notificationSettingsFooter: some View {
+        if let notificationAuthorizationStatus,
+           CodexNotificationSettingsLink.shouldShowDisabledFooter(for: notificationAuthorizationStatus),
+           let destination = CodexNotificationSettingsLink.sectionFooterURL() {
+            Text(.init("Notifications are disabled in system settings. [Change](\(destination.absoluteString))"))
+        }
+    }
+
+    private var accountSwitchNotificationsBinding: Binding<Bool> {
         Binding(
             get: {
-                showNotifications
+                accountSwitchNotificationsEnabled
             },
             set: { newValue in
-                updateNotificationsPreference(isEnabled: newValue)
+                updateNotificationPreference(.accountSwitch, isEnabled: newValue)
+            }
+        )
+    }
+
+    private var fiveHourResetNotificationsBinding: Binding<Bool> {
+        Binding(
+            get: {
+                fiveHourResetNotificationsEnabled
+            },
+            set: { newValue in
+                updateNotificationPreference(.fiveHourReset, isEnabled: newValue)
+            }
+        )
+    }
+
+    private var sevenDayResetNotificationsBinding: Binding<Bool> {
+        Binding(
+            get: {
+                sevenDayResetNotificationsEnabled
+            },
+            set: { newValue in
+                updateNotificationPreference(.sevenDayReset, isEnabled: newValue)
             }
         )
     }
@@ -675,40 +750,80 @@ private struct SettingsView: View {
             .contentShape(Rectangle())
     }
 
-    private func updateNotificationsPreference(isEnabled: Bool) {
-        guard !isUpdatingNotificationsPreference else {
+    private enum NotificationPreferenceKind {
+        case accountSwitch
+        case fiveHourReset
+        case sevenDayReset
+    }
+
+    private func updateNotificationPreference(
+        _ kind: NotificationPreferenceKind,
+        isEnabled: Bool
+    ) {
+        guard !isUpdatingNotificationPreferences else {
             return
         }
 
         guard isEnabled else {
-            showNotifications = false
+            setNotificationPreference(kind, isEnabled: false)
             return
         }
 
-        showNotifications = true
-        isUpdatingNotificationsPreference = true
+        setNotificationPreference(kind, isEnabled: true)
+        isUpdatingNotificationPreferences = true
 
         Task { @MainActor in
             let authorizationResult = await controller.requestNotificationAuthorizationForSettings()
-            isUpdatingNotificationsPreference = false
+            isUpdatingNotificationPreferences = false
+            await refreshNotificationAuthorizationStatus()
 
             switch authorizationResult {
             case .enabled:
-                showNotifications = true
+                setNotificationPreference(kind, isEnabled: true)
             case .denied:
-                showNotifications = false
+                setNotificationPreference(kind, isEnabled: false)
                 presentedSettingsAlert = .error(
                     title: "Notifications Disabled",
-                    message: "Codex Switcher can only show account-switch notifications after you allow notifications in macOS. You can enable them later in System Settings > Notifications."
+                    message: "Codex Switcher can only show notifications after you allow them in System Settings > Notifications."
                 )
             case let .failed(message):
-                showNotifications = false
+                setNotificationPreference(kind, isEnabled: false)
                 presentedSettingsAlert = .error(
                     title: "Couldn't Enable Notifications",
                     message: message
                 )
             }
         }
+    }
+
+    private func setNotificationPreference(
+        _ kind: NotificationPreferenceKind,
+        isEnabled: Bool
+    ) {
+        switch kind {
+        case .accountSwitch:
+            accountSwitchNotificationsEnabled = isEnabled
+            CodexSharedPreferenceFeedback.postPreferencesDidChange()
+        case .fiveHourReset:
+            fiveHourResetNotificationsEnabled = isEnabled
+            synchronizeResetNotifications()
+        case .sevenDayReset:
+            sevenDayResetNotificationsEnabled = isEnabled
+            synchronizeResetNotifications()
+        }
+    }
+
+    private func synchronizeResetNotifications() {
+        CodexSharedPreferenceFeedback.postPreferencesDidChange()
+        Task {
+            await RateLimitResetNotificationScheduler.shared.synchronizeWithStoredState()
+            await refreshNotificationAuthorizationStatus()
+        }
+    }
+
+    private func refreshNotificationAuthorizationStatus() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        notificationAuthorizationStatus = settings.authorizationStatus
     }
 
     private func updateLaunchAtLogin(isEnabled: Bool) {

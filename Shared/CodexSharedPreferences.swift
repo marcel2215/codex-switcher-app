@@ -9,12 +9,20 @@ import Foundation
 
 enum CodexSharedPreferenceKey {
     nonisolated static let notificationsEnabled = "notificationsEnabled"
+    nonisolated static let accountSwitchNotificationsEnabled = "accountSwitchNotificationsEnabled"
+    nonisolated static let rateLimitResetNotificationsEnabled = "rateLimitResetNotificationsEnabled"
+    nonisolated static let fiveHourResetNotificationsEnabled = "fiveHourResetNotificationsEnabled"
+    nonisolated static let sevenDayResetNotificationsEnabled = "sevenDayResetNotificationsEnabled"
     nonisolated static let autopilotEnabled = "autopilotEnabled"
     nonisolated static let showMenuBarExtra = "showMenuBarExtra"
 }
 
 enum CodexSharedPreferenceDefaults {
     nonisolated static let notificationsEnabled = false
+    nonisolated static let accountSwitchNotificationsEnabled = false
+    nonisolated static let rateLimitResetNotificationsEnabled = false
+    nonisolated static let fiveHourResetNotificationsEnabled = false
+    nonisolated static let sevenDayResetNotificationsEnabled = false
     nonisolated static let autopilotEnabled = false
     nonisolated static let showMenuBarExtra = true
 }
@@ -28,27 +36,66 @@ enum CodexSharedPreferences {
     }
 
     nonisolated static var notificationsEnabled: Bool {
-        guard userDefaults.object(forKey: CodexSharedPreferenceKey.notificationsEnabled) != nil else {
-            return CodexSharedPreferenceDefaults.notificationsEnabled
+        accountSwitchNotificationsEnabled
+    }
+
+    nonisolated static var accountSwitchNotificationsEnabled: Bool {
+        if userDefaults.object(forKey: CodexSharedPreferenceKey.accountSwitchNotificationsEnabled) != nil {
+            return userDefaults.bool(forKey: CodexSharedPreferenceKey.accountSwitchNotificationsEnabled)
         }
 
-        return userDefaults.bool(forKey: CodexSharedPreferenceKey.notificationsEnabled)
+        if userDefaults.object(forKey: CodexSharedPreferenceKey.notificationsEnabled) != nil {
+            return userDefaults.bool(forKey: CodexSharedPreferenceKey.notificationsEnabled)
+        }
+
+        return CodexSharedPreferenceDefaults.accountSwitchNotificationsEnabled
+    }
+
+    nonisolated static var rateLimitResetNotificationsEnabled: Bool {
+        boolValue(
+            forKey: CodexSharedPreferenceKey.rateLimitResetNotificationsEnabled,
+            defaultValue: CodexSharedPreferenceDefaults.rateLimitResetNotificationsEnabled
+        )
+    }
+
+    nonisolated static var fiveHourResetNotificationsEnabled: Bool {
+        boolValue(
+            forKey: CodexSharedPreferenceKey.fiveHourResetNotificationsEnabled,
+            defaultValue: CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
+        )
+    }
+
+    nonisolated static var sevenDayResetNotificationsEnabled: Bool {
+        boolValue(
+            forKey: CodexSharedPreferenceKey.sevenDayResetNotificationsEnabled,
+            defaultValue: CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
+        )
+    }
+
+    nonisolated static var hasAnyRateLimitResetNotificationsEnabled: Bool {
+        fiveHourResetNotificationsEnabled || sevenDayResetNotificationsEnabled
     }
 
     nonisolated static var autopilotEnabled: Bool {
-        guard userDefaults.object(forKey: CodexSharedPreferenceKey.autopilotEnabled) != nil else {
-            return CodexSharedPreferenceDefaults.autopilotEnabled
-        }
-
-        return userDefaults.bool(forKey: CodexSharedPreferenceKey.autopilotEnabled)
+        boolValue(
+            forKey: CodexSharedPreferenceKey.autopilotEnabled,
+            defaultValue: CodexSharedPreferenceDefaults.autopilotEnabled
+        )
     }
 
     nonisolated static var showMenuBarExtra: Bool {
-        guard userDefaults.object(forKey: CodexSharedPreferenceKey.showMenuBarExtra) != nil else {
-            return CodexSharedPreferenceDefaults.showMenuBarExtra
-        }
+        boolValue(
+            forKey: CodexSharedPreferenceKey.showMenuBarExtra,
+            defaultValue: CodexSharedPreferenceDefaults.showMenuBarExtra
+        )
+    }
 
-        return userDefaults.bool(forKey: CodexSharedPreferenceKey.showMenuBarExtra)
+    nonisolated static func migrateLegacyPreferencesIfNeeded(
+        legacyUserDefaults: UserDefaults = .standard
+    ) {
+        migrateLegacyMenuBarPreferenceIfNeeded(legacyUserDefaults: legacyUserDefaults)
+        migrateLegacyNotificationPreferenceIfNeeded()
+        migrateLegacyRateLimitResetPreferenceIfNeeded()
     }
 
     /// The menu-bar preference originally lived in the app's standard defaults.
@@ -67,5 +114,52 @@ enum CodexSharedPreferences {
             legacyUserDefaults.bool(forKey: CodexSharedPreferenceKey.showMenuBarExtra),
             forKey: CodexSharedPreferenceKey.showMenuBarExtra
         )
+    }
+
+    /// Older builds stored all notification behavior behind one shared flag.
+    /// Preserve that choice as the new account-switch notification toggle on
+    /// first launch after the split settings UI ships.
+    private nonisolated static func migrateLegacyNotificationPreferenceIfNeeded() {
+        guard
+            userDefaults.object(forKey: CodexSharedPreferenceKey.accountSwitchNotificationsEnabled) == nil,
+            userDefaults.object(forKey: CodexSharedPreferenceKey.notificationsEnabled) != nil
+        else {
+            return
+        }
+
+        userDefaults.set(
+            userDefaults.bool(forKey: CodexSharedPreferenceKey.notificationsEnabled),
+            forKey: CodexSharedPreferenceKey.accountSwitchNotificationsEnabled
+        )
+    }
+
+    /// The first reset-notification version used a single master toggle plus
+    /// hidden per-window defaults. Seed any still-missing 5h/7d toggles from
+    /// that master value before the UI switches to direct per-window controls.
+    private nonisolated static func migrateLegacyRateLimitResetPreferenceIfNeeded() {
+        guard userDefaults.object(forKey: CodexSharedPreferenceKey.rateLimitResetNotificationsEnabled) != nil else {
+            return
+        }
+
+        let legacyValue = userDefaults.bool(forKey: CodexSharedPreferenceKey.rateLimitResetNotificationsEnabled)
+
+        if userDefaults.object(forKey: CodexSharedPreferenceKey.fiveHourResetNotificationsEnabled) == nil {
+            userDefaults.set(legacyValue, forKey: CodexSharedPreferenceKey.fiveHourResetNotificationsEnabled)
+        }
+
+        if userDefaults.object(forKey: CodexSharedPreferenceKey.sevenDayResetNotificationsEnabled) == nil {
+            userDefaults.set(legacyValue, forKey: CodexSharedPreferenceKey.sevenDayResetNotificationsEnabled)
+        }
+    }
+
+    private nonisolated static func boolValue(
+        forKey key: String,
+        defaultValue: Bool
+    ) -> Bool {
+        guard userDefaults.object(forKey: key) != nil else {
+            return defaultValue
+        }
+
+        return userDefaults.bool(forKey: key)
     }
 }

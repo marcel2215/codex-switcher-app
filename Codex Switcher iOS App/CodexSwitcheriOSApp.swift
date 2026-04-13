@@ -12,6 +12,10 @@ import SwiftUI
 struct CodexSwitcheriOSApp: App {
     private let bootstrap = IOSAppBootstrap.make()
 
+    init() {
+        CodexSharedPreferences.migrateLegacyPreferencesIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             switch bootstrap {
