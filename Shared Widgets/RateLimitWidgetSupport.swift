@@ -597,6 +597,10 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
 }
 
 #if !os(watchOS)
+private enum RateLimitOverviewMetricLayout {
+    static let percentLabelMinimumWidth: CGFloat = 42
+}
+
 struct RateLimitOverviewWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
@@ -710,7 +714,12 @@ private struct RateLimitOverviewMetricRow: View {
 
                 Text(metric.percentText)
                     .font(.caption2.monospacedDigit())
-                    .frame(width: 34, alignment: .trailing)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(
+                        minWidth: RateLimitOverviewMetricLayout.percentLabelMinimumWidth,
+                        alignment: .trailing
+                    )
             }
 
             GeometryReader { proxy in
@@ -751,7 +760,12 @@ private struct RateLimitOverviewMetricCell: View {
 
                 Text(metric.percentText)
                     .font(.caption2.monospacedDigit())
-                    .frame(width: 34, alignment: .trailing)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(
+                        minWidth: RateLimitOverviewMetricLayout.percentLabelMinimumWidth,
+                        alignment: .trailing
+                    )
             }
 
             GeometryReader { proxy in
