@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UserNotifications
+import UIKit
 
 struct IOSSettingsView: View {
     private enum NotificationPreferenceKind {
@@ -66,6 +67,12 @@ struct IOSSettingsView: View {
                 Link(destination: AppSupportLink.sourceCodeURL) {
                     Label("Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
+
+                if let applicationSettingsURL {
+                    Link(destination: applicationSettingsURL) {
+                        Label("More Settings", systemImage: "ellipsis.circle")
+                    }
+                }
             }
         }
         .navigationTitle("Settings")
@@ -98,6 +105,10 @@ struct IOSSettingsView: View {
                 .accessibilityLabel("Close Settings")
             }
         }
+    }
+
+    private var applicationSettingsURL: URL? {
+        URL(string: UIApplication.openSettingsURLString)
     }
 
     @ViewBuilder
