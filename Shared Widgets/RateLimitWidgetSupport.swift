@@ -694,6 +694,7 @@ private struct RateLimitOverviewAccountCard: View {
 private struct RateLimitOverviewMetricRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
 
     let title: String
     let metric: WidgetRateLimitMetric
@@ -717,9 +718,13 @@ private struct RateLimitOverviewMetricRow: View {
                     Capsule()
                         .fill(.secondary.opacity(0.18))
 
-                    Capsule()
-                        .fill(metric.tint(colorScheme: colorScheme, contrast: colorSchemeContrast))
-                        .frame(width: proxy.size.width * metric.fraction)
+                    RateLimitMetricBarFill(
+                        metric: metric,
+                        colorScheme: colorScheme,
+                        colorSchemeContrast: colorSchemeContrast,
+                        widgetRenderingMode: widgetRenderingMode
+                    )
+                    .frame(width: proxy.size.width * metric.fraction)
                 }
             }
             .frame(height: 6)
@@ -730,6 +735,7 @@ private struct RateLimitOverviewMetricRow: View {
 private struct RateLimitOverviewMetricCell: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
 
     let title: String
     let metric: WidgetRateLimitMetric
@@ -753,14 +759,52 @@ private struct RateLimitOverviewMetricCell: View {
                     Capsule()
                         .fill(.secondary.opacity(0.18))
 
-                    Capsule()
-                        .fill(metric.tint(colorScheme: colorScheme, contrast: colorSchemeContrast))
-                        .frame(width: proxy.size.width * metric.fraction)
+                    RateLimitMetricBarFill(
+                        metric: metric,
+                        colorScheme: colorScheme,
+                        colorSchemeContrast: colorSchemeContrast,
+                        widgetRenderingMode: widgetRenderingMode
+                    )
+                    .frame(width: proxy.size.width * metric.fraction)
                 }
             }
             .frame(height: 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct RateLimitMetricBarFill: View {
+    let metric: WidgetRateLimitMetric
+    let colorScheme: ColorScheme
+    let colorSchemeContrast: ColorSchemeContrast
+    let widgetRenderingMode: WidgetRenderingMode
+
+    var body: some View {
+        Capsule()
+            .fill(fillColor)
+            .widgetAccentable()
+    }
+
+    private var fillColor: Color {
+        if widgetRenderingMode == .accented {
+            // iOS Home Screen can collapse semantic widget colors into a single
+            // accent tint. Preserve the existing layout, and use alpha to keep
+            // cached or missing data visually weaker than exact live values.
+            switch metric.status {
+            case .exact:
+                return .white
+            case .cached:
+                return .white.opacity(0.6)
+            case .missing:
+                return .white.opacity(0.35)
+            }
+        }
+
+        return metric.tint(
+            colorScheme: colorScheme,
+            contrast: colorSchemeContrast
+        )
     }
 }
 #endif

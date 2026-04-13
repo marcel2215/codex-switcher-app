@@ -221,12 +221,20 @@
 		3D4E5F60718293A4B5C6D7E8 /* Exceptions for "Shared" folder in "Codex Switcher Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				CodexSharedSettingsIntents.swift,
+				WidgetSnapshotPublisher.swift,
+			);
+			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */;
+		};
+		4A1B2C3D4E5F60718293A4B6 /* Exceptions for "Shared" folder in "Codex Switcher iOS Widgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
 				CodexSharedAppIntents.swift,
 				CodexSharedSettingsIntents.swift,
 				CodexSharedSwitchControlIntent.swift,
 				WidgetSnapshotPublisher.swift,
 			);
-			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Widgets */;
+			target = 1F1413322F8C7C930013386A /* Codex Switcher iOS Widgets */;
 		};
 		8A2E8F932F9B120100123456 /* Exceptions for "Codex Switcher Watch App" folder in "Codex Switcher Watch App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -327,6 +335,7 @@
 				3D4E5F60718293A4B5C6D7E8 /* Exceptions for "Shared" folder in "Codex Switcher Widgets" target */,
 				1FA700020002000200020002 /* Exceptions for "Shared" folder in "Codex Switcher iOS App" target */,
 				1FA700030003000300030003 /* Exceptions for "Shared" folder in "Codex Switcher Watch App" target */,
+				4A1B2C3D4E5F60718293A4B6 /* Exceptions for "Shared" folder in "Codex Switcher iOS Widgets" target */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -484,6 +493,9 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F1413362F8C7C930013386A /* Codex Switcher iOS Widgets */,
+				5B2C4D6E7F8091A2B3C4D5E6 /* Shared Widgets */,
+				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
+				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher iOS Widgets";
 			packageProductDependencies = (

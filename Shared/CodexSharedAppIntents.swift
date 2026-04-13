@@ -386,13 +386,3 @@ struct CodexAccountEntityQuery: EntityStringQuery {
         }
     }
 }
-
-struct OpenCodexSwitcherIntent: AppIntent {
-    static let title: LocalizedStringResource = "Open Codex Switcher"
-    static let description = IntentDescription("Opens Codex Switcher.")
-    static let supportedModes: IntentModes = .foreground
-
-    func perform() async throws -> some IntentResult {
-        .result()
-    }
-}
