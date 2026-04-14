@@ -888,30 +888,38 @@ struct RateLimitRectangularAccessoryView: View {
     let window: RateLimitWindow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .center, spacing: 6) {
+        // Match the built-in battery accessory layout more closely: a compact
+        // top value row, one secondary title line, then the native linear
+        // capacity gauge. Avoid oversized hero numerals that make the widget
+        // read like a card instead of a Lock Screen accessory.
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Image(systemName: iconSystemName)
-                    .font(.body.weight(.semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
 
                 Text(metric.percentText)
-                    .font(.system(.title3, design: .rounded).weight(.semibold))
+                    .font(.system(size: 23, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
+                    .minimumScaleFactor(0.75)
                     .foregroundStyle(.primary)
 
                 Spacer(minLength: 0)
             }
+
+            Text(subtitle)
+                .font(.system(size: 14, weight: .regular))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .foregroundStyle(.primary)
 
             Gauge(value: metric.fraction) {
                 EmptyView()
             }
             .gaugeStyle(.accessoryLinearCapacity)
             .tint(gaugeTint)
-
-            Text(subtitle)
-                .font(.caption)
-                .lineLimit(1)
+            .padding(.top, 2)
         }
         .accessibilityLabel("\(account?.displayName ?? "Missing Account") \(window.shortLabel)")
         .accessibilityValue(accessibilityValue)
