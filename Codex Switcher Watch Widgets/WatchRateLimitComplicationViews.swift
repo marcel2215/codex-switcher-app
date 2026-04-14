@@ -81,15 +81,14 @@ struct WatchRateLimitCornerComplicationView: View {
     var body: some View {
         // For accessoryCorner, the face expects a compact center view plus
         // extracted curved content from widgetLabel. Supplying the gauge in the
-        // label matches Apple's documented complication pattern.
-        ZStack {
-            AccessoryWidgetBackground()
-            Text(metric.complicationPercentText)
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .minimumScaleFactor(0.7)
-                .foregroundStyle(valueColor)
-        }
+        // label matches Apple's documented complication pattern. Keep the
+        // center content unadorned so the percentage reads as plain text rather
+        // than looking like a separate circular badge inside the gauge.
+        Text(metric.complicationPercentText)
+            .font(.system(size: 19, weight: .bold, design: .rounded))
+            .minimumScaleFactor(0.5)
+            .foregroundStyle(valueColor)
+            .widgetCurvesContent()
         .widgetLabel {
             Gauge(value: metric.fraction) {
                 Text(window.shortLabel)
