@@ -34,6 +34,16 @@ struct ForegroundRateLimitRefreshPolicy: Sendable, Equatable {
         supportsPathMonitoring: true
     )
 
+    static let iOSBackgroundTask = Self(
+        pollCadence: .seconds(30),
+        visibleRefreshInterval: 5 * 60,
+        selectedRefreshInterval: 5 * 60,
+        initialTransientBackoff: 30,
+        maximumTransientBackoff: 15 * 60,
+        authBackoff: 30 * 60,
+        supportsPathMonitoring: false
+    )
+
     static let watchOS = Self(
         pollCadence: .seconds(45),
         visibleRefreshInterval: 10 * 60,
@@ -190,6 +200,19 @@ final class ForegroundRateLimitRefreshController {
 
     func refreshNowForTesting(for identityKey: String) async {
         await refreshIfNeeded(identityKey: normalizedIdentityKey(identityKey), force: true)
+    }
+
+    func refreshTrackedAccountsForBackground(identityKeys: [String]) async {
+        let normalizedIdentityKeys = identityKeys
+            .map(normalizedIdentityKey)
+            .filter { !$0.isEmpty }
+        let knownIdentityKeys = Array(Set(normalizedIdentityKeys)).sorted()
+
+        // Background refresh has no focused account, so treat all tracked accounts as visible peers.
+        selectedIdentityKey = nil
+        visibleIdentityKeys = Set(knownIdentityKeys)
+        reconcileKnownIdentityKeys(knownIdentityKeys)
+        await refreshDueAccounts()
     }
 
     private func startPollingIfNeeded() {

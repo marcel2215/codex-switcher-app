@@ -27,5 +27,8 @@ struct CodexSwitcheriOSApp: App {
                 StorageUnavailableView(message: message)
             }
         }
+        .backgroundTask(.appRefresh(IOSBackgroundAppRefreshCoordinator.taskIdentifier)) {
+            await IOSBackgroundAppRefreshCoordinator.shared.handleScheduledRefresh()
+        }
     }
 }

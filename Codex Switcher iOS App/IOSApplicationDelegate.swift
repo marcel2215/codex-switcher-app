@@ -23,6 +23,7 @@ final class IOSApplicationDelegate: NSObject, UIApplicationDelegate {
             )
         }
 
+        IOSBackgroundAppRefreshCoordinator.shared.scheduleNextRefresh()
         return true
     }
 
@@ -37,6 +38,10 @@ final class IOSApplicationDelegate: NSObject, UIApplicationDelegate {
         )
         configuration.delegateClass = IOSWindowSceneDelegate.self
         return configuration
+    }
+
+    func applicationDidEnterBackground(_ application: UIApplication) {
+        IOSBackgroundAppRefreshCoordinator.shared.scheduleNextRefresh()
     }
 }
 

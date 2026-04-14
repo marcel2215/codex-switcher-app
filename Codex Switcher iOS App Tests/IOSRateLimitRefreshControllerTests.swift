@@ -5,9 +5,11 @@
 //  Created by Codex on 2026-04-11.
 //
 
+import BackgroundTasks
 import Foundation
 import SwiftData
 import Testing
+import UIKit
 @testable import Codex_Switcher_iOS_App
 
 @MainActor
@@ -383,6 +385,86 @@ struct IOSRateLimitRefreshControllerTests {
 
         #expect(await provider.requestCount(for: account.identityKey) == 2)
     }
+
+    @Test
+    func backgroundRefreshUpdatesAccountsAndPublishesSnapshot() async throws {
+        let account = makeRefreshTestAccount(
+            identityKey: "identity-background",
+            name: "Background",
+            customOrder: 0
+        )
+        let harness = try makeRefreshHarness(accounts: [account])
+        let provider = TestIOSRateLimitProvider()
+        let credentialStore = TestSyncedRateLimitCredentialStore()
+        let publishedSnapshot = PublishedSnapshotSpy()
+        let coordinator = IOSBackgroundAppRefreshCoordinator(
+            provider: provider,
+            credentialStore: credentialStore,
+            backgroundRefreshStatusProvider: { .available },
+            submitRequest: { _ in },
+            cancelRequest: { _ in },
+            publishSnapshot: { _ in
+                publishedSnapshot.markPublished()
+            }
+        )
+        let observedAt = Date().addingTimeInterval(-15)
+        let snapshot = makeRefreshSnapshot(
+            identityKey: account.identityKey,
+            observedAt: observedAt,
+            fetchedAt: observedAt.addingTimeInterval(5),
+            sevenDayRemainingPercent: 77,
+            fiveHourRemainingPercent: 28
+        )
+
+        try await credentialStore.save(
+            SyncedRateLimitCredential(
+                credentials: CodexRateLimitCredentials(
+                    identityKey: account.identityKey,
+                    authMode: .chatgpt,
+                    accountID: "acct-background",
+                    accessToken: "token-background",
+                    idToken: nil
+                )
+            )
+        )
+        await provider.setSnapshot(snapshot, for: account.identityKey)
+
+        let success = await coordinator.performRefresh(using: harness.modelContainer)
+
+        #expect(success)
+        #expect(await provider.requestCount(for: account.identityKey) == 1)
+        #expect(publishedSnapshot.wasPublished)
+
+        let refreshedAccount = try #require(fetchRefreshAccounts(in: harness.modelContext).first)
+        #expect(refreshedAccount.sevenDayLimitUsedPercent == 77)
+        #expect(refreshedAccount.fiveHourLimitUsedPercent == 28)
+        #expect(refreshedAccount.rateLimitsObservedAt == snapshot.observedAt)
+    }
+
+    @Test
+    func scheduleNextRefreshSubmitsAppRefreshRequestWhenAvailable() async {
+        let submittedRequest = SubmittedBackgroundRequestSpy()
+        let cancelledIdentifiers = CancelledBackgroundRequestsSpy()
+        let coordinator = IOSBackgroundAppRefreshCoordinator(
+            provider: TestIOSRateLimitProvider(),
+            credentialStore: TestSyncedRateLimitCredentialStore(),
+            backgroundRefreshStatusProvider: { .available },
+            submitRequest: { request in
+                submittedRequest.store(request)
+            },
+            cancelRequest: { identifier in
+                cancelledIdentifiers.append(identifier)
+            },
+            publishSnapshot: { _ in }
+        )
+
+        coordinator.scheduleNextRefresh(after: 600)
+
+        let request = try? #require(submittedRequest.value)
+        #expect(request?.identifier == IOSBackgroundAppRefreshCoordinator.taskIdentifier)
+        #expect(cancelledIdentifiers.value == [IOSBackgroundAppRefreshCoordinator.taskIdentifier])
+        #expect((request?.earliestBeginDate?.timeIntervalSinceNow ?? 0) > 0)
+    }
 }
 
 @MainActor
@@ -506,6 +588,60 @@ private actor TestSyncedRateLimitCredentialStore: SyncedRateLimitCredentialStori
 
     func containsCredential(forIdentityKey identityKey: String) async -> Bool {
         credentialsByIdentityKey[identityKey] != nil
+    }
+}
+
+private final class PublishedSnapshotSpy: @unchecked Sendable {
+    private let lock = NSLock()
+    private var published = false
+
+    func markPublished() {
+        lock.lock()
+        published = true
+        lock.unlock()
+    }
+
+    var wasPublished: Bool {
+        lock.lock()
+        let value = published
+        lock.unlock()
+        return value
+    }
+}
+
+private final class SubmittedBackgroundRequestSpy: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedValue: BGAppRefreshTaskRequest?
+
+    func store(_ request: BGAppRefreshTaskRequest) {
+        lock.lock()
+        storedValue = request
+        lock.unlock()
+    }
+
+    var value: BGAppRefreshTaskRequest? {
+        lock.lock()
+        let value = storedValue
+        lock.unlock()
+        return value
+    }
+}
+
+private final class CancelledBackgroundRequestsSpy: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedValue: [String] = []
+
+    func append(_ identifier: String) {
+        lock.lock()
+        storedValue.append(identifier)
+        lock.unlock()
+    }
+
+    var value: [String] {
+        lock.lock()
+        let value = storedValue
+        lock.unlock()
+        return value
     }
 }
 

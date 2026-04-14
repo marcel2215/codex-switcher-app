@@ -12,19 +12,15 @@ enum IOSAppBootstrap {
     case ready(ModelContainer)
     case failed(String)
 
+    private static let schema = Schema([StoredAccount.self])
+
     static func make() -> IOSAppBootstrap {
-        let schema = Schema([StoredAccount.self])
         let launchScenario = IOSAppLaunchScenario.current
-        let isStoredInMemoryOnly = launchScenario != nil
-        let configuration = ModelConfiguration(
-            "Accounts",
-            schema: schema,
-            isStoredInMemoryOnly: isStoredInMemoryOnly,
-            cloudKitDatabase: isStoredInMemoryOnly ? .none : .automatic
-        )
 
         do {
-            let modelContainer = try ModelContainer(for: schema, configurations: [configuration])
+            let modelContainer = try makeModelContainer(
+                isStoredInMemoryOnly: launchScenario != nil
+            )
 
             if let launchScenario {
                 try IOSPreviewData.seed(launchScenario, into: modelContainer.mainContext)
@@ -34,5 +30,20 @@ enum IOSAppBootstrap {
         } catch {
             return .failed(error.localizedDescription)
         }
+    }
+
+    static func makePersistentModelContainer() throws -> ModelContainer {
+        try makeModelContainer(isStoredInMemoryOnly: false)
+    }
+
+    private static func makeModelContainer(isStoredInMemoryOnly: Bool) throws -> ModelContainer {
+        let configuration = ModelConfiguration(
+            "Accounts",
+            schema: schema,
+            isStoredInMemoryOnly: isStoredInMemoryOnly,
+            cloudKitDatabase: isStoredInMemoryOnly ? .none : .automatic
+        )
+
+        return try ModelContainer(for: schema, configurations: [configuration])
     }
 }
