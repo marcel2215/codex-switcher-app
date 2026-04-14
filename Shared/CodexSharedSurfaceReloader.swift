@@ -9,6 +9,7 @@ import WidgetKit
 
 enum CodexSharedSurfaceReloader {
     nonisolated static func reloadAllRateLimitWidgets() {
+        WidgetCenter.shared.invalidateConfigurationRecommendations()
         WidgetCenter.shared.reloadTimelines(ofKind: CodexSharedSurfaceKinds.rateLimitOverviewWidget)
         WidgetCenter.shared.reloadTimelines(ofKind: CodexSharedSurfaceKinds.rateLimitAccessoryWidget)
         WidgetCenter.shared.reloadTimelines(ofKind: CodexSharedSurfaceKinds.rateLimitWatchComplication)

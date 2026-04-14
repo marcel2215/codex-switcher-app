@@ -88,4 +88,11 @@ struct RateLimitAccessoryConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Window", default: .fiveHour)
     var window: RateLimitWindow
+
+    static var parameterSummary: some ParameterSummary {
+        Summary {
+            \.$account
+            \.$window
+        }
+    }
 }

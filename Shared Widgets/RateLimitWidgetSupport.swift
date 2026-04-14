@@ -504,53 +504,45 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
     typealias Entry = RateLimitAccessoryEntry
 
     func recommendations() -> [AppIntentRecommendation<RateLimitAccessoryConfigurationIntent>] {
-        let state = WidgetRateLimitResolver.loadState()
-        let recommendations = state.accounts
-            .sorted(by: WidgetRateLimitResolver.accountRecordComparator)
-            .prefix(2)
-            .flatMap { record in
-                let entity = WidgetCodexAccountEntity.live(from: record)
-                // AppIntentRecommendation rejects formatted Text at runtime.
-                // Build plain Strings first so WidgetKit uses the String overload.
-                let fiveHourDescription = record.name + " • 5h"
-                let sevenDayDescription = record.name + " • 7d"
+        // watchOS complications don't get the dedicated parameter editor that
+        // widgets have on iOS and macOS. The watch gallery is driven by the
+        // preconfigured recommendations we return here, so expose Automatic plus
+        // every account in app order for both windows.
+        let entities = [WidgetCodexAccountEntity.automatic]
+            + WidgetRateLimitResolver.loadState().accounts
+                .sorted(by: WidgetRateLimitResolver.accountRecordComparator)
+                .map(WidgetCodexAccountEntity.live(from:))
 
-                let fiveHourIntent: RateLimitAccessoryConfigurationIntent = {
-                    let intent = RateLimitAccessoryConfigurationIntent()
-                    intent.account = entity
-                    intent.window = .fiveHour
-                    return intent
-                }()
+        return entities.flatMap { entity in
+            let accountName = entity.isAutomatic ? "Automatic" : entity.name
+            let fiveHourDescription = accountName + " • 5h"
+            let sevenDayDescription = accountName + " • 7d"
 
-                let sevenDayIntent: RateLimitAccessoryConfigurationIntent = {
-                    let intent = RateLimitAccessoryConfigurationIntent()
-                    intent.account = entity
-                    intent.window = .sevenDay
-                    return intent
-                }()
+            let fiveHourIntent: RateLimitAccessoryConfigurationIntent = {
+                let intent = RateLimitAccessoryConfigurationIntent()
+                intent.account = entity
+                intent.window = .fiveHour
+                return intent
+            }()
 
-                return [
-                    AppIntentRecommendation(
-                        intent: fiveHourIntent,
-                        description: fiveHourDescription
-                    ),
-                    AppIntentRecommendation(
-                        intent: sevenDayIntent,
-                        description: sevenDayDescription
-                    ),
-                ]
-            }
-
-        guard !recommendations.isEmpty else {
-            let intent = RateLimitAccessoryConfigurationIntent()
-            intent.window = .fiveHour
+            let sevenDayIntent: RateLimitAccessoryConfigurationIntent = {
+                let intent = RateLimitAccessoryConfigurationIntent()
+                intent.account = entity
+                intent.window = .sevenDay
+                return intent
+            }()
 
             return [
-                AppIntentRecommendation(intent: intent, description: "Rate Limit")
+                AppIntentRecommendation(
+                    intent: fiveHourIntent,
+                    description: fiveHourDescription
+                ),
+                AppIntentRecommendation(
+                    intent: sevenDayIntent,
+                    description: sevenDayDescription
+                ),
             ]
         }
-
-        return recommendations
     }
 
     func placeholder(in context: Context) -> RateLimitAccessoryEntry {
