@@ -130,6 +130,11 @@ struct WatchAccountDetailView: View {
         .task(id: account.identityKey) {
             await updateLiveRefreshAvailability()
             refreshController.setSelected(identityKey: account.identityKey)
+            WidgetSnapshotPublisher.publish(
+                modelContext: modelContext,
+                selectedAccountID: account.identityKey,
+                selectedAccountIsLive: true
+            )
         }
         .confirmationDialog(
             "Remove this account?",

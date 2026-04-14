@@ -196,6 +196,7 @@ struct AccountsRootView: View {
             }
             .onChange(of: selectedAccountID) { _, newSelection in
                 syncRegularSelectedRateLimitTracking(for: newSelection)
+                publishWidgetSnapshot()
             }
             .onChange(of: quickActions.pendingAccountDetailID) { _, _ in
                 applyPendingQuickActionIfPossible()
@@ -212,7 +213,7 @@ struct AccountsRootView: View {
         let contentWithObservers =
             interactionObservedContent
             .task(id: widgetSnapshotFingerprint) {
-                WidgetSnapshotPublisher.publish(modelContext: modelContext)
+                publishWidgetSnapshot()
             }
             .task(id: quickActionFingerprint) {
                 refreshHomeScreenQuickActions()
@@ -235,7 +236,7 @@ struct AccountsRootView: View {
         rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
         rateLimitRefreshController.setScenePhase(scenePhase)
         syncRegularSelectedRateLimitTracking(for: selectedAccountID)
-        WidgetSnapshotPublisher.publish(modelContext: modelContext)
+        publishWidgetSnapshot()
         refreshHomeScreenQuickActions()
         applyPendingQuickActionIfPossible()
         openNotificationSettingsIfRequested()
@@ -262,7 +263,7 @@ struct AccountsRootView: View {
             return
         }
 
-        WidgetSnapshotPublisher.publish(modelContext: modelContext)
+        publishWidgetSnapshot()
         refreshHomeScreenQuickActions()
         applyPendingQuickActionIfPossible()
         openNotificationSettingsIfRequested()
@@ -476,6 +477,14 @@ struct AccountsRootView: View {
                 from: accounts,
                 limit: IOSHomeScreenQuickActionCoordinator.maximumAccountQuickActions
             )
+        )
+    }
+
+    private func publishWidgetSnapshot() {
+        WidgetSnapshotPublisher.publish(
+            modelContext: modelContext,
+            selectedAccountID: selectedAccountID.flatMap { account(for: $0)?.identityKey },
+            selectedAccountIsLive: selectedAccountID != nil && !isEditing
         )
     }
 

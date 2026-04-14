@@ -42,6 +42,7 @@ struct WatchAccountsRootView: View {
                     WatchEmptyStateView(searchText: searchText)
                         .onAppear {
                             clearSelectedRateLimitTracking()
+                            publishWidgetSnapshot()
                         }
                 } else {
                     List(displayedAccounts) { account in
@@ -66,6 +67,7 @@ struct WatchAccountsRootView: View {
                     }
                     .onAppear {
                         clearSelectedRateLimitTracking()
+                        publishWidgetSnapshot()
                     }
                 }
             }
@@ -119,7 +121,7 @@ struct WatchAccountsRootView: View {
             refreshController.configure(modelContext: modelContext)
             refreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
             refreshController.setScenePhase(scenePhase)
-            WidgetSnapshotPublisher.publish(modelContext: modelContext)
+            publishWidgetSnapshot()
         }
         .onChange(of: scenePhase) { _, newPhase in
             refreshController.setScenePhase(newPhase)
@@ -128,7 +130,7 @@ struct WatchAccountsRootView: View {
                 return
             }
 
-            WidgetSnapshotPublisher.publish(modelContext: modelContext)
+            publishWidgetSnapshot()
         }
         .onChange(of: accounts.map(\.identityKey)) { _, newIdentityKeys in
             refreshController.reconcileKnownIdentityKeys(newIdentityKeys)
@@ -140,7 +142,7 @@ struct WatchAccountsRootView: View {
             restoreSortPreferences()
         }
         .task(id: widgetSnapshotFingerprint) {
-            WidgetSnapshotPublisher.publish(modelContext: modelContext)
+            publishWidgetSnapshot()
         }
     }
 
@@ -204,6 +206,17 @@ struct WatchAccountsRootView: View {
             await Task.yield()
             refreshController.setSelected(identityKey: nil)
         }
+    }
+
+    private func publishWidgetSnapshot(
+        selectedAccountID: String? = nil,
+        selectedAccountIsLive: Bool = false
+    ) {
+        WidgetSnapshotPublisher.publish(
+            modelContext: modelContext,
+            selectedAccountID: selectedAccountID,
+            selectedAccountIsLive: selectedAccountIsLive
+        )
     }
 }
 

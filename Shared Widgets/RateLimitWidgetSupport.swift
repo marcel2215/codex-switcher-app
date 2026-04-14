@@ -504,18 +504,16 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
     typealias Entry = RateLimitAccessoryEntry
 
     func recommendations() -> [AppIntentRecommendation<RateLimitAccessoryConfigurationIntent>] {
-#if os(watchOS)
-        if #available(watchOS 26.0, *) {
-            return []
-        }
-#endif
-
         let state = WidgetRateLimitResolver.loadState()
         let recommendations = state.accounts
             .sorted(by: WidgetRateLimitResolver.accountRecordComparator)
             .prefix(2)
             .flatMap { record in
                 let entity = WidgetCodexAccountEntity.live(from: record)
+                // AppIntentRecommendation rejects formatted Text at runtime.
+                // Build plain Strings first so WidgetKit uses the String overload.
+                let fiveHourDescription = record.name + " • 5h"
+                let sevenDayDescription = record.name + " • 7d"
 
                 let fiveHourIntent: RateLimitAccessoryConfigurationIntent = {
                     let intent = RateLimitAccessoryConfigurationIntent()
@@ -534,11 +532,11 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
                 return [
                     AppIntentRecommendation(
                         intent: fiveHourIntent,
-                        description: "\(record.name) • 5h"
+                        description: fiveHourDescription
                     ),
                     AppIntentRecommendation(
                         intent: sevenDayIntent,
-                        description: "\(record.name) • 7d"
+                        description: sevenDayDescription
                     ),
                 ]
             }

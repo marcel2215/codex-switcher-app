@@ -12,6 +12,8 @@ enum CodexSharedSurfaceReloader {
         WidgetCenter.shared.reloadTimelines(ofKind: CodexSharedSurfaceKinds.rateLimitOverviewWidget)
         WidgetCenter.shared.reloadTimelines(ofKind: CodexSharedSurfaceKinds.rateLimitAccessoryWidget)
         WidgetCenter.shared.reloadTimelines(ofKind: CodexSharedSurfaceKinds.rateLimitWatchComplication)
+        WidgetCenter.shared.reloadTimelines(ofKind: CodexSharedSurfaceKinds.rateLimitWatchComplicationFiveHour)
+        WidgetCenter.shared.reloadTimelines(ofKind: CodexSharedSurfaceKinds.rateLimitWatchComplicationSevenDay)
     }
 
     nonisolated static func reloadAll() {

@@ -11,6 +11,6 @@ import SwiftUI
 @main
 struct Codex_Switcher_Watch_WidgetsBundle: WidgetBundle {
     var body: some Widget {
-        Codex_Switcher_Watch_Widgets()
+        WatchRateLimitComplicationWidget()
     }
 }

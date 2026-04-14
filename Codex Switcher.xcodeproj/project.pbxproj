@@ -255,6 +255,16 @@
 			);
 			target = 1F1413322F8C7C930013386A /* Codex Switcher iOS Widgets */;
 		};
+		5C1A2B3C4D5E6F708192A3B4 /* Exceptions for "Shared" folder in "Codex Switcher Watch WidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CodexSharedAppIntents.swift,
+				CodexSharedSettingsIntents.swift,
+				CodexSharedSwitchControlIntent.swift,
+				WidgetSnapshotPublisher.swift,
+			);
+			target = 1F310E4D2F8DC3E2006AA106 /* Codex Switcher Watch WidgetsExtension */;
+		};
 		8A2E8F932F9B120100123456 /* Exceptions for "Codex Switcher Watch App" folder in "Codex Switcher Watch App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -363,6 +373,7 @@
 				1FA700020002000200020002 /* Exceptions for "Shared" folder in "Codex Switcher iOS App" target */,
 				1FA700030003000300030003 /* Exceptions for "Shared" folder in "Codex Switcher Watch App" target */,
 				4A1B2C3D4E5F60718293A4B6 /* Exceptions for "Shared" folder in "Codex Switcher iOS Widgets" target */,
+				5C1A2B3C4D5E6F708192A3B4 /* Exceptions for "Shared" folder in "Codex Switcher Watch WidgetsExtension" target */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -581,6 +592,9 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F310E512F8DC3E2006AA106 /* Codex Switcher Watch Widgets */,
+				5B2C4D6E7F8091A2B3C4D5E6 /* Shared Widgets */,
+				6AE84D562BE14E0FA0856BF2 /* Shared Core */,
+				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher Watch WidgetsExtension";
 			packageProductDependencies = (
@@ -1284,6 +1298,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Codex Switcher Watch Widgets/Codex Switcher Watch Widgets.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1318,6 +1333,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Codex Switcher Watch Widgets/Codex Switcher Watch Widgets.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
