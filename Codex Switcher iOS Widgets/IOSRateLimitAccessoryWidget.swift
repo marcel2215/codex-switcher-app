@@ -16,6 +16,11 @@ struct IOSRateLimitAccessoryWidget: Widget {
             provider: RateLimitAccessoryProvider()
         ) { entry in
             IOSRateLimitAccessoryWidgetView(entry: entry)
+                // Lock Screen accessory widgets still need an explicit widget
+                // background declaration so WidgetKit accepts the extension.
+                .containerBackground(for: .widget) {
+                    Color.clear
+                }
         }
         .configurationDisplayName("Rate Limit")
         .description("Shows one account's remaining 5h or 7d rate limit on the Lock Screen.")

@@ -16,9 +16,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1F1413322F8C7C930013386A"
-               BuildableName = "Codex Switcher iOS Widgets.appex"
-               BlueprintName = "Codex Switcher iOS Widgets"
+               BlueprintIdentifier = "1F310E4D2F8DC3E2006AA106"
+               BuildableName = "Codex Switcher Watch WidgetsExtension.appex"
+               BlueprintName = "Codex Switcher Watch WidgetsExtension"
                ReferencedContainer = "container:Codex Switcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -30,9 +30,23 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1F96B5A52F89BF5100044DB7"
-               BuildableName = "Codex Switcher iOS App.app"
-               BlueprintName = "Codex Switcher iOS App"
+               BlueprintIdentifier = "1FA0355E2F8AF68300367DD6"
+               BuildableName = "Codex Switcher Watch App.app"
+               BlueprintName = "Codex Switcher Watch App"
+               ReferencedContainer = "container:Codex Switcher.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "1F87C9462F8406C7007DED25"
+               BuildableName = "Codex Switcher.app"
+               BlueprintName = "Codex Switcher"
                ReferencedContainer = "container:Codex Switcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -62,16 +76,16 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "1F96B5A52F89BF5100044DB7"
-            BuildableName = "Codex Switcher iOS App.app"
-            BlueprintName = "Codex Switcher iOS App"
+            BlueprintIdentifier = "1FA0355E2F8AF68300367DD6"
+            BuildableName = "Codex Switcher Watch App.app"
+            BlueprintName = "Codex Switcher Watch App"
             ReferencedContainer = "container:Codex Switcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "_XCWidgetKind"
-            value = "com.marcel2215.codexswitcher.widget.rate-limit-overview"
+            value = ""
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
@@ -81,7 +95,7 @@
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "_XCWidgetFamily"
-            value = "medium"
+            value = "systemMedium"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
@@ -91,16 +105,14 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
-      debugDocumentVersioning = "YES"
-      askForAppToLaunch = "Yes"
-      launchAutomaticallySubstyle = "2">
+      debugDocumentVersioning = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "1F96B5A52F89BF5100044DB7"
-            BuildableName = "Codex Switcher iOS App.app"
-            BlueprintName = "Codex Switcher iOS App"
+            BlueprintIdentifier = "1F310E4D2F8DC3E2006AA106"
+            BuildableName = "Codex Switcher Watch WidgetsExtension.appex"
+            BlueprintName = "Codex Switcher Watch WidgetsExtension"
             ReferencedContainer = "container:Codex Switcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
