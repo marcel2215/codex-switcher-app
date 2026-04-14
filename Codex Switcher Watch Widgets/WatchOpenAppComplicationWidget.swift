@@ -83,30 +83,21 @@ private struct WatchOpenAppComplicationEntryView: View {
 
 private struct WatchOpenAppCircularComplicationView: View {
     var body: some View {
-        ZStack {
-            Circle()
-                .stroke(.tertiary, lineWidth: 2.5)
-
-            Image(systemName: watchOpenAppComplicationSymbolName)
-                .font(.system(size: 18, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .widgetAccentable()
-        }
-        .padding(4)
+        Image(systemName: watchOpenAppComplicationSymbolName)
+            .font(.system(size: 18, weight: .semibold))
+            .symbolRenderingMode(.monochrome)
+            .widgetAccentable()
+            .padding(6)
     }
 }
 
 private struct WatchOpenAppCornerComplicationView: View {
     var body: some View {
-        ZStack {
-            AccessoryWidgetBackground()
-
-            Image(systemName: watchOpenAppComplicationSymbolName)
-                .font(.system(size: 14, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .widgetAccentable()
-        }
-        .padding(4)
+        Image(systemName: watchOpenAppComplicationSymbolName)
+            .font(.system(size: 14, weight: .semibold))
+            .symbolRenderingMode(.monochrome)
+            .widgetAccentable()
+            .padding(4)
     }
 }
 
