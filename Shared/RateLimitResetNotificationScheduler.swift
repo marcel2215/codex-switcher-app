@@ -12,6 +12,15 @@ import OSLog
 actor RateLimitResetNotificationScheduler {
     static let shared = RateLimitResetNotificationScheduler()
 
+    struct NotificationPreferences: Sendable, Equatable {
+        let fiveHourEnabled: Bool
+        let sevenDayEnabled: Bool
+
+        var hasAnyEnabled: Bool {
+            fiveHourEnabled || sevenDayEnabled
+        }
+    }
+
     private struct PendingResetNotification {
         let identifier: String
         let content: UNMutableNotificationContent
@@ -49,19 +58,24 @@ actor RateLimitResetNotificationScheduler {
             }
         }
 
-        var isEnabled: Bool {
+        func isEnabled(in preferences: NotificationPreferences) -> Bool {
             switch self {
             case .fiveHour:
-                CodexSharedPreferences.fiveHourResetNotificationsEnabled
+                preferences.fiveHourEnabled
             case .sevenDay:
-                CodexSharedPreferences.sevenDayResetNotificationsEnabled
+                preferences.sevenDayEnabled
             }
         }
     }
 
     private static let identifierPrefix = "com.marcel2215.codexswitcher.rate-limit-reset."
-    private let center: UNUserNotificationCenter
     private let stateStore: CodexSharedStateStore
+    private let notificationPreferencesProvider: @Sendable () -> NotificationPreferences
+    private let authorizationStatusProvider: @Sendable () async -> UNAuthorizationStatus
+    private let addNotificationRequestHandler: @Sendable (UNNotificationRequest) async throws -> Void
+    private let pendingNotificationIdentifiersProvider: @Sendable () async -> [String]
+    private let deliveredNotificationIdentifiersProvider: @Sendable () async -> [String]
+    private let removeNotificationsHandler: @Sendable ([String]) -> Void
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
         category: "RateLimitResetNotifications"
@@ -69,10 +83,38 @@ actor RateLimitResetNotificationScheduler {
 
     init(
         center: UNUserNotificationCenter = .current(),
-        stateStore: CodexSharedStateStore = .init()
+        stateStore: CodexSharedStateStore = .init(),
+        notificationPreferencesProvider: (@Sendable () -> NotificationPreferences)? = nil,
+        authorizationStatusProvider: (@Sendable () async -> UNAuthorizationStatus)? = nil,
+        addNotificationRequestHandler: (@Sendable (UNNotificationRequest) async throws -> Void)? = nil,
+        pendingNotificationIdentifiersProvider: (@Sendable () async -> [String])? = nil,
+        deliveredNotificationIdentifiersProvider: (@Sendable () async -> [String])? = nil,
+        removeNotificationsHandler: (@Sendable ([String]) -> Void)? = nil
     ) {
-        self.center = center
         self.stateStore = stateStore
+        self.notificationPreferencesProvider = notificationPreferencesProvider ?? {
+            NotificationPreferences(
+                fiveHourEnabled: CodexSharedPreferences.fiveHourResetNotificationsEnabled,
+                sevenDayEnabled: CodexSharedPreferences.sevenDayResetNotificationsEnabled
+            )
+        }
+        self.authorizationStatusProvider = authorizationStatusProvider ?? {
+            let settings = await center.notificationSettings()
+            return settings.authorizationStatus
+        }
+        self.addNotificationRequestHandler = addNotificationRequestHandler ?? {
+            try await Self.addNotificationRequest($0, to: center)
+        }
+        self.pendingNotificationIdentifiersProvider = pendingNotificationIdentifiersProvider ?? {
+            await Self.pendingManagedNotificationIdentifiers(from: center)
+        }
+        self.deliveredNotificationIdentifiersProvider = deliveredNotificationIdentifiersProvider ?? {
+            await Self.deliveredManagedNotificationIdentifiers(from: center)
+        }
+        self.removeNotificationsHandler = removeNotificationsHandler ?? {
+            center.removePendingNotificationRequests(withIdentifiers: $0)
+            center.removeDeliveredNotifications(withIdentifiers: $0)
+        }
     }
 
     func synchronizeWithStoredState() async {
@@ -82,11 +124,12 @@ actor RateLimitResetNotificationScheduler {
 
     func synchronize(with sharedState: SharedCodexState) async {
         let existingIdentifiers = await notificationIdentifiersWithManagedPrefix()
-        let settings = await center.notificationSettings()
+        let notificationPreferences = notificationPreferencesProvider()
+        let authorizationStatus = await authorizationStatusProvider()
 
         guard
-            CodexSharedPreferences.hasAnyRateLimitResetNotificationsEnabled,
-            CodexNotificationAuthorization.isDeliveryAuthorized(settings.authorizationStatus)
+            notificationPreferences.hasAnyEnabled,
+            CodexNotificationAuthorization.isDeliveryAuthorized(authorizationStatus)
         else {
             removeManagedNotifications(identifiers: existingIdentifiers)
             return
@@ -102,7 +145,14 @@ actor RateLimitResetNotificationScheduler {
                 return lhs.id < rhs.id
             }
             .flatMap { account in
-                ResetWindow.allCases.compactMap { makePendingNotification(for: account, window: $0, now: now) }
+                ResetWindow.allCases.compactMap {
+                    makePendingNotification(
+                        for: account,
+                        window: $0,
+                        preferences: notificationPreferences,
+                        now: now
+                    )
+                }
             }
 
         removeManagedNotifications(identifiers: existingIdentifiers)
@@ -118,7 +168,7 @@ actor RateLimitResetNotificationScheduler {
             )
 
             do {
-                try await addNotificationRequest(request)
+                try await addNotificationRequestHandler(request)
             } catch {
                 logger.error(
                     "Couldn't schedule rate-limit reset notification \(notification.identifier, privacy: .public): \(String(describing: error), privacy: .private)"
@@ -130,25 +180,31 @@ actor RateLimitResetNotificationScheduler {
     private func makePendingNotification(
         for account: SharedCodexAccountRecord,
         window: ResetWindow,
+        preferences: NotificationPreferences,
         now: Date
     ) -> PendingResetNotification? {
-        guard window.isEnabled else {
+        guard window.isEnabled(in: preferences) else {
             return nil
         }
 
         let metricStatus: RateLimitMetricDataStatus
+        let remainingPercent: Int?
         let resetDate: Date?
 
         switch window {
         case .fiveHour:
             metricStatus = account.fiveHourDataStatus
+            remainingPercent = account.fiveHourLimitUsedPercent
             resetDate = account.fiveHourResetsAt
         case .sevenDay:
             metricStatus = account.sevenDayDataStatus
+            remainingPercent = account.sevenDayLimitUsedPercent
             resetDate = account.sevenDayResetsAt
         }
 
-        guard metricStatus == .exact, let resetDate else {
+        let normalizedRemainingPercent = remainingPercent.map { min(max($0, 0), 100) }
+
+        guard metricStatus == .exact, let normalizedRemainingPercent, normalizedRemainingPercent < 100, let resetDate else {
             return nil
         }
 
@@ -173,8 +229,8 @@ actor RateLimitResetNotificationScheduler {
     }
 
     private func notificationIdentifiersWithManagedPrefix() async -> [String] {
-        let pendingIdentifiers = await pendingManagedNotificationIdentifiers()
-        let deliveredIdentifiers = await deliveredManagedNotificationIdentifiers()
+        let pendingIdentifiers = await pendingNotificationIdentifiersProvider()
+        let deliveredIdentifiers = await deliveredNotificationIdentifiersProvider()
         return Array(Set(pendingIdentifiers + deliveredIdentifiers))
     }
 
@@ -183,11 +239,13 @@ actor RateLimitResetNotificationScheduler {
             return
         }
 
-        center.removePendingNotificationRequests(withIdentifiers: identifiers)
-        center.removeDeliveredNotifications(withIdentifiers: identifiers)
+        removeNotificationsHandler(identifiers)
     }
 
-    private func addNotificationRequest(_ request: UNNotificationRequest) async throws {
+    private nonisolated static func addNotificationRequest(
+        _ request: UNNotificationRequest,
+        to center: UNUserNotificationCenter
+    ) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             center.add(request) { error in
                 if let error {
@@ -199,7 +257,9 @@ actor RateLimitResetNotificationScheduler {
         }
     }
 
-    private func pendingManagedNotificationIdentifiers() async -> [String] {
+    private nonisolated static func pendingManagedNotificationIdentifiers(
+        from center: UNUserNotificationCenter
+    ) async -> [String] {
         await withCheckedContinuation { continuation in
             center.getPendingNotificationRequests { requests in
                 continuation.resume(
@@ -211,7 +271,9 @@ actor RateLimitResetNotificationScheduler {
         }
     }
 
-    private func deliveredManagedNotificationIdentifiers() async -> [String] {
+    private nonisolated static func deliveredManagedNotificationIdentifiers(
+        from center: UNUserNotificationCenter
+    ) async -> [String] {
         await withCheckedContinuation { continuation in
             center.getDeliveredNotifications { notifications in
                 continuation.resume(
