@@ -5,6 +5,7 @@
 //  Created by Codex on 2026-04-11.
 //
 
+import Observation
 import SwiftData
 import SwiftUI
 
@@ -28,14 +29,22 @@ struct AccountsRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query private var accounts: [StoredAccount]
 
+    @Bindable private var quickActions: IOSHomeScreenQuickActionCoordinator
     @State private var controller = IOSAccountsController()
     @State private var rateLimitRefreshController = IOSRateLimitRefreshController()
     @State private var editMode: EditMode = .inactive
+    // The compact stack can push both account IDs and nested detail routes,
+    // so it needs a heterogeneous path instead of a typed `[UUID]`.
+    @State private var compactNavigationPath = NavigationPath()
     @State private var selectedAccountID: UUID?
     @State private var selectedAccountIDsForEditing: Set<UUID> = []
     @State private var showingSettings = false
     @State private var accountPendingDeletion: StoredAccount?
     @State private var sortPreferences = CloudSortPreferences()
+
+    init(quickActions: IOSHomeScreenQuickActionCoordinator = .shared) {
+        self.quickActions = quickActions
+    }
 
     private var displayedAccounts: [StoredAccount] {
         controller.displayedAccounts(from: accounts)
@@ -55,6 +64,10 @@ struct AccountsRootView: View {
 
     private var widgetSnapshotFingerprint: Int {
         WidgetSnapshotPublisher.fingerprint(for: accounts)
+    }
+
+    private var quickActionFingerprint: String {
+        "\(widgetSnapshotFingerprint)|\(controller.sortCriterion.rawValue)|\(controller.sortDirection.rawValue)"
     }
 
     private var activeAlert: Binding<ActiveAlert?> {
@@ -100,7 +113,7 @@ struct AccountsRootView: View {
 
     private func compactRootView(searchText: Binding<String>) -> some View {
         AnyView(
-            NavigationStack {
+            NavigationStack(path: $compactNavigationPath) {
                 compactAccountsList
                     .navigationTitle("Accounts")
                     .navigationDestination(for: UUID.self, destination: compactAccountDestination)
@@ -132,27 +145,20 @@ struct AccountsRootView: View {
     }
 
     private func configuredRootContent(_ rootContent: AnyView) -> some View {
-        let contentWithObservers = AnyView(
+        let notificationSettingsPublisher = NotificationCenter.default.publisher(
+            for: CodexInAppNotificationSettingsSignal.didRequestOpenNotificationSettings
+        )
+        let baseContent =
             rootContent
             .environment(\.editMode, $editMode)
             .task {
-                sortPreferences.synchronize()
-                controller.restoreSortPreferences(
-                    sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
-                    sortDirectionRawValue: sortPreferences.sortDirectionRawValue
-                )
-                rateLimitRefreshController.configure(modelContext: modelContext)
-                rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
-                rateLimitRefreshController.setScenePhase(scenePhase)
-                syncRegularSelectedRateLimitTracking(for: selectedAccountID)
-                WidgetSnapshotPublisher.publish(modelContext: modelContext)
+                handleInitialLoad()
+            }
+            .onReceive(notificationSettingsPublisher) { _ in
                 openNotificationSettingsIfRequested()
             }
-            .onReceive(NotificationCenter.default.publisher(
-                for: CodexInAppNotificationSettingsSignal.didRequestOpenNotificationSettings
-            )) { _ in
-                openNotificationSettingsIfRequested()
-            }
+        let preferenceObservedContent =
+            baseContent
             .onChange(of: controller.sortCriterion) { _, newValue in
                 sortPreferences.persist(
                     sortCriterionRawValue: newValue.rawValue,
@@ -177,6 +183,8 @@ struct AccountsRootView: View {
                     sortDirectionRawValue: newValue
                 )
             }
+        let interactionObservedContent =
+            preferenceObservedContent
             .onChange(of: usesCompactNavigation) { _, isCompact in
                 handleCompactNavigationChange(isCompact)
             }
@@ -189,25 +197,48 @@ struct AccountsRootView: View {
             .onChange(of: selectedAccountID) { _, newSelection in
                 syncRegularSelectedRateLimitTracking(for: newSelection)
             }
+            .onChange(of: quickActions.pendingAccountDetailID) { _, _ in
+                applyPendingQuickActionIfPossible()
+            }
             .onChange(of: accounts.map(\.id)) { _, ids in
                 handleAccountIDsChange(ids)
             }
             .onChange(of: displayedAccounts.map(\.id)) { _, ids in
-                selectedAccountIDsForEditing.formIntersection(Set(ids))
+                handleDisplayedAccountIDsChange(ids)
             }
             .onChange(of: accounts.map(\.identityKey)) { _, identityKeys in
                 handleIdentityKeysChange(identityKeys)
             }
+        let contentWithObservers =
+            interactionObservedContent
             .task(id: widgetSnapshotFingerprint) {
                 WidgetSnapshotPublisher.publish(modelContext: modelContext)
             }
-        )
+            .task(id: quickActionFingerprint) {
+                refreshHomeScreenQuickActions()
+            }
 
         return contentWithObservers
             .sheet(isPresented: $showingSettings) {
                 settingsSheetView()
             }
             .alert(item: activeAlert, content: makeAlert)
+    }
+
+    private func handleInitialLoad() {
+        sortPreferences.synchronize()
+        controller.restoreSortPreferences(
+            sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
+            sortDirectionRawValue: sortPreferences.sortDirectionRawValue
+        )
+        rateLimitRefreshController.configure(modelContext: modelContext)
+        rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
+        rateLimitRefreshController.setScenePhase(scenePhase)
+        syncRegularSelectedRateLimitTracking(for: selectedAccountID)
+        WidgetSnapshotPublisher.publish(modelContext: modelContext)
+        refreshHomeScreenQuickActions()
+        applyPendingQuickActionIfPossible()
+        openNotificationSettingsIfRequested()
     }
 
     private func settingsSheetView() -> some View {
@@ -227,10 +258,13 @@ struct AccountsRootView: View {
         rateLimitRefreshController.setScenePhase(newPhase)
 
         guard newPhase == .active else {
+            refreshHomeScreenQuickActions()
             return
         }
 
         WidgetSnapshotPublisher.publish(modelContext: modelContext)
+        refreshHomeScreenQuickActions()
+        applyPendingQuickActionIfPossible()
         openNotificationSettingsIfRequested()
     }
 
@@ -259,10 +293,15 @@ struct AccountsRootView: View {
         }
 
         selectedAccountIDsForEditing.formIntersection(Set(ids))
+        applyPendingQuickActionIfPossible()
     }
 
     private func handleIdentityKeysChange(_ identityKeys: [String]) {
         rateLimitRefreshController.reconcileKnownIdentityKeys(identityKeys)
+    }
+
+    private func handleDisplayedAccountIDsChange(_ ids: [UUID]) {
+        selectedAccountIDsForEditing.formIntersection(Set(ids))
     }
 
     private var compactAccountsList: AnyView {
@@ -431,6 +470,38 @@ struct AccountsRootView: View {
         accounts.first(where: { $0.id == accountID })
     }
 
+    private func refreshHomeScreenQuickActions() {
+        quickActions.updateShortcutItems(
+            from: controller.homeScreenQuickActionAccounts(
+                from: accounts,
+                limit: IOSHomeScreenQuickActionCoordinator.maximumAccountQuickActions
+            )
+        )
+    }
+
+    private func applyPendingQuickActionIfPossible() {
+        guard scenePhase == .active else {
+            return
+        }
+
+        guard let accountID = quickActions.pendingAccountDetailID,
+              account(for: accountID) != nil else {
+            return
+        }
+
+        editMode = .inactive
+        selectedAccountIDsForEditing.removeAll()
+        selectedAccountID = accountID
+
+        if usesCompactNavigation {
+            var updatedPath = NavigationPath()
+            updatedPath.append(accountID)
+            compactNavigationPath = updatedPath
+        }
+
+        quickActions.clearPendingAccountDetailID(ifMatching: accountID)
+    }
+
     private func deleteSelectedAccounts() {
         let accountIDsToDelete = selectedAccountIDsForEditing
         guard !accountIDsToDelete.isEmpty else {
@@ -466,6 +537,7 @@ struct AccountsRootView: View {
                 accountPendingDeletion = account
             }
         )
+        .id(account.id)
 
         if usesCompactNavigation {
             detailView

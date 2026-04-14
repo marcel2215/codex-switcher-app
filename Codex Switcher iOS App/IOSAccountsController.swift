@@ -76,6 +76,35 @@ final class IOSAccountsController {
         )
     }
 
+    /// Home Screen quick actions should reflect the same ordering rules as the
+    /// in-app list, but they intentionally ignore transient search filtering so
+    /// SpringBoard suggestions remain stable outside the current UI session.
+    func homeScreenQuickActionAccounts(
+        from accounts: [StoredAccount],
+        limit: Int
+    ) -> [IOSHomeScreenQuickActionAccountItem] {
+        guard limit > 0 else {
+            return []
+        }
+
+        return Array(
+            AccountsPresentationLogic.sortedAccounts(
+                from: accounts,
+                sortCriterion: sortCriterion,
+                sortDirection: sortDirection
+            )
+            .prefix(limit)
+        )
+        .map { account in
+            return IOSHomeScreenQuickActionAccountItem(
+                id: account.id,
+                title: AccountsPresentationLogic.displayName(for: account),
+                subtitle: nil,
+                iconSystemName: AccountIconOption.resolve(from: account.iconSystemName).systemName
+            )
+        }
+    }
+
     func commitRename(for account: StoredAccount, proposedName: String, in modelContext: ModelContext) {
         guard !account.isDeleted else {
             return
@@ -187,4 +216,5 @@ final class IOSAccountsController {
             )
         }
     }
+
 }

@@ -8,6 +8,7 @@
 import Foundation
 import SwiftData
 import Testing
+import UIKit
 @testable import Codex_Switcher_iOS_App
 
 @MainActor
@@ -149,6 +150,63 @@ struct Codex_Switcher_iOS_AppTests {
         #expect(harness.controller.sortCriterion == .custom)
         #expect(harness.controller.sortDirection == .ascending)
     }
+
+    @Test
+    func homeScreenQuickActionAccountsUseAppOrderAndLimitToFour() throws {
+        let harness = try makeHarness(accounts: [
+            makeAccount(name: "Delta", customOrder: 0),
+            makeAccount(name: "Bravo", customOrder: 1, iconSystemName: AccountIconOption.briefcase.systemName),
+            makeAccount(name: "Echo", customOrder: 2, iconSystemName: AccountIconOption.house.systemName),
+            makeAccount(name: "Alpha", emailHint: "alpha@example.com", customOrder: 3),
+            makeAccount(name: "Charlie", accountIdentifier: "acct-charlie", customOrder: 4),
+        ])
+
+        harness.controller.sortCriterion = AccountSortCriterion.name
+        harness.controller.sortDirection = SortDirection.ascending
+
+        let quickActionAccounts = harness.controller.homeScreenQuickActionAccounts(
+            from: try fetchAccounts(in: harness.modelContext),
+            limit: 4
+        )
+        let quickActionTitles = quickActionAccounts.map(\.title)
+        let quickActionSubtitles = quickActionAccounts.map(\.subtitle)
+        let quickActionIcons = quickActionAccounts.map(\.iconSystemName)
+
+        #expect(quickActionAccounts.count == 4)
+        #expect(quickActionTitles == ["Alpha", "Bravo", "Charlie", "Delta"])
+        #expect(quickActionSubtitles == [nil, nil, nil, nil])
+        #expect(quickActionIcons == [
+            AccountIconOption.defaultOption.systemName,
+            AccountIconOption.briefcase.systemName,
+            AccountIconOption.defaultOption.systemName,
+            AccountIconOption.defaultOption.systemName,
+        ])
+    }
+
+    @Test
+    func homeScreenQuickActionCoordinatorBuildsAndQueuesAccountDetailShortcut() {
+        let coordinator = IOSHomeScreenQuickActionCoordinator()
+        let accountID = UUID()
+        let shortcutItem = coordinator.shortcutItems(
+            from: [
+                IOSHomeScreenQuickActionAccountItem(
+                    id: accountID,
+                    title: "Work",
+                    subtitle: nil,
+                    iconSystemName: AccountIconOption.briefcase.systemName
+                )
+            ]
+        )[0]
+
+        #expect(shortcutItem.localizedTitle == "Work")
+        #expect(shortcutItem.localizedSubtitle == nil)
+        #expect(coordinator.handleShortcutItem(shortcutItem))
+        #expect(coordinator.pendingAccountDetailID == accountID)
+
+        coordinator.clearPendingAccountDetailID(ifMatching: accountID)
+
+        #expect(coordinator.pendingAccountDetailID == nil)
+    }
 }
 
 @MainActor
@@ -181,11 +239,13 @@ private func fetchAccounts(in modelContext: ModelContext) throws -> [StoredAccou
     try modelContext.fetch(FetchDescriptor<StoredAccount>())
 }
 
+@MainActor
 private func makeAccount(
     name: String,
     emailHint: String? = nil,
     accountIdentifier: String? = nil,
-    customOrder: Double
+    customOrder: Double,
+    iconSystemName: String = AccountIconOption.defaultOption.systemName
 ) -> StoredAccount {
     StoredAccount(
         identityKey: "identity-\(UUID().uuidString)",
@@ -194,7 +254,8 @@ private func makeAccount(
         customOrder: customOrder,
         authModeRaw: "chatgpt",
         emailHint: emailHint,
-        accountIdentifier: accountIdentifier
+        accountIdentifier: accountIdentifier,
+        iconSystemName: iconSystemName
     )
 }
 
