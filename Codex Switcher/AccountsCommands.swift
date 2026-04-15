@@ -35,27 +35,6 @@ struct AccountsCommands: Commands {
         CommandGroup(after: .pasteboard) {
             Divider()
 
-            Button("Rename") {
-                controller.beginRenamingSelectedAccount()
-            }
-            .keyboardShortcut(.return, modifiers: [])
-            .disabled(controller.selection.count != 1)
-
-            Menu("Choose Icon") {
-                ForEach(AccountIconOption.displayOrder) { icon in
-                    Button {
-                        controller.setSelectedAccountIcon(icon)
-                    } label: {
-                        checkedMenuLabel(
-                            title: icon.title,
-                            systemImage: icon.systemName,
-                            isSelected: controller.selectedAccountIconOption == icon
-                        )
-                    }
-                }
-            }
-            .disabled(controller.selection.count != 1)
-
             Button(role: .destructive) {
                 controller.removeSelectedAccounts()
             } label: {
@@ -116,6 +95,31 @@ struct AccountsCommands: Commands {
             }
             .keyboardShortcut("l", modifiers: [.command])
             .disabled(controller.selection.count != 1)
+
+            Divider()
+
+            Button("Rename") {
+                controller.beginRenamingSelectedAccount()
+            }
+            .keyboardShortcut(.return, modifiers: [])
+            .disabled(controller.selection.count != 1)
+
+            Menu("Choose Icon") {
+                ForEach(AccountIconOption.displayOrder) { icon in
+                    Button {
+                        controller.setSelectedAccountIcon(icon)
+                    } label: {
+                        checkedMenuLabel(
+                            title: icon.title,
+                            systemImage: icon.systemName,
+                            isSelected: controller.selectedAccountIconOption == icon
+                        )
+                    }
+                }
+            }
+            .disabled(controller.selection.count != 1)
+
+            Divider()
 
             Button("Export...") {
                 controller.beginExportSelectedAccount()
