@@ -141,17 +141,7 @@ struct WatchAccountDetailView: View {
             isPresented: $showingRemoveConfirmation
         ) {
             Button("Remove", role: .destructive) {
-                do {
-                    try StoredAccountMutations.remove(account, in: modelContext)
-                    dismiss()
-                } catch {
-                    onError(
-                        PresentedError(
-                            title: "Couldn't Remove Account",
-                            message: error.localizedDescription
-                        )
-                    )
-                }
+                dismissAndRemoveAccount()
             }
         } message: {
             Text("You can add it again later from the Mac.")
@@ -230,6 +220,28 @@ struct WatchAccountDetailView: View {
     private func normalized(_ value: String?) -> String? {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func dismissAndRemoveAccount() {
+        dismiss()
+
+        Task { @MainActor in
+            // Pop the current watch navigation destination before deleting the
+            // backing model so SwiftUI doesn't leave the user on a dead detail
+            // route for one transition frame.
+            await Task.yield()
+
+            do {
+                try StoredAccountMutations.remove(account, in: modelContext)
+            } catch {
+                onError(
+                    PresentedError(
+                        title: "Couldn't Remove Account",
+                        message: error.localizedDescription
+                    )
+                )
+            }
+        }
     }
 }
 

@@ -139,6 +139,39 @@ struct Codex_Switcher_iOS_AppTests {
     }
 
     @Test
+    func removingAccountReturnsCompactNavigationToHomeEvenWithoutSelection() {
+        let accountID = UUID()
+
+        #expect(
+            AccountsRootView.shouldReturnToAccountsHome(
+                afterRemovingAccountWithID: accountID,
+                usesCompactNavigation: true,
+                selectedAccountID: nil
+            )
+        )
+    }
+
+    @Test
+    func removingSelectedAccountReturnsRegularNavigationToHome() {
+        let accountID = UUID()
+
+        #expect(
+            AccountsRootView.shouldReturnToAccountsHome(
+                afterRemovingAccountWithID: accountID,
+                usesCompactNavigation: false,
+                selectedAccountID: accountID
+            )
+        )
+        #expect(
+            AccountsRootView.shouldReturnToAccountsHome(
+                afterRemovingAccountWithID: accountID,
+                usesCompactNavigation: false,
+                selectedAccountID: UUID()
+            ) == false
+        )
+    }
+
+    @Test
     func importingUnchangedArchiveForExistingAccountStillSucceeds() async throws {
         let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-import")
         let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)

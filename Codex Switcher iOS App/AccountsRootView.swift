@@ -46,6 +46,14 @@ struct AccountsRootView: View {
         self.quickActions = quickActions
     }
 
+    static func shouldReturnToAccountsHome(
+        afterRemovingAccountWithID accountID: UUID,
+        usesCompactNavigation: Bool,
+        selectedAccountID: UUID?
+    ) -> Bool {
+        usesCompactNavigation || selectedAccountID == accountID
+    }
+
     private var displayedAccounts: [StoredAccount] {
         controller.displayedAccounts(from: accounts)
     }
@@ -541,6 +549,29 @@ struct AccountsRootView: View {
         selectedAccountIDsForEditing.removeAll()
     }
 
+    private func removeAccountFromDetailOrList(_ account: StoredAccount) {
+        selectedAccountIDsForEditing.remove(account.id)
+
+        if Self.shouldReturnToAccountsHome(
+            afterRemovingAccountWithID: account.id,
+            usesCompactNavigation: usesCompactNavigation,
+            selectedAccountID: selectedAccountID
+        ) {
+            selectedAccountID = nil
+            compactNavigationPath = NavigationPath()
+        }
+
+        accountPendingDeletion = nil
+
+        Task { @MainActor in
+            // Let SwiftUI apply the navigation state change before the model
+            // object disappears. Otherwise compact stacks can keep the stale
+            // UUID route alive long enough to show "Account Unavailable."
+            await Task.yield()
+            controller.remove(account, in: modelContext)
+        }
+    }
+
     private func toggleEditingSelection(for accountID: UUID) {
         if selectedAccountIDsForEditing.contains(accountID) {
             selectedAccountIDsForEditing.remove(accountID)
@@ -655,12 +686,7 @@ struct AccountsRootView: View {
                 title: Text("Remove \"\(AccountsPresentationLogic.displayName(for: account))\"?"),
                 message: Text("Are you sure you want to remove this account from Codex switcher? You will be able to add it again later."),
                 primaryButton: .destructive(Text("Remove Account")) {
-                    if selectedAccountID == account.id {
-                        selectedAccountID = nil
-                    }
-
-                    controller.remove(account, in: modelContext)
-                    accountPendingDeletion = nil
+                    removeAccountFromDetailOrList(account)
                 },
                 secondaryButton: .cancel {
                     accountPendingDeletion = nil
