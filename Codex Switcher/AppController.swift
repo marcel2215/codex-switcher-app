@@ -14,6 +14,7 @@ import Observation
 import OSLog
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct UserFacingAlert: Identifiable, Equatable {
     let id = UUID()
@@ -73,6 +74,7 @@ final class AppController {
     var renameTargetID: UUID?
     var presentedAlert: UserFacingAlert?
     var isShowingLocationPicker = false
+    var isShowingAccountArchiveImporter = false
     private(set) var activeIdentityKey: String?
     private(set) var authAccessState: AuthAccessState = .unlinked
     private(set) var isSwitching = false
@@ -86,6 +88,7 @@ final class AppController {
     @ObservationIgnored private let lowPowerModeProvider: () -> Bool
     @ObservationIgnored private let batteryChargePercentProvider: () -> Int?
     @ObservationIgnored private let terminateApplication: () -> Void
+    @ObservationIgnored private let archiveExporter: CodexAccountArchiveFileExporter
     @ObservationIgnored private let logger: Logger
     @ObservationIgnored private let startupAlert: UserFacingAlert?
 
@@ -137,6 +140,7 @@ final class AppController {
         lowPowerModeProvider: @escaping () -> Bool = AppController.defaultLowPowerModeProvider,
         batteryChargePercentProvider: @escaping () -> Int? = AppController.defaultBatteryChargePercentProvider,
         terminateApplication: @escaping () -> Void = { NSApp.terminate(nil) },
+        archiveExporter: CodexAccountArchiveFileExporter = CodexAccountArchiveFileExporter(),
         autopilotEnabled: Bool = false
     ) {
         self.authFileManager = authFileManager
@@ -148,6 +152,7 @@ final class AppController {
         self.lowPowerModeProvider = lowPowerModeProvider
         self.batteryChargePercentProvider = batteryChargePercentProvider
         self.terminateApplication = terminateApplication
+        self.archiveExporter = archiveExporter
         self.startupAlert = startupAlert
         self.modelContainer = modelContainer
         self.isAutopilotEnabled = autopilotEnabled
@@ -284,6 +289,14 @@ final class AppController {
 
     var hasSavedAccounts: Bool {
         ((try? !fetchAccounts().isEmpty) == true)
+    }
+
+    func archiveTransferItem(for account: StoredAccount) -> CodexAccountArchiveTransferItem {
+        CodexAccountArchiveTransferItem(
+            request: CodexAccountArchiveExportRequest(account: account),
+            reorderToken: account.id.uuidString,
+            exporter: archiveExporter
+        )
     }
 
     // Sort preferences are persisted by the SwiftUI app layer with AppStorage.
@@ -466,6 +479,40 @@ final class AppController {
         isShowingLocationPicker = true
     }
 
+    func beginAccountArchiveImport() {
+        isShowingAccountArchiveImporter = true
+    }
+
+    func handleAccountArchiveImport(_ result: Result<URL, any Error>) {
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.finishAccountArchiveImport(result)
+        }
+    }
+
+    func handleDroppedAccountArchiveURLs(_ urls: [URL]) {
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.importAccountArchives(from: urls)
+        }
+    }
+
+    func handleIncomingAccountArchiveURL(_ url: URL) {
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.importAccountArchives(from: [url])
+        }
+    }
+
     func handleLocationImport(_ result: Result<[URL], any Error>) {
         Task { [weak self] in
             guard let self else {
@@ -493,6 +540,16 @@ final class AppController {
             }
 
             await self.captureCurrentAccountNow()
+        }
+    }
+
+    func beginExportSelectedAccount() {
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.exportSelectedAccountArchive()
         }
     }
 
@@ -945,12 +1002,259 @@ final class AppController {
         await finishLocationImport(result)
     }
 
+    @discardableResult
+    func importAccountArchivesForTesting(from urls: [URL]) async -> Bool {
+        await waitForInitializationIfNeeded()
+        return await importAccountArchives(from: urls)
+    }
+
     private func parseSnapshot(from contents: String) async throws -> CodexAuthSnapshot {
         // Decode auth payloads away from the main actor so UI updates are not
         // blocked by file parsing or future auth.json schema growth.
         try await Task.detached(priority: .userInitiated) {
             try CodexAuthFile.parse(contents: contents)
         }.value
+    }
+
+    private func finishAccountArchiveImport(_ result: Result<URL, any Error>) async {
+        switch result {
+        case .success(let url):
+            _ = await importAccountArchives(from: [url])
+        case .failure(let error):
+            let nsError = error as NSError
+            guard nsError.domain != NSCocoaErrorDomain || nsError.code != NSUserCancelledError else {
+                return
+            }
+
+            present(error, title: "Couldn't Import Account")
+        }
+    }
+
+    @discardableResult
+    private func importAccountArchives(from urls: [URL]) async -> Bool {
+        await waitForInitializationIfNeeded()
+
+        let accountArchiveURLs = urls.filter(Self.isAccountArchiveURL)
+        guard !accountArchiveURLs.isEmpty else {
+            present(
+                UserFacingAlert(
+                    title: "Couldn't Import Account",
+                    message: ControllerError.noSupportedAccountArchives.errorDescription ?? "No supported .cxa files were provided."
+                )
+            )
+            return false
+        }
+
+        do {
+            let modelContext = try requireModelContext()
+            var allAccounts = try fetchAccounts()
+            var importedAccountID: UUID?
+            var importedIdentityKey: String?
+            var importedAnyAccounts = false
+            var failureMessages: [String] = []
+
+            for url in accountArchiveURLs {
+                do {
+                    let archive = try Self.loadAccountArchive(from: url)
+                    let snapshot = try await parseSnapshot(from: archive.snapshotContents)
+
+                    if let archivedIdentityKey = archive.identityKey?.trimmingCharacters(in: .whitespacesAndNewlines),
+                       !archivedIdentityKey.isEmpty,
+                       archivedIdentityKey != snapshot.identityKey {
+                        throw ControllerError.accountArchiveIdentityMismatch
+                    }
+
+                    if let existingAccount = allAccounts.first(where: { $0.identityKey == snapshot.identityKey }) {
+                        _ = try await storeSnapshot(snapshot, on: existingAccount)
+                        _ = Self.applyImportedArchiveMetadata(archive, to: existingAccount)
+                        // Re-importing an unchanged archive is still a valid
+                        // success case: keep the existing account selected even
+                        // when the imported contents match the local copy.
+                        importedAnyAccounts = true
+                        importedAccountID = existingAccount.id
+                        importedIdentityKey = snapshot.identityKey
+                        continue
+                    }
+
+                    guard allAccounts.count < 1_000 else {
+                        throw ControllerError.accountLimitReached
+                    }
+
+                    let nextCustomOrder = (allAccounts.map(\.customOrder).max() ?? -1) + 1
+                    let account = StoredAccount(
+                        identityKey: snapshot.identityKey,
+                        name: archive.preferredStoredName ?? defaultName(for: snapshot, existingAccounts: allAccounts),
+                        customOrder: nextCustomOrder,
+                        authModeRaw: snapshot.authMode.rawValue,
+                        emailHint: snapshot.email,
+                        accountIdentifier: snapshot.accountIdentifier,
+                        iconSystemName: archive.resolvedIconSystemName
+                    )
+
+                    modelContext.insert(account)
+                    _ = try await storeSnapshot(snapshot, on: account)
+                    allAccounts.append(account)
+                    importedAnyAccounts = true
+                    importedAccountID = account.id
+                    importedIdentityKey = snapshot.identityKey
+                } catch {
+                    failureMessages.append("\(url.lastPathComponent): \(error.localizedDescription)")
+                }
+            }
+
+            guard importedAnyAccounts else {
+                let message = failureMessages.joined(separator: "\n")
+                present(
+                    UserFacingAlert(
+                        title: "Couldn't Import Account",
+                        message: message.isEmpty ? "Codex Switcher couldn't import that .cxa file." : message
+                    )
+                )
+                return false
+            }
+
+            try modelContext.save()
+            searchText = ""
+            if let importedAccountID {
+                selection = [importedAccountID]
+            }
+            publishSharedState()
+
+            if let importedIdentityKey {
+                requestImmediateRateLimitRefresh(for: importedIdentityKey)
+            }
+
+            if !failureMessages.isEmpty {
+                present(
+                    UserFacingAlert(
+                        title: "Imported with Issues",
+                        message: failureMessages.joined(separator: "\n")
+                    )
+                )
+            }
+
+            return true
+        } catch {
+            present(error, title: "Couldn't Import Account")
+            return false
+        }
+    }
+
+    private func exportSelectedAccountArchive() async {
+        guard let selectedAccountID else {
+            return
+        }
+
+        do {
+            let account = try requireAccount(withID: selectedAccountID)
+            let exportItem = archiveTransferItem(for: account)
+
+            guard await exportItem.canExport() else {
+                throw ControllerError.accountNeedsLocalSnapshotForExport
+            }
+
+            // Drive the macOS menu export through AppKit directly. The generic
+            // SwiftUI file-export bridge builds an NSFileWrapper for the
+            // Transferable path, and that wrapper crashed here in practice when
+            // AppKit rejected an empty preferred filename during export.
+            guard let destinationURL = await presentAccountArchiveSavePanel(
+                suggestedFilename: exportItem.defaultFilename
+            ) else {
+                return
+            }
+
+            let archiveData = try await archiveExporter.exportData(for: exportItem.request)
+            try archiveData.write(to: destinationURL, options: .atomic)
+        } catch {
+            present(error, title: "Couldn't Export Account")
+        }
+    }
+
+    private static func applyImportedArchiveMetadata(
+        _ archive: CodexAccountArchive,
+        to account: StoredAccount
+    ) -> Bool {
+        var didChange = false
+
+        if let importedName = archive.preferredStoredName,
+           (account.name.isEmpty || isGeneratedAccountName(account.name)) {
+            if account.name != importedName {
+                account.name = importedName
+                didChange = true
+            }
+        }
+
+        let importedIconSystemName = archive.resolvedIconSystemName
+        if account.iconSystemName == AccountIconOption.defaultOption.systemName,
+           importedIconSystemName != AccountIconOption.defaultOption.systemName {
+            account.iconSystemName = importedIconSystemName
+            didChange = true
+        }
+
+        return didChange
+    }
+
+    private static func loadAccountArchive(from url: URL) throws -> CodexAccountArchive {
+        try withSecurityScopedAccess(to: url) {
+            let archiveData = try Data(contentsOf: url, options: .mappedIfSafe)
+            return try CodexAccountArchive.decode(from: archiveData)
+        }
+    }
+
+    private static func isAccountArchiveURL(_ url: URL) -> Bool {
+        if let contentType = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType,
+           contentType.conforms(to: .codexAccountArchive) {
+            return true
+        }
+
+        return url.pathExtension.localizedCaseInsensitiveCompare("cxa") == .orderedSame
+    }
+
+    private static func withSecurityScopedAccess<T>(
+        to url: URL,
+        operation: () throws -> T
+    ) throws -> T {
+        let startedAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if startedAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        return try operation()
+    }
+
+    private func presentAccountArchiveSavePanel(suggestedFilename: String) async -> URL? {
+        let filenameExtension = UTType.codexAccountArchive.preferredFilenameExtension ?? "cxa"
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.codexAccountArchive]
+        panel.canCreateDirectories = true
+        panel.canSelectHiddenExtension = true
+        panel.isExtensionHidden = false
+        panel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        panel.nameFieldStringValue = "\(suggestedFilename).\(filenameExtension)"
+
+        let response: NSApplication.ModalResponse
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow {
+            response = await withCheckedContinuation { continuation in
+                panel.beginSheetModal(for: window) { modalResponse in
+                    continuation.resume(returning: modalResponse)
+                }
+            }
+        } else {
+            response = await withCheckedContinuation { continuation in
+                panel.begin { modalResponse in
+                    continuation.resume(returning: modalResponse)
+                }
+            }
+        }
+
+        guard response == .OK else {
+            return nil
+        }
+
+        return panel.url
     }
 
     private func waitForInitializationIfNeeded() async {
@@ -3306,6 +3610,9 @@ private enum ControllerError: LocalizedError {
     case missingModelContext
     case accountNotFound
     case accountLimitReached
+    case noSupportedAccountArchives
+    case accountArchiveIdentityMismatch
+    case accountNeedsLocalSnapshotForExport
 
     var errorDescription: String? {
         switch self {
@@ -3315,6 +3622,12 @@ private enum ControllerError: LocalizedError {
             "That account no longer exists."
         case .accountLimitReached:
             "Codex Switcher supports up to 1000 saved accounts."
+        case .noSupportedAccountArchives:
+            "No supported .cxa files were provided."
+        case .accountArchiveIdentityMismatch:
+            "That .cxa file doesn't match the account snapshot it contains."
+        case .accountNeedsLocalSnapshotForExport:
+            "That saved account needs a local capture on this Mac before it can be exported."
         }
     }
 }

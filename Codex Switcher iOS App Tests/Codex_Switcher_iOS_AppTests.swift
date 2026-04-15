@@ -139,6 +139,48 @@ struct Codex_Switcher_iOS_AppTests {
     }
 
     @Test
+    func importingUnchangedArchiveForExistingAccountStillSucceeds() async throws {
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-import")
+        let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)
+        let snapshotStore = FakeSnapshotStore()
+        let existingAccount = StoredAccount(
+            identityKey: snapshot.identityKey,
+            name: snapshot.email ?? "Imported Account",
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier
+        )
+        let harness = try makeHarness(accounts: [existingAccount], snapshotStore: snapshotStore)
+        let archiveURL = try makeArchiveFile(
+            archive: CodexAccountArchive(
+                name: existingAccount.name,
+                iconSystemName: existingAccount.iconSystemName,
+                identityKey: snapshot.identityKey,
+                authModeRaw: snapshot.authMode.rawValue,
+                emailHint: snapshot.email,
+                accountIdentifier: snapshot.accountIdentifier,
+                snapshotContents: snapshotContents
+            )
+        )
+
+        try await snapshotStore.saveSnapshot(snapshotContents, forIdentityKey: snapshot.identityKey)
+        snapshotStore.resetSaveCallCount()
+        defer { try? FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent()) }
+
+        let importedAccountIDs = await harness.controller.importAccountArchives(
+            from: [archiveURL],
+            in: harness.modelContext
+        )
+
+        #expect(importedAccountIDs == [existingAccount.id])
+        #expect(try fetchAccounts(in: harness.modelContext).count == 1)
+        #expect(await snapshotStore.saveCallCount() == 0)
+        #expect(await snapshotStore.snapshot(forIdentityKey: snapshot.identityKey) == snapshotContents)
+    }
+
+    @Test
     func restoringCustomSortForcesAscendingDirection() throws {
         let harness = try makeHarness(accounts: [])
 
@@ -210,7 +252,10 @@ struct Codex_Switcher_iOS_AppTests {
 }
 
 @MainActor
-private func makeHarness(accounts: [StoredAccount]) throws -> TestHarness {
+private func makeHarness(
+    accounts: [StoredAccount],
+    snapshotStore: FakeSnapshotStore = FakeSnapshotStore()
+) throws -> TestHarness {
     let schema = Schema([StoredAccount.self])
     let configuration = ModelConfiguration(
         "UnitTestAccounts",
@@ -230,7 +275,10 @@ private func makeHarness(accounts: [StoredAccount]) throws -> TestHarness {
     return TestHarness(
         modelContainer: modelContainer,
         modelContext: modelContext,
-        controller: IOSAccountsController()
+        controller: IOSAccountsController(
+            snapshotStore: snapshotStore,
+            archiveExporter: CodexAccountArchiveFileExporter(snapshotStore: snapshotStore)
+        )
     )
 }
 
@@ -263,4 +311,146 @@ private struct TestHarness {
     let modelContainer: ModelContainer
     let modelContext: ModelContext
     let controller: IOSAccountsController
+}
+
+final class FakeSnapshotStore: @unchecked Sendable, AccountSnapshotStoring {
+    private let lock = NSLock()
+    private var snapshots: [String: String] = [:]
+    private var legacySnapshots: [UUID: String] = [:]
+    private var saveCount = 0
+
+    func saveSnapshot(_ contents: String, forIdentityKey identityKey: String) async throws {
+        withLock {
+            snapshots[identityKey] = contents
+            saveCount += 1
+        }
+    }
+
+    func loadSnapshot(forIdentityKey identityKey: String) async throws -> String {
+        let snapshot = withLock {
+            snapshots[identityKey]
+        }
+        guard let snapshot else {
+            throw AccountSnapshotStoreError.missingSnapshot
+        }
+
+        return snapshot
+    }
+
+    func deleteSnapshot(forIdentityKey identityKey: String) async throws {
+        _ = withLock {
+            snapshots.removeValue(forKey: identityKey)
+        }
+    }
+
+    func containsSnapshot(forIdentityKey identityKey: String) async -> Bool {
+        withLock {
+            snapshots[identityKey] != nil
+        }
+    }
+
+    func migrateLegacySnapshotIfNeeded(
+        fromLegacyAccountID accountID: UUID,
+        toIdentityKey identityKey: String
+    ) async throws -> Bool {
+        withLock {
+            guard snapshots[identityKey] == nil, let legacySnapshot = legacySnapshots.removeValue(forKey: accountID) else {
+                legacySnapshots.removeValue(forKey: accountID)
+                return false
+            }
+
+            snapshots[identityKey] = legacySnapshot
+            saveCount += 1
+            return true
+        }
+    }
+
+    func snapshot(forIdentityKey identityKey: String) async -> String? {
+        withLock {
+            snapshots[identityKey]
+        }
+    }
+
+    func saveCallCount() async -> Int {
+        withLock {
+            saveCount
+        }
+    }
+
+    func resetSaveCallCount() {
+        withLock {
+            saveCount = 0
+        }
+    }
+
+    private func withLock<T>(_ body: () throws -> T) rethrows -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body()
+    }
+}
+
+private func makeArchiveFile(archive: CodexAccountArchive) throws -> URL {
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("CodexSwitcherIOSArchiveTests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+
+    let fileURL = directoryURL.appendingPathComponent("archive.cxa", isDirectory: false)
+    try archive.encodedData().write(to: fileURL, options: .atomic)
+    return fileURL
+}
+
+private func makeChatGPTAuthJSON(
+    accountID: String,
+    userID: String? = nil,
+    subject: String? = nil,
+    email: String? = nil
+) -> String {
+    let authClaims: [String: Any] = [
+        "chatgpt_account_id": accountID,
+        "chatgpt_user_id": userID ?? "user-\(accountID)",
+    ]
+
+    var idTokenPayload: [String: Any] = [
+        "email": email ?? "\(accountID)@example.com",
+        "https://api.openai.com/auth": authClaims,
+    ]
+    if let subject {
+        idTokenPayload["sub"] = subject
+    }
+
+    var accessTokenPayload: [String: Any] = [
+        "https://api.openai.com/auth": authClaims,
+    ]
+    if let subject {
+        accessTokenPayload["sub"] = subject
+    }
+
+    return """
+    {
+      "auth_mode": "chatgpt",
+      "tokens": {
+        "account_id": "\(accountID)",
+        "id_token": "\(makeJWT(idTokenPayload))",
+        "access_token": "\(makeJWT(accessTokenPayload))",
+        "refresh_token": "refresh-\(accountID)"
+      }
+    }
+    """
+}
+
+private func makeJWT(_ payload: [String: Any]) -> String {
+    let header = ["alg": "none", "typ": "JWT"]
+    let headerData = try! JSONSerialization.data(withJSONObject: header, options: [.sortedKeys])
+    let payloadData = try! JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+
+    func encode(_ data: Data) -> String {
+        data
+            .base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    return "\(encode(headerData)).\(encode(payloadData)).c2ln"
 }

@@ -13,18 +13,30 @@ struct AccountRowView: View {
     let isSelected: Bool
     let isRenaming: Bool
     let canReorder: Bool
+    let exportTransferItem: CodexAccountArchiveTransferItem
     let onRemove: () -> Void
     let onCommitRename: (String) -> Void
     let onCancelRename: () -> Void
 
     @FocusState private var isRenameFieldFocused: Bool
     @State private var draftName = ""
+    @State private var isArchiveExportAvailable = false
 
     var body: some View {
         rowContent
-            .modifier(ReorderModifier(isEnabled: canReorder, dragPayload: account.id.uuidString))
+            .modifier(
+                ReorderModifier(
+                    isEnabled: canReorder,
+                    dragPayload: account.id.uuidString,
+                    exportTransferItem: exportTransferItem,
+                    isArchiveExportAvailable: isArchiveExportAvailable
+                )
+            )
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button("Remove", systemImage: "trash", role: .destructive, action: onRemove)
+            }
+            .task(id: exportTransferItem.availabilityKey) {
+                isArchiveExportAvailable = await exportTransferItem.canExport()
             }
     }
 
@@ -105,9 +117,13 @@ struct AccountRowView: View {
 private struct ReorderModifier: ViewModifier {
     let isEnabled: Bool
     let dragPayload: String
+    let exportTransferItem: CodexAccountArchiveTransferItem
+    let isArchiveExportAvailable: Bool
 
     func body(content: Content) -> some View {
-        if isEnabled {
+        if isArchiveExportAvailable {
+            content.draggable(exportTransferItem)
+        } else if isEnabled {
             content.draggable(dragPayload)
         } else {
             content

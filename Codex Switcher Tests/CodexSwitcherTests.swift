@@ -192,6 +192,54 @@ struct CodexSwitcherTests {
         #expect(await syncedRateLimitCredentialStore.containsCredential(forIdentityKey: migratedAccount.identityKey))
     }
 
+    @Test func importingUnchangedArchiveForExistingAccountStillSucceeds() async throws {
+        let container = try makeInMemoryContainer()
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-import")
+        let snapshot = try CodexAuthFile.parse(contents: snapshotContents)
+        let secretStore = FakeSecretStore()
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: snapshotContents),
+            secretStore: secretStore
+        )
+        let existingAccount = StoredAccount(
+            identityKey: snapshot.identityKey,
+            name: snapshot.email ?? "Imported Account",
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier
+        )
+        let archive = CodexAccountArchive(
+            name: existingAccount.name,
+            iconSystemName: existingAccount.iconSystemName,
+            identityKey: snapshot.identityKey,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier,
+            snapshotContents: snapshotContents
+        )
+        let archiveDirectoryURL = try makeTemporaryDirectory()
+        let archiveURL = archiveDirectoryURL.appendingPathComponent("existing-account.cxa", isDirectory: false)
+
+        try await secretStore.saveSnapshot(snapshotContents, forIdentityKey: snapshot.identityKey)
+        await secretStore.resetSaveCallCount()
+        container.mainContext.insert(existingAccount)
+        try container.mainContext.save()
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        try archive.encodedData().write(to: archiveURL, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: archiveDirectoryURL) }
+
+        let didImport = await controller.importAccountArchivesForTesting(from: [archiveURL])
+        let importedAccounts = try fetchAccounts(in: container.mainContext)
+
+        #expect(didImport)
+        #expect(importedAccounts.count == 1)
+        #expect(controller.selection == [existingAccount.id])
+        #expect(secretStore.saveCallCount == 0)
+        #expect(await secretStore.secret(forIdentityKey: snapshot.identityKey) == snapshotContents)
+    }
+
     @Test func refreshMarksUnsupportedCredentialStoresInline() async throws {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(
@@ -1469,23 +1517,6 @@ struct CodexSwitcherTests {
         #expect(missingMatches.isEmpty)
     }
 
-    @Test func widgetSnapshotPublisherKeepsExistingAccountsWhenLocalStoreIsTemporarilyEmpty() {
-        let existingAccount = makeSharedAccountRecord(
-            identityKey: "chatgpt:existing",
-            name: "Existing",
-            sortOrder: 0,
-            sevenDayLimitUsedPercent: 84,
-            fiveHourLimitUsedPercent: 92
-        )
-
-        let preservedAccounts = WidgetSnapshotPublisher.mergedAccounts(
-            localAccounts: [],
-            existingState: makeSharedState(accounts: [existingAccount])
-        )
-
-        #expect(preservedAccounts == [existingAccount])
-    }
-
     @Test func restoreSortPreferencesUsesStoredValuesAndFallsBackSafely() {
         let controller = makeController(
             authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123"))
@@ -1809,63 +1840,63 @@ struct CodexSwitcherTests {
     @Test func lastLoginDescriptionUsesExpectedRelativeFormats() {
         let now = Date(timeIntervalSince1970: 1_000_000)
 
-        #expect(AccountRowView.makeLastLoginDescription(from: nil, relativeTo: now) == "Last login: never")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(59 * 60)), relativeTo: now) == "Last login: this hour")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(1 * 60 * 60)), relativeTo: now) == "Last login: 1h ago")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(10 * 60 * 60)), relativeTo: now) == "Last login: 10h ago")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(24 * 60 * 60)), relativeTo: now) == "Last login: 1d ago")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(7 * 24 * 60 * 60)), relativeTo: now) == "Last login: 7d ago")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(-(3_432 * 24 * 60 * 60)), relativeTo: now) == "Last login: 3432d ago")
-        #expect(AccountRowView.makeLastLoginDescription(from: now.addingTimeInterval(5 * 60), relativeTo: now) == "Last login: this hour")
+        #expect(AccountDisplayFormatter.lastLoginListDescription(from: nil, relativeTo: now) == "Last login: never")
+        #expect(AccountDisplayFormatter.lastLoginListDescription(from: now.addingTimeInterval(-(59 * 60)), relativeTo: now) == "Last login: this hour")
+        #expect(AccountDisplayFormatter.lastLoginListDescription(from: now.addingTimeInterval(-(1 * 60 * 60)), relativeTo: now) == "Last login: 1h ago")
+        #expect(AccountDisplayFormatter.lastLoginListDescription(from: now.addingTimeInterval(-(10 * 60 * 60)), relativeTo: now) == "Last login: 10h ago")
+        #expect(AccountDisplayFormatter.lastLoginListDescription(from: now.addingTimeInterval(-(24 * 60 * 60)), relativeTo: now) == "Last login: 1d ago")
+        #expect(AccountDisplayFormatter.lastLoginListDescription(from: now.addingTimeInterval(-(7 * 24 * 60 * 60)), relativeTo: now) == "Last login: 7d ago")
+        #expect(AccountDisplayFormatter.lastLoginListDescription(from: now.addingTimeInterval(-(3_432 * 24 * 60 * 60)), relativeTo: now) == "Last login: 3432d ago")
+        #expect(AccountDisplayFormatter.lastLoginListDescription(from: now.addingTimeInterval(5 * 60), relativeTo: now) == "Last login: this hour")
     }
 
     @Test func accountMetadataDescriptionShowsKnownAndUnknownLimits() {
         let now = Date(timeIntervalSince1970: 1_000_000)
 
         #expect(
-            AccountRowView.makeMetadataDescription(
+            AccountDisplayFormatter.listMetadataDescription(
                 lastLoginAt: now.addingTimeInterval(-(3 * 60 * 60)),
-                sevenDayLimitUsedPercent: 93,
-                fiveHourLimitUsedPercent: 34,
+                sevenDayRemainingPercent: 93,
+                fiveHourRemainingPercent: 34,
                 relativeTo: now
             ) == "Last login: 3h ago • 5h: 34% • 7d: 93%"
         )
 
         #expect(
-            AccountRowView.makeMetadataDescription(
+            AccountDisplayFormatter.listMetadataDescription(
                 lastLoginAt: nil,
-                sevenDayLimitUsedPercent: nil,
-                fiveHourLimitUsedPercent: nil,
+                sevenDayRemainingPercent: nil,
+                fiveHourRemainingPercent: nil,
                 relativeTo: now
             ) == "Last login: never • 5h: ? • 7d: ?"
         )
     }
 
     @Test func usageLimitColorInterpolationMatchesRequestedScale() {
-        let red = AccountMetadataText.usageColorComponents(forUsedPercent: 0)
-        #expect(red.red == 1)
-        #expect(red.green == 0)
-        #expect(red.blue == 0)
+        let red = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: 0)
+        #expect(abs(red.red - 1) < 0.0001)
+        #expect(abs(red.green) < 0.0001)
+        #expect(abs(red.blue) < 0.0001)
 
-        let orange = AccountMetadataText.usageColorComponents(forUsedPercent: 25)
-        #expect(orange.red == 1)
-        #expect(orange.green == 0.5)
-        #expect(orange.blue == 0)
+        let orange = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: 25)
+        #expect(abs(orange.red - 1) < 0.0001)
+        #expect(abs(orange.green - 0.19) < 0.0001)
+        #expect(abs(orange.blue) < 0.0001)
 
-        let yellow = AccountMetadataText.usageColorComponents(forUsedPercent: 50)
-        #expect(yellow.red == 1)
-        #expect(yellow.green == 1)
-        #expect(yellow.blue == 0)
+        let mid = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: 50)
+        #expect(abs(mid.red - 1) < 0.0001)
+        #expect(abs(mid.green - 0.38) < 0.0001)
+        #expect(abs(mid.blue) < 0.0001)
 
-        let yellowGreen = AccountMetadataText.usageColorComponents(forUsedPercent: 75)
-        #expect(yellowGreen.red == 0.5)
-        #expect(yellowGreen.green == 1)
-        #expect(yellowGreen.blue == 0)
+        let yellowGreen = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: 75)
+        #expect(abs(yellowGreen.red - 0.5) < 0.0001)
+        #expect(abs(yellowGreen.green - 0.69) < 0.0001)
+        #expect(abs(yellowGreen.blue) < 0.0001)
 
-        let green = AccountMetadataText.usageColorComponents(forUsedPercent: 100)
-        #expect(green.red == 0)
-        #expect(green.green == 1)
-        #expect(green.blue == 0)
+        let green = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: 100)
+        #expect(abs(green.red) < 0.0001)
+        #expect(abs(green.green - 1) < 0.0001)
+        #expect(abs(green.blue) < 0.0001)
     }
 
     @Test func startupMigratesLegacyUsedPercentValuesToRemainingPercent() async throws {
@@ -2142,6 +2173,14 @@ private func makeSharedAccountRecord(
         lastLoginAt: nil,
         sevenDayLimitUsedPercent: sevenDayLimitUsedPercent,
         fiveHourLimitUsedPercent: fiveHourLimitUsedPercent,
+        sevenDayResetsAt: nil,
+        fiveHourResetsAt: nil,
+        sevenDayDataStatusRaw: sevenDayLimitUsedPercent == nil
+            ? RateLimitMetricDataStatus.missing.rawValue
+            : RateLimitMetricDataStatus.exact.rawValue,
+        fiveHourDataStatusRaw: fiveHourLimitUsedPercent == nil
+            ? RateLimitMetricDataStatus.missing.rawValue
+            : RateLimitMetricDataStatus.exact.rawValue,
         rateLimitsObservedAt: nil,
         sortOrder: sortOrder,
         hasLocalSnapshot: hasLocalSnapshot

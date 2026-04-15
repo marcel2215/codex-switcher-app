@@ -265,6 +265,13 @@
 			);
 			target = 1F310E4D2F8DC3E2006AA106 /* Codex Switcher Watch WidgetsExtension */;
 		};
+		6F4E3D2C1B0A998877665544 /* Exceptions for "Codex Switcher" folder in "Codex Switcher" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1F87C9462F8406C7007DED25 /* Codex Switcher */;
+		};
 		8A2E8F932F9B120100123456 /* Exceptions for "Codex Switcher Watch App" folder in "Codex Switcher Watch App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -302,6 +309,7 @@
 		1F87C9492F8406C7007DED25 /* Codex Switcher */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				6F4E3D2C1B0A998877665544 /* Exceptions for "Codex Switcher" folder in "Codex Switcher" target */,
 				1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */,
 				1F96B7502F89D34B00044DB7 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS App" target */,
 				1FA0358B2F8AF7D600367DD6 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App" target */,
@@ -1510,8 +1518,10 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Codex Switcher/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppDataUsageDescription = "Codex Switcher needs access to its shared app data for widgets, App Intents, and the linked Codex folder you choose.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1558,8 +1568,10 @@
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Codex Switcher/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppDataUsageDescription = "Codex Switcher needs access to its shared app data for widgets, App Intents, and the linked Codex folder you choose.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

@@ -30,6 +30,7 @@ struct AccountDetailView: View {
         .sevenDay: .relative,
         .fiveHour: .relative,
     ]
+    @State private var shareAvailability: Bool?
 
     init(
         account: StoredAccount,
@@ -101,8 +102,16 @@ struct AccountDetailView: View {
         }
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                shareToolbarItem
+            }
+        }
         .navigationDestination(for: DetailDestination.self, destination: destinationView)
         .onDisappear(perform: persistDraftName)
+        .task(id: shareAvailabilityKey) {
+            shareAvailability = await controller.canExportArchive(for: account)
+        }
     }
 
     private var emailHint: String? {
@@ -125,6 +134,14 @@ struct AccountDetailView: View {
 
     private var selectedIcon: AccountIconOption {
         AccountIconOption.resolve(from: account.iconSystemName)
+    }
+
+    private var shareAvailabilityKey: String {
+        shareTransferItem.availabilityKey
+    }
+
+    private var shareTransferItem: CodexAccountArchiveTransferItem {
+        controller.archiveTransferItem(for: account)
     }
 
     private func usageValueText(_ value: Int?) -> some View {
@@ -177,5 +194,32 @@ struct AccountDetailView: View {
 
         controller.commitRename(for: account, proposedName: draftName, in: modelContext)
         draftName = account.name
+    }
+
+    @ViewBuilder
+    private var shareToolbarItem: some View {
+        if shareAvailability == true {
+            ShareLink(item: shareTransferItem, preview: SharePreview(displayName)) {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .accessibilityLabel("Share Account Archive")
+        } else if shareAvailability == nil {
+            Button {
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .disabled(true)
+            .accessibilityLabel("Share Account Archive")
+        } else {
+            Button {
+                controller.presentedError = PresentedError(
+                    title: "Couldn't Export Account",
+                    message: "That saved account needs a local import on this device before it can be shared."
+                )
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .accessibilityLabel("Share Account Archive")
+        }
     }
 }

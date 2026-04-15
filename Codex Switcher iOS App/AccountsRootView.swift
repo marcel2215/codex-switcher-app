@@ -154,6 +154,10 @@ struct AccountsRootView: View {
             .task {
                 handleInitialLoad()
             }
+            .onOpenURL(perform: handleIncomingArchiveURL)
+            .dropDestination(for: URL.self, isEnabled: true) { items, _ in
+                handleDroppedArchiveURLs(items)
+            }
             .onReceive(notificationSettingsPublisher) { _ in
                 openNotificationSettingsIfRequested()
             }
@@ -315,7 +319,10 @@ struct AccountsRootView: View {
                 List {
                     ForEach(displayedAccounts) { account in
                         NavigationLink(value: account.id) {
-                            IOSAccountRow(account: account)
+                            IOSAccountRow(
+                                account: account,
+                                exportTransferItem: controller.archiveTransferItem(for: account)
+                            )
                         }
                         .onAppear {
                             rateLimitRefreshController.setVisible(true, for: account.identityKey)
@@ -354,7 +361,10 @@ struct AccountsRootView: View {
             AnyView(
                 List(selection: $selectedAccountID) {
                     ForEach(displayedAccounts) { account in
-                        IOSAccountRow(account: account)
+                        IOSAccountRow(
+                            account: account,
+                            exportTransferItem: controller.archiveTransferItem(for: account)
+                        )
                             .tag(account.id)
                             .onAppear {
                                 rateLimitRefreshController.setVisible(true, for: account.identityKey)
@@ -617,7 +627,7 @@ struct AccountsRootView: View {
                     .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                     .accessibilityHidden(true)
 
-                IOSAccountRow(account: account)
+                IOSAccountRow(account: account, exportTransferItem: nil)
             }
             .contentShape(Rectangle())
         }
@@ -650,6 +660,36 @@ struct AccountsRootView: View {
                     accountPendingDeletion = nil
                 }
             )
+        }
+    }
+
+    private func handleIncomingArchiveURL(_ url: URL) {
+        Task { @MainActor in
+            let importedAccountIDs = await controller.importAccountArchives(from: [url], in: modelContext)
+            focusImportedAccounts(importedAccountIDs)
+        }
+    }
+
+    private func handleDroppedArchiveURLs(_ urls: [URL]) {
+        Task { @MainActor in
+            let importedAccountIDs = await controller.importAccountArchives(from: urls, in: modelContext)
+            focusImportedAccounts(importedAccountIDs)
+        }
+    }
+
+    private func focusImportedAccounts(_ importedAccountIDs: [UUID]) {
+        guard let importedAccountID = importedAccountIDs.last else {
+            return
+        }
+
+        editMode = .inactive
+        selectedAccountIDsForEditing.removeAll()
+        selectedAccountID = importedAccountID
+
+        if usesCompactNavigation {
+            var updatedPath = NavigationPath()
+            updatedPath.append(importedAccountID)
+            compactNavigationPath = updatedPath
         }
     }
 

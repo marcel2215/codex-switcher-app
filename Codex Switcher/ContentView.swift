@@ -135,9 +135,18 @@ struct ContentView: View {
             allowsMultipleSelection: false,
             onCompletion: controller.handleLocationImport
         )
+        .fileImporter(
+            isPresented: $controller.isShowingAccountArchiveImporter,
+            allowedContentTypes: [.codexAccountArchive],
+            onCompletion: controller.handleAccountArchiveImport
+        )
         .fileDialogCustomizationID("codex-auth-location")
         .fileDialogDefaultDirectory(FileManager.default.homeDirectoryForCurrentUser)
         .fileDialogBrowserOptions([.includeHiddenFiles])
+        .onOpenURL(perform: controller.handleIncomingAccountArchiveURL)
+        .dropDestination(for: URL.self, isEnabled: true) { items, _ in
+            controller.handleDroppedAccountArchiveURLs(items)
+        }
         .onMoveCommand { direction in
             controller.moveSelection(direction: direction, visibleAccounts: displayedAccounts)
         }
@@ -266,6 +275,7 @@ struct ContentView: View {
             isSelected: controller.selection.contains(account.id),
             isRenaming: controller.renameTargetID == account.id,
             canReorder: controller.canEditCustomOrder,
+            exportTransferItem: controller.archiveTransferItem(for: account),
             onRemove: { controller.removeAccounts(withIDs: [account.id]) },
             onCommitRename: { newName in
                 controller.commitRename(for: account.id, proposedName: newName)

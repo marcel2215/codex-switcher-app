@@ -442,7 +442,7 @@ struct IOSRateLimitRefreshControllerTests {
     }
 
     @Test
-    func scheduleNextRefreshSubmitsAppRefreshRequestWhenAvailable() async {
+    func scheduleNextRefreshSubmitsAppRefreshRequestWhenAvailable() async throws {
         let submittedRequest = SubmittedBackgroundRequestSpy()
         let cancelledIdentifiers = CancelledBackgroundRequestsSpy()
         let coordinator = IOSBackgroundAppRefreshCoordinator(
@@ -460,10 +460,10 @@ struct IOSRateLimitRefreshControllerTests {
 
         coordinator.scheduleNextRefresh(after: 600)
 
-        let request = try? #require(submittedRequest.value)
-        #expect(request?.identifier == IOSBackgroundAppRefreshCoordinator.taskIdentifier)
+        let request = try #require(submittedRequest.value)
+        #expect(request.identifier == IOSBackgroundAppRefreshCoordinator.taskIdentifier)
         #expect(cancelledIdentifiers.value == [IOSBackgroundAppRefreshCoordinator.taskIdentifier])
-        #expect((request?.earliestBeginDate?.timeIntervalSinceNow ?? 0) > 0)
+        #expect((request.earliestBeginDate?.timeIntervalSinceNow ?? 0) > 0)
     }
 }
 

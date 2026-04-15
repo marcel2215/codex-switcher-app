@@ -23,6 +23,13 @@ struct AccountsCommands: Commands {
             // This is a single-window utility app, so the File > New command
             // should create a saved account entry rather than open another window.
             .keyboardShortcut("n", modifiers: [.command])
+
+            Divider()
+
+            Button("Import...") {
+                controller.beginAccountArchiveImport()
+            }
+            .keyboardShortcut("i", modifiers: [.command])
         }
 
         CommandGroup(after: .pasteboard) {
@@ -108,6 +115,11 @@ struct AccountsCommands: Commands {
                 controller.switchSelectedAccount()
             }
             .keyboardShortcut("l", modifiers: [.command])
+            .disabled(controller.selection.count != 1)
+
+            Button("Export...") {
+                controller.beginExportSelectedAccount()
+            }
             .disabled(controller.selection.count != 1)
         }
 

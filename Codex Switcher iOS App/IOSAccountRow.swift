@@ -9,6 +9,9 @@ import SwiftUI
 
 struct IOSAccountRow: View {
     let account: StoredAccount
+    let exportTransferItem: CodexAccountArchiveTransferItem?
+
+    @State private var isArchiveExportAvailable = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -47,6 +50,23 @@ struct IOSAccountRow: View {
         .accessibilityLabel(
             "\(AccountsPresentationLogic.displayName(for: account)), \(AccountDisplayFormatter.accessibilityUsageListDescription(sevenDayRemainingPercent: account.sevenDayLimitUsedPercent, fiveHourRemainingPercent: account.fiveHourLimitUsedPercent))"
         )
+        .modifier(AccountArchiveDragModifier(transferItem: exportTransferItem, isAvailable: isArchiveExportAvailable))
+        .task(id: exportTransferItem?.availabilityKey) {
+            isArchiveExportAvailable = await exportTransferItem?.canExport() ?? false
+        }
+    }
+}
+
+private struct AccountArchiveDragModifier: ViewModifier {
+    let transferItem: CodexAccountArchiveTransferItem?
+    let isAvailable: Bool
+
+    func body(content: Content) -> some View {
+        guard let transferItem, isAvailable else {
+            return AnyView(content)
+        }
+
+        return AnyView(content.draggable(transferItem))
     }
 }
 
