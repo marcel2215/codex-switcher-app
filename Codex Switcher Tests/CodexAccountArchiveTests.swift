@@ -75,6 +75,26 @@ struct CodexAccountArchiveTests {
         #expect(duplicateExtensionRequest.resolvedSuggestedFilename == "Work Account")
     }
 
+    @MainActor
+    @Test func exportRequestPrefersExplicitAccountNameForFilename() {
+        let account = StoredAccount(
+            identityKey: "chatgpt:abc123",
+            name: "Team Sandbox",
+            createdAt: .now,
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: CodexAuthMode.chatgpt.rawValue,
+            emailHint: "work@example.com",
+            accountIdentifier: "workspace-123",
+            iconSystemName: "briefcase.fill"
+        )
+
+        let request = CodexAccountArchiveExportRequest(account: account)
+
+        #expect(request.suggestedFilename == "Team Sandbox")
+        #expect(request.resolvedSuggestedFilename == "Team Sandbox")
+    }
+
     @Test func decodeRejectsMissingSnapshotContents() {
         let invalidArchiveData = """
         {

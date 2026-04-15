@@ -181,6 +181,49 @@ struct Codex_Switcher_iOS_AppTests {
     }
 
     @Test
+    func importingArchiveRepairsMissingSnapshotAndRefreshesExportAvailability() async throws {
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-repair")
+        let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)
+        let snapshotStore = FakeSnapshotStore()
+        let existingAccount = StoredAccount(
+            identityKey: snapshot.identityKey,
+            name: snapshot.email ?? "Imported Account",
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier
+        )
+        let harness = try makeHarness(accounts: [existingAccount], snapshotStore: snapshotStore)
+        let archiveURL = try makeArchiveFile(
+            archive: CodexAccountArchive(
+                name: existingAccount.name,
+                iconSystemName: existingAccount.iconSystemName,
+                identityKey: snapshot.identityKey,
+                authModeRaw: snapshot.authMode.rawValue,
+                emailHint: snapshot.email,
+                accountIdentifier: snapshot.accountIdentifier,
+                snapshotContents: snapshotContents
+            )
+        )
+        defer { try? FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent()) }
+
+        #expect(harness.controller.archiveAvailabilityRefreshToken == 0)
+        #expect(await harness.controller.canExportArchive(for: existingAccount) == false)
+
+        let importedAccountIDs = await harness.controller.importAccountArchives(
+            from: [archiveURL],
+            in: harness.modelContext
+        )
+
+        #expect(importedAccountIDs == [existingAccount.id])
+        #expect(await harness.controller.canExportArchive(for: existingAccount))
+        #expect(await snapshotStore.saveCallCount() == 1)
+        #expect(await snapshotStore.snapshot(forIdentityKey: snapshot.identityKey) == snapshotContents)
+        #expect(harness.controller.archiveAvailabilityRefreshToken == 1)
+    }
+
+    @Test
     func restoringCustomSortForcesAscendingDirection() throws {
         let harness = try makeHarness(accounts: [])
 

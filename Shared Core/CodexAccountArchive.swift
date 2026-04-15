@@ -306,8 +306,18 @@ nonisolated struct CodexAccountArchiveTransferItem: Transferable, Sendable {
     }
 
     static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .codexAccountArchive) { item in
-            SentTransferredFile(try await item.exporter.exportFile(for: item.request))
+        FileRepresentation(
+            exportedContentType: .codexAccountArchive,
+            shouldAllowToOpenInPlace: true
+        ) { item in
+            // Finder/Desktop derive the dragged filename from the handed-off
+            // file URL on disk. Allowing open-in-place keeps the visible drop
+            // name aligned with the account-derived `.cxa` filename rather
+            // than a transient NSItemProvider temp filename.
+            SentTransferredFile(
+                try await item.exporter.exportFile(for: item.request),
+                allowAccessingOriginalFile: true
+            )
         }
 
         ProxyRepresentation(exporting: \.reorderToken)

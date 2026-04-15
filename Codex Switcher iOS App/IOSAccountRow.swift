@@ -10,6 +10,7 @@ import SwiftUI
 struct IOSAccountRow: View {
     let account: StoredAccount
     let exportTransferItem: CodexAccountArchiveTransferItem?
+    let archiveAvailabilityRefreshToken: Int
 
     @State private var isArchiveExportAvailable = false
 
@@ -51,9 +52,13 @@ struct IOSAccountRow: View {
             "\(AccountsPresentationLogic.displayName(for: account)), \(AccountDisplayFormatter.accessibilityUsageListDescription(sevenDayRemainingPercent: account.sevenDayLimitUsedPercent, fiveHourRemainingPercent: account.fiveHourLimitUsedPercent))"
         )
         .modifier(AccountArchiveDragModifier(transferItem: exportTransferItem, isAvailable: isArchiveExportAvailable))
-        .task(id: exportTransferItem?.availabilityKey) {
+        .task(id: exportAvailabilityTaskKey) {
             isArchiveExportAvailable = await exportTransferItem?.canExport() ?? false
         }
+    }
+
+    private var exportAvailabilityTaskKey: String {
+        "\(exportTransferItem?.availabilityKey ?? "none")|\(archiveAvailabilityRefreshToken)"
     }
 }
 

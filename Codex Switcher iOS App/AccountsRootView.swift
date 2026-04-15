@@ -321,7 +321,8 @@ struct AccountsRootView: View {
                         NavigationLink(value: account.id) {
                             IOSAccountRow(
                                 account: account,
-                                exportTransferItem: controller.archiveTransferItem(for: account)
+                                exportTransferItem: controller.archiveTransferItem(for: account),
+                                archiveAvailabilityRefreshToken: controller.archiveAvailabilityRefreshToken
                             )
                         }
                         .onAppear {
@@ -363,7 +364,8 @@ struct AccountsRootView: View {
                     ForEach(displayedAccounts) { account in
                         IOSAccountRow(
                             account: account,
-                            exportTransferItem: controller.archiveTransferItem(for: account)
+                            exportTransferItem: controller.archiveTransferItem(for: account),
+                            archiveAvailabilityRefreshToken: controller.archiveAvailabilityRefreshToken
                         )
                             .tag(account.id)
                             .onAppear {
@@ -627,7 +629,11 @@ struct AccountsRootView: View {
                     .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                     .accessibilityHidden(true)
 
-                IOSAccountRow(account: account, exportTransferItem: nil)
+                IOSAccountRow(
+                    account: account,
+                    exportTransferItem: nil,
+                    archiveAvailabilityRefreshToken: controller.archiveAvailabilityRefreshToken
+                )
             }
             .contentShape(Rectangle())
         }

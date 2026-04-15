@@ -137,7 +137,7 @@ struct AccountDetailView: View {
     }
 
     private var shareAvailabilityKey: String {
-        shareTransferItem.availabilityKey
+        "\(shareTransferItem.availabilityKey)|\(controller.archiveAvailabilityRefreshToken)"
     }
 
     private var shareTransferItem: CodexAccountArchiveTransferItem {
@@ -212,10 +212,19 @@ struct AccountDetailView: View {
             .accessibilityLabel("Share Account Archive")
         } else {
             Button {
-                controller.presentedError = PresentedError(
-                    title: "Couldn't Export Account",
-                    message: "That saved account needs a local import on this device before it can be shared."
-                )
+                Task { @MainActor in
+                    let isExportAvailable = await controller.canExportArchive(for: account)
+                    shareAvailability = isExportAvailable
+
+                    guard !isExportAvailable else {
+                        return
+                    }
+
+                    controller.presentedError = PresentedError(
+                        title: "Couldn't Export Account",
+                        message: "That saved account isn't exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
+                    )
+                }
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }

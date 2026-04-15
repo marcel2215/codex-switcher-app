@@ -18,6 +18,7 @@ final class IOSAccountsController {
     private let archiveExporter: CodexAccountArchiveFileExporter
 
     var searchText = ""
+    var archiveAvailabilityRefreshToken = 0
     var sortCriterion: AccountSortCriterion = .dateAdded {
         didSet {
             let normalizedDirection = AccountsPresentationLogic.normalizedSortDirection(
@@ -305,6 +306,7 @@ final class IOSAccountsController {
             }
 
             try modelContext.save()
+            archiveAvailabilityRefreshToken &+= 1
 
             if !failureMessages.isEmpty {
                 presentedError = PresentedError(
