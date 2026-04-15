@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+import UniformTypeIdentifiers
 @testable import Codex_Switcher
 
 struct CodexAccountArchiveTests {
@@ -28,6 +29,48 @@ struct CodexAccountArchiveTests {
         #expect(decodedArchive == archive)
         #expect(decodedArchive.exportedAt == exportedAt)
         #expect(decodedArchive.suggestedFilename == "Work Account")
+    }
+
+    @Test func archiveEncodingUsesBinaryPropertyListFormat() throws {
+        let archive = CodexAccountArchive(
+            name: "Binary Archive",
+            iconSystemName: "archivebox.fill",
+            identityKey: "chatgpt:abc123",
+            authModeRaw: CodexAuthMode.chatgpt.rawValue,
+            emailHint: "binary@example.com",
+            accountIdentifier: "workspace-123",
+            snapshotContents: #"{"tokens":{"access_token":"abc"}}"#
+        )
+
+        let encodedData = try archive.encodedData()
+
+        #expect(encodedData.starts(with: Data("bplist".utf8)))
+    }
+
+    @Test func archiveTypeStillBehavesLikeAFileDataType() {
+        #expect(UTType.codexAccountArchive.conforms(to: .data))
+    }
+
+    @Test func decodeAcceptsLegacyJSONArchives() throws {
+        let legacyArchiveData = """
+        {
+          "accountIdentifier" : "workspace-123",
+          "authModeRaw" : "chatgpt",
+          "emailHint" : "work@example.com",
+          "exportedAt" : "2026-04-14T12:00:00Z",
+          "iconSystemName" : "briefcase.fill",
+          "identityKey" : "chatgpt:abc123",
+          "name" : "Work Account",
+          "snapshotContents" : "{\\"tokens\\":{\\"access_token\\":\\"abc\\"}}",
+          "version" : 1
+        }
+        """.data(using: .utf8)!
+
+        let decodedArchive = try CodexAccountArchive.decode(from: legacyArchiveData)
+
+        #expect(decodedArchive.name == "Work Account")
+        #expect(decodedArchive.identityKey == "chatgpt:abc123")
+        #expect(decodedArchive.snapshotContents == #"{"tokens":{"access_token":"abc"}}"#)
     }
 
     @Test func suggestedFilenameSanitizesUnsafeCharacters() {
@@ -75,6 +118,19 @@ struct CodexAccountArchiveTests {
         #expect(duplicateExtensionRequest.resolvedSuggestedFilename == "Work Account")
     }
 
+    @Test func exportFilenameAlwaysEndsWithASingleArchiveExtension() {
+        #expect(CodexAccountArchive.exportFilename(for: "Work Account") == "Work Account.cxa")
+        #expect(CodexAccountArchive.exportFilename(for: "Work Account.cxa") == "Work Account.cxa")
+        #expect(CodexAccountArchive.exportFilename(for: "Work Account.cxa.cxa") == "Work Account.cxa")
+        #expect(CodexAccountArchive.exportFilename(for: ".cxa.cxa") == "Codex Account.cxa")
+    }
+
+    @Test func finalizedExportURLCollapsesRepeatedArchiveExtensions() {
+        let url = URL(fileURLWithPath: "/tmp/Work Account.cxa.cxa")
+
+        #expect(CodexAccountArchive.finalizedExportURL(from: url).lastPathComponent == "Work Account.cxa")
+    }
+
     @MainActor
     @Test func exportRequestPrefersExplicitAccountNameForFilename() {
         let account = StoredAccount(
@@ -94,6 +150,50 @@ struct CodexAccountArchiveTests {
         #expect(request.suggestedFilename == "Team Sandbox")
         #expect(request.resolvedSuggestedFilename == "Team Sandbox")
     }
+
+    @MainActor
+    @Test func transferItemUsesArchiveFilenameWithExtension() {
+        let account = StoredAccount(
+            identityKey: "chatgpt:abc123",
+            name: "Team Sandbox",
+            createdAt: .now,
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: CodexAuthMode.chatgpt.rawValue,
+            emailHint: "work@example.com",
+            accountIdentifier: "workspace-123",
+            iconSystemName: "briefcase.fill"
+        )
+        let transferItem = CodexAccountArchiveTransferItem(
+            request: CodexAccountArchiveExportRequest(account: account),
+            exporter: CodexAccountArchiveFileExporter(snapshotStore: FakeArchiveSnapshotStore())
+        )
+
+        #expect(transferItem.exportedArchiveFilename == "Team Sandbox.cxa")
+    }
+
+#if os(macOS)
+    @MainActor
+    @Test func macOSItemProviderUsesFilenameStemAsSuggestedName() {
+        let account = StoredAccount(
+            identityKey: "chatgpt:abc123",
+            name: "Team Sandbox",
+            createdAt: .now,
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: CodexAuthMode.chatgpt.rawValue,
+            emailHint: "work@example.com",
+            accountIdentifier: "workspace-123",
+            iconSystemName: "briefcase.fill"
+        )
+        let transferItem = CodexAccountArchiveTransferItem(
+            request: CodexAccountArchiveExportRequest(account: account),
+            exporter: CodexAccountArchiveFileExporter(snapshotStore: FakeArchiveSnapshotStore())
+        )
+
+        #expect(transferItem.macOSItemProvider(includeReorderToken: true).suggestedName == "Team Sandbox")
+    }
+#endif
 
     @Test func decodeRejectsMissingSnapshotContents() {
         let invalidArchiveData = """

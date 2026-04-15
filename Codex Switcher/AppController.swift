@@ -1225,7 +1225,6 @@ final class AppController {
     }
 
     private func presentAccountArchiveSavePanel(suggestedFilename: String) async -> URL? {
-        let filenameExtension = UTType.codexAccountArchive.preferredFilenameExtension ?? "cxa"
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.codexAccountArchive]
         panel.canCreateDirectories = true
@@ -1233,7 +1232,10 @@ final class AppController {
         panel.isExtensionHidden = false
         panel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
-        panel.nameFieldStringValue = "\(suggestedFilename).\(filenameExtension)"
+        // Seed the save panel with the stem only. When a content type is also
+        // configured, pre-populating the field with `.cxa` can cause AppKit to
+        // append the archive extension a second time on save.
+        panel.nameFieldStringValue = CodexAccountArchive.normalizedExportFilenameStem(from: suggestedFilename)
 
         let response: NSApplication.ModalResponse
         if let window = NSApp.keyWindow ?? NSApp.mainWindow {
@@ -1254,7 +1256,7 @@ final class AppController {
             return nil
         }
 
-        return panel.url
+        return panel.url.map(CodexAccountArchive.finalizedExportURL(from:))
     }
 
     private func waitForInitializationIfNeeded() async {

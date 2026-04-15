@@ -79,12 +79,6 @@ struct ContentView: View {
                             )
                         }
                     }
-                    .background(
-                        ListDoubleClickBridge(
-                            rowIDs: displayedAccounts.map(\.id),
-                            onDoubleClick: controller.login(accountID:)
-                        )
-                    )
                 }
             }
         }
@@ -277,6 +271,11 @@ struct ContentView: View {
             canReorder: controller.canEditCustomOrder,
             exportTransferItem: controller.archiveTransferItem(for: account),
             onRemove: { controller.removeAccounts(withIDs: [account.id]) },
+            onSelect: { controller.selection = [account.id] },
+            onDoubleClick: {
+                controller.selection = [account.id]
+                controller.login(accountID: account.id)
+            },
             onCommitRename: { newName in
                 controller.commitRename(for: account.id, proposedName: newName)
             },

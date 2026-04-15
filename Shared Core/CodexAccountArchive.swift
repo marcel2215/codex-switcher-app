@@ -12,7 +12,7 @@ import UniformTypeIdentifiers
 nonisolated extension UTType {
     static let codexAccountArchive = UTType(
         exportedAs: "com.marcel2215.codexswitcher.account-archive",
-        conformingTo: .json
+        conformingTo: .data
     )
 }
 
@@ -38,6 +38,7 @@ nonisolated enum CodexAccountArchiveError: LocalizedError, Equatable {
 nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
     static let currentVersion = 1
     static let fallbackSuggestedFilename = "Codex Account"
+    static let archiveFilenameExtension = UTType.codexAccountArchive.preferredFilenameExtension ?? "cxa"
 
     let version: Int
     let exportedAt: Date
@@ -87,42 +88,36 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         return Self.sanitizedFilenameComponent(preferredBaseName)
     }
 
+    static func exportFilename(for rawValue: String) -> String {
+        "\(normalizedExportFilenameStem(from: rawValue)).\(archiveFilenameExtension)"
+    }
+
+    static func finalizedExportURL(from proposedURL: URL) -> URL {
+        proposedURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(exportFilename(for: proposedURL.lastPathComponent), isDirectory: false)
+    }
+
     func encodedData() throws -> Data {
         try validate()
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        encoder.dateEncodingStrategy = .custom { date, encoder in
-            var container = encoder.singleValueContainer()
-            try container.encode(Self.encodeArchiveDate(date))
-        }
+        // Export new archives as binary property lists so `.cxa` stays opaque on
+        // disk while still using a built-in Foundation format that remains easy
+        // to decode safely in future versions.
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
         return try encoder.encode(self)
     }
 
     static func decode(from data: Data) throws -> CodexAccountArchive {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let rawValue = try container.decode(String.self)
-
-            // Older archives used Foundation's plain ISO 8601 strategy, which
-            // drops fractional seconds. Keep accepting both forms so imports
-            // stay backward compatible while new exports preserve precision.
-            if let date = decodeArchiveDate(rawValue) {
-                return date
-            }
-
-            throw CodexAccountArchiveError.invalidData
-        }
-
         do {
-            let archive = try decoder.decode(CodexAccountArchive.self, from: data)
+            let archive = try PropertyListDecoder().decode(CodexAccountArchive.self, from: data)
             try archive.validate()
             return archive
         } catch let error as CodexAccountArchiveError {
             throw error
         } catch {
-            throw CodexAccountArchiveError.invalidData
+            return try decodeLegacyJSONArchive(from: data)
         }
     }
 
@@ -142,12 +137,6 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         }
 
         return value
-    }
-
-    private static func encodeArchiveDate(_ date: Date) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.string(from: date)
     }
 
     private static func decodeArchiveDate(_ rawValue: String) -> Date? {
@@ -172,6 +161,33 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             .trimmingCharacters(in: CharacterSet(charactersIn: ". ").union(.whitespacesAndNewlines))
 
         return cleaned.isEmpty ? "Codex Account" : cleaned
+    }
+
+    private static func decodeLegacyJSONArchive(from data: Data) throws -> CodexAccountArchive {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let rawValue = try container.decode(String.self)
+
+            // Older archives used Foundation's plain ISO 8601 strategy, which
+            // drops fractional seconds. Keep accepting both forms so imports
+            // stay backward compatible with the original JSON-based exports.
+            if let date = decodeArchiveDate(rawValue) {
+                return date
+            }
+
+            throw CodexAccountArchiveError.invalidData
+        }
+
+        do {
+            let archive = try decoder.decode(CodexAccountArchive.self, from: data)
+            try archive.validate()
+            return archive
+        } catch let error as CodexAccountArchiveError {
+            throw error
+        } catch {
+            throw CodexAccountArchiveError.invalidData
+        }
     }
 }
 
@@ -267,7 +283,7 @@ actor CodexAccountArchiveFileExporter {
         // targets while isolating each export in its own temp directory so
         // repeated drags or shares do not collide with one another.
         let fileURL = exportInstanceDirectoryURL.appendingPathComponent(
-            "\(request.resolvedSuggestedFilename).cxa",
+            CodexAccountArchive.exportFilename(for: request.resolvedSuggestedFilename),
             isDirectory: false
         )
         try archiveData.write(to: fileURL, options: .atomic)
@@ -297,6 +313,10 @@ nonisolated struct CodexAccountArchiveTransferItem: Transferable, Sendable {
         request.resolvedSuggestedFilename
     }
 
+    var exportedArchiveFilename: String {
+        CodexAccountArchive.exportFilename(for: defaultFilename)
+    }
+
     var availabilityKey: String {
         "\(request.identityKey)|\(request.hasLocalSnapshot)"
     }
@@ -306,38 +326,78 @@ nonisolated struct CodexAccountArchiveTransferItem: Transferable, Sendable {
     }
 
     static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(
-            exportedContentType: .codexAccountArchive,
-            shouldAllowToOpenInPlace: true
-        ) { item in
-            // Finder/Desktop derive the dragged filename from the handed-off
-            // file URL on disk. Allowing open-in-place keeps the visible drop
-            // name aligned with the account-derived `.cxa` filename rather
-            // than a transient NSItemProvider temp filename.
-            SentTransferredFile(
-                try await item.exporter.exportFile(for: item.request),
-                allowAccessingOriginalFile: true
-            )
+        FileRepresentation(exportedContentType: .codexAccountArchive) { item in
+            // Export a transferred file copy rather than exposing the original
+            // temp URL in-place. Finder accepts that path more reliably for
+            // drag-to-Desktop from a sandboxed app, while `suggestedFileName`
+            // preserves the visible account-based filename.
+            SentTransferredFile(try await item.exporter.exportFile(for: item.request))
         }
+        .suggestedFileName { $0.exportedArchiveFilename }
 
         ProxyRepresentation(exporting: \.reorderToken)
     }
 }
 
-private extension CodexAccountArchive {
+#if os(macOS)
+extension CodexAccountArchiveTransferItem {
+    func macOSItemProvider(includeReorderToken: Bool) -> NSItemProvider {
+        let provider = NSItemProvider()
+        // Finder treats `suggestedName` as the display name stem for promised
+        // file drops and can append the registered content-type extension on
+        // top. Keep the extension out of this field so Desktop drops do not
+        // become `Account.cxa.cxa`.
+        provider.suggestedName = defaultFilename
+
+        let request = self.request
+        let exporter = self.exporter
+        provider.registerFileRepresentation(
+            forTypeIdentifier: UTType.codexAccountArchive.identifier,
+            fileOptions: [],
+            visibility: .all
+        ) { completion in
+            Task {
+                do {
+                    let fileURL = try await exporter.exportFile(for: request)
+                    completion(fileURL, false, nil)
+                } catch {
+                    completion(nil, false, error)
+                }
+            }
+
+            return nil
+        }
+
+        // Keep the reorder token visible only inside the app process so Finder
+        // sees a file drag, while the in-app drop destination can still reorder
+        // rows using the same drag gesture.
+        if includeReorderToken {
+            provider.registerDataRepresentation(
+                forTypeIdentifier: UTType.plainText.identifier,
+                visibility: .ownProcess
+            ) { completion in
+                completion(Data(self.reorderToken.utf8), nil)
+                return nil
+            }
+        }
+
+        return provider
+    }
+}
+#endif
+
+extension CodexAccountArchive {
     nonisolated static func normalizedExportFilenameStem(from rawValue: String) -> String {
         let normalizedValue = normalizedOptionalString(rawValue) ?? fallbackSuggestedFilename
-        let archiveExtension = ".\(UTType.codexAccountArchive.preferredFilenameExtension ?? "cxa")"
-        let filenameStem: String
+        let archiveExtension = ".\(archiveFilenameExtension)"
+        var filenameStem = normalizedValue
 
         // People sometimes rename accounts to include the archive suffix. Strip
         // exactly that suffix before sanitizing so drag/share/export paths do
         // not end up producing duplicate `.cxa` extensions or an empty wrapper
         // name like `.cxa`.
-        if normalizedValue.lowercased().hasSuffix(archiveExtension.lowercased()) {
-            filenameStem = String(normalizedValue.dropLast(archiveExtension.count))
-        } else {
-            filenameStem = normalizedValue
+        while filenameStem.lowercased().hasSuffix(archiveExtension.lowercased()) {
+            filenameStem = String(filenameStem.dropLast(archiveExtension.count))
         }
 
         let sanitizedStem = sanitizedFilenameComponent(filenameStem)

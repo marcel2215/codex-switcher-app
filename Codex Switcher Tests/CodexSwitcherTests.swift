@@ -2645,7 +2645,7 @@ final class FakeSyncedRateLimitCredentialStore: @unchecked Sendable, SyncedRateL
     }
 
     func delete(forIdentityKey identityKey: String) async throws {
-        withLock {
+        _ = withLock {
             credentialsByIdentityKey.removeValue(forKey: identityKey)
         }
     }

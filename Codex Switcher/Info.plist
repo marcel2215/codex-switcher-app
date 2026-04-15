@@ -22,7 +22,8 @@
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>
-				<string>public.json</string>
+				<string>public.data</string>
+				<string>public.content</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Codex Switcher Account Archive</string>
@@ -35,7 +36,7 @@
 					<string>cxa</string>
 				</array>
 				<key>public.mime-type</key>
-				<string>application/vnd.marcel.codex-account-archive+json</string>
+				<string>application/vnd.marcel.codex-account-archive</string>
 			</dict>
 		</dict>
 	</array>

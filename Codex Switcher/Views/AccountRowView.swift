@@ -15,6 +15,8 @@ struct AccountRowView: View {
     let canReorder: Bool
     let exportTransferItem: CodexAccountArchiveTransferItem
     let onRemove: () -> Void
+    let onSelect: () -> Void
+    let onDoubleClick: () -> Void
     let onCommitRename: (String) -> Void
     let onCancelRename: () -> Void
 
@@ -91,6 +93,23 @@ struct AccountRowView: View {
         }
         .padding(.vertical, 1)
         .contentShape(Rectangle())
+        .onTapGesture {
+            guard !isRenaming else {
+                return
+            }
+
+            onSelect()
+        }
+        .onTapGesture(count: 2) {
+            guard !isRenaming else {
+                return
+            }
+
+            // Keep activation on the row itself so double-click still works
+            // even when macOS drag export is powered by a custom NSItemProvider.
+            onSelect()
+            onDoubleClick()
+        }
     }
 
     @ViewBuilder
@@ -121,6 +140,19 @@ private struct ReorderModifier: ViewModifier {
     let isArchiveExportAvailable: Bool
 
     func body(content: Content) -> some View {
+#if os(macOS)
+        if isArchiveExportAvailable {
+            content.onDrag {
+                exportTransferItem.macOSItemProvider(includeReorderToken: isEnabled)
+            }
+        } else if isEnabled {
+            content.onDrag {
+                NSItemProvider(object: dragPayload as NSString)
+            }
+        } else {
+            content
+        }
+#else
         if isArchiveExportAvailable {
             content.draggable(exportTransferItem)
         } else if isEnabled {
@@ -128,5 +160,6 @@ private struct ReorderModifier: ViewModifier {
         } else {
             content
         }
+#endif
     }
 }
