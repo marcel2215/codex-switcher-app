@@ -179,10 +179,6 @@ struct CodexSharedAccountSwitchService: Sendable {
             throw CodexSharedSwitchError.accountNotFound(identityKey)
         }
 
-        guard account.hasLocalSnapshot else {
-            throw CodexSharedSwitchError.missingStoredSnapshot(account.name)
-        }
-
         let authFileContents: String
         do {
             authFileContents = try await snapshotStore.loadSnapshot(forIdentityKey: identityKey)
@@ -470,7 +466,7 @@ struct CodexSharedAccountSwitchService: Sendable {
         in accounts: [SharedCodexAccountRecord]
     ) -> SharedCodexAccountRecord? {
         accounts
-            .filter(\.hasLocalSnapshot)
+            .filter { $0.hasLocalSnapshot }
             .sorted { lhs, rhs in
                 if areEquivalentForRateLimitSort(lhs, rhs) {
                     return lhs.sortOrder < rhs.sortOrder

@@ -81,6 +81,7 @@ final class AppController {
 
     @ObservationIgnored private let authFileManager: AuthFileManaging
     @ObservationIgnored private let secretStore: AccountSnapshotStoring
+    @ObservationIgnored private let snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore
     @ObservationIgnored private let syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring
     @ObservationIgnored private let notificationManager: AccountSwitchNotifying
     @ObservationIgnored private let rateLimitProvider: CodexRateLimitProviding
@@ -130,6 +131,7 @@ final class AppController {
     init(
         authFileManager: AuthFileManaging,
         secretStore: AccountSnapshotStoring,
+        snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore(),
         syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore(),
         notificationManager: AccountSwitchNotifying,
         rateLimitProvider: CodexRateLimitProviding = CodexRateLimitProvider(),
@@ -145,6 +147,7 @@ final class AppController {
     ) {
         self.authFileManager = authFileManager
         self.secretStore = secretStore
+        self.snapshotAvailabilityStore = snapshotAvailabilityStore
         self.syncedRateLimitCredentialStore = syncedRateLimitCredentialStore
         self.notificationManager = notificationManager
         self.rateLimitProvider = rateLimitProvider
@@ -293,10 +296,17 @@ final class AppController {
 
     func archiveTransferItem(for account: StoredAccount) -> CodexAccountArchiveTransferItem {
         CodexAccountArchiveTransferItem(
-            request: CodexAccountArchiveExportRequest(account: account),
+            request: CodexAccountArchiveExportRequest(
+                account: account,
+                hasLocalSnapshot: hasLocalSnapshot(for: account)
+            ),
             reorderToken: account.id.uuidString,
             exporter: archiveExporter
         )
+    }
+
+    private func hasLocalSnapshot(for account: StoredAccount) -> Bool {
+        snapshotAvailabilityStore.containsSnapshot(forIdentityKey: account.identityKey)
     }
 
     // Sort preferences are persisted by the SwiftUI app layer with AppStorage.
@@ -453,7 +463,7 @@ final class AppController {
         do {
             let orderedAccounts = AccountsPresentationLogic.sortedAccounts(
                 from: try fetchAccounts().filter { account in
-                    account.hasLocalSnapshot
+                    hasLocalSnapshot(for: account)
                         && !account.identityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 },
                 sortCriterion: sortCriterion,
@@ -1533,7 +1543,7 @@ final class AppController {
                     )
                 }
 
-                guard account.hasLocalSnapshot else {
+                guard hasLocalSnapshot(for: account) else {
                     return SharedAppCommandHandlingOutcome(
                         shouldAcknowledge: true,
                         shouldTerminateAfterAcknowledgement: false,
@@ -2192,7 +2202,7 @@ final class AppController {
 
     private func orderedAccountsForAutopilotRefresh(from accounts: [StoredAccount]) -> [StoredAccount] {
         var prioritizedAccounts = AccountsPresentationLogic.sortedAccounts(
-            from: accounts.filter(\.hasLocalSnapshot),
+            from: accounts.filter { hasLocalSnapshot(for: $0) },
             sortCriterion: .rateLimit,
             sortDirection: .descending
         )
@@ -2209,7 +2219,7 @@ final class AppController {
 
     private func bestAutopilotAccountCandidate(from accounts: [StoredAccount]) -> StoredAccount? {
         AccountsPresentationLogic.sortedAccounts(
-            from: accounts.filter(\.hasLocalSnapshot),
+            from: accounts.filter { hasLocalSnapshot(for: $0) },
             sortCriterion: .rateLimit,
             sortDirection: .descending
         )
@@ -2453,22 +2463,7 @@ final class AppController {
             publishSharedState()
         }
 
-        do {
-            let contents = try await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
-            if !account.hasLocalSnapshot {
-                account.hasLocalSnapshot = true
-                try? requireModelContext().save()
-                publishSharedState()
-            }
-            return contents
-        } catch {
-            if account.hasLocalSnapshot {
-                account.hasLocalSnapshot = false
-                try? requireModelContext().save()
-                publishSharedState()
-            }
-            throw error
-        }
+        return try await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
     }
 
     private func handleExpectedAuthOperationError(
@@ -2544,7 +2539,7 @@ final class AppController {
 
     @discardableResult
     private func update(account: StoredAccount, from snapshot: CodexAuthSnapshot) -> Bool {
-        var didChange = false
+        var didChange = account.normalizeLegacyLocalOnlyFields()
 
         if account.identityKey != snapshot.identityKey {
             account.identityKey = snapshot.identityKey
@@ -2620,17 +2615,6 @@ final class AppController {
                     "Couldn't migrate legacy keychain snapshot for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
                 )
             }
-        }
-
-        let hasLocalSnapshot: Bool
-        if normalizedIdentityKey.isEmpty {
-            hasLocalSnapshot = false
-        } else {
-            hasLocalSnapshot = await secretStore.containsSnapshot(forIdentityKey: normalizedIdentityKey)
-        }
-        if account.hasLocalSnapshot != hasLocalSnapshot {
-            account.hasLocalSnapshot = hasLocalSnapshot
-            didChange = true
         }
 
         return didChange
@@ -2757,7 +2741,7 @@ final class AppController {
             RateLimitAccountUpdater.apply($0, identityKey: snapshot.identityKey, to: account)
         } ?? false
         let existingContents = try? await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
-        let needsSnapshotWrite = existingContents != snapshot.rawContents || !account.hasLocalSnapshot
+        let needsSnapshotWrite = existingContents != snapshot.rawContents
 
         if needsSnapshotWrite {
             try await secretStore.saveSnapshot(snapshot.rawContents, forIdentityKey: account.identityKey)
@@ -2779,11 +2763,6 @@ final class AppController {
         var didChange = metadataChanged || rateLimitsChanged || needsSnapshotWrite
         if account.authFileContents != nil {
             account.authFileContents = nil
-            didChange = true
-        }
-
-        if !account.hasLocalSnapshot {
-            account.hasLocalSnapshot = true
             didChange = true
         }
 
@@ -3282,11 +3261,6 @@ final class AppController {
             didChange = true
         }
 
-        if !survivor.hasLocalSnapshot, duplicate.hasLocalSnapshot {
-            survivor.hasLocalSnapshot = true
-            didChange = true
-        }
-
         if survivor.emailHint == nil, let duplicateEmail = duplicate.emailHint {
             survivor.emailHint = duplicateEmail
             didChange = true
@@ -3326,6 +3300,7 @@ final class AppController {
 
         for (index, account) in reorderedAccounts.enumerated() {
             account.customOrder = Double(index)
+            _ = account.normalizeLegacyLocalOnlyFields()
         }
 
         do {
@@ -3413,7 +3388,7 @@ final class AppController {
                     fiveHourDataStatusRaw: account.fiveHourDataStatus.rawValue,
                     rateLimitsObservedAt: account.rateLimitsObservedAt,
                     sortOrder: account.customOrder,
-                    hasLocalSnapshot: account.hasLocalSnapshot
+                    hasLocalSnapshot: hasLocalSnapshot(for: account)
                 )
             }
 

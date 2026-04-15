@@ -9,7 +9,7 @@ import Foundation
 import OSLog
 import Security
 
-nonisolated protocol AccountSnapshotStoring: Sendable {
+protocol AccountSnapshotStoring: Sendable {
     func saveSnapshot(_ contents: String, forIdentityKey identityKey: String) async throws
     func loadSnapshot(forIdentityKey identityKey: String) async throws -> String
     func deleteSnapshot(forIdentityKey identityKey: String) async throws
@@ -40,17 +40,16 @@ enum AccountSnapshotStoreError: LocalizedError, Equatable {
     }
 }
 
-actor SharedKeychainSnapshotStore: AccountSnapshotStoring {
-    nonisolated static let sharedService = "com.marcel2215.codexswitcher.authSnapshots"
-    nonisolated static let legacyService = CodexSharedApplicationIdentity.mainApplicationBundleIdentifier + ".accountSecrets"
-
+final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotStoring {
     private let service: String
     private let sharedAccessGroup: String?
+    private let snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore
     private let logger: Logger
 
-    init(
-        service: String = SharedKeychainSnapshotStore.sharedService,
+    nonisolated init(
+        service: String = "com.marcel2215.codexswitcher.authSnapshots",
         accessGroup: String? = CodexSharedAppGroup.identifier,
+        snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore(),
         logger: Logger = Logger(
             subsystem: CodexSharedApplicationIdentity.mainApplicationBundleIdentifier,
             category: "AccountSnapshotStore"
@@ -59,6 +58,7 @@ actor SharedKeychainSnapshotStore: AccountSnapshotStoring {
         self.service = service
         let trimmedAccessGroup = accessGroup?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.sharedAccessGroup = trimmedAccessGroup?.isEmpty == false ? trimmedAccessGroup : nil
+        self.snapshotAvailabilityStore = snapshotAvailabilityStore
         self.logger = logger
     }
 
@@ -91,6 +91,7 @@ actor SharedKeychainSnapshotStore: AccountSnapshotStoring {
         }
 
         pruneLegacySynchronizableSharedSnapshot(forIdentityKey: normalizedIdentityKey)
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
     }
 
     func loadSnapshot(forIdentityKey identityKey: String) async throws -> String {
@@ -99,6 +100,7 @@ actor SharedKeychainSnapshotStore: AccountSnapshotStoring {
             forIdentityKey: normalizedIdentityKey,
             query: sharedLocalQuery(forIdentityKey: normalizedIdentityKey)
         ) {
+            snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
             repairCurrentSnapshotCopies(
                 using: sharedLocalContents,
                 forIdentityKey: normalizedIdentityKey,
@@ -112,6 +114,7 @@ actor SharedKeychainSnapshotStore: AccountSnapshotStoring {
             forIdentityKey: normalizedIdentityKey,
             query: synchronizableQuery(forIdentityKey: normalizedIdentityKey)
         ) {
+            snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
             repairCurrentSnapshotCopies(
                 using: synchronizableContents,
                 forIdentityKey: normalizedIdentityKey,
@@ -124,6 +127,7 @@ actor SharedKeychainSnapshotStore: AccountSnapshotStoring {
         if let legacySynchronizableContents = try loadLegacySynchronizableSharedSnapshotIfPresent(
             forIdentityKey: normalizedIdentityKey
         ) {
+            snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
             repairCurrentSnapshotCopies(
                 using: legacySynchronizableContents,
                 forIdentityKey: normalizedIdentityKey,
@@ -133,6 +137,7 @@ actor SharedKeychainSnapshotStore: AccountSnapshotStoring {
             return legacySynchronizableContents
         }
 
+        snapshotAvailabilityStore.setSnapshotAvailable(false, forIdentityKey: normalizedIdentityKey)
         throw AccountSnapshotStoreError.missingSnapshot
     }
 
@@ -147,6 +152,7 @@ actor SharedKeychainSnapshotStore: AccountSnapshotStoring {
             logPrefix: "Synchronizable keychain"
         )
         try deleteLegacySynchronizableSharedSnapshotIfPresent(forIdentityKey: normalizedIdentityKey)
+        snapshotAvailabilityStore.setSnapshotAvailable(false, forIdentityKey: normalizedIdentityKey)
     }
 
     func containsSnapshot(forIdentityKey identityKey: String) async -> Bool {
@@ -412,7 +418,7 @@ actor SharedKeychainSnapshotStore: AccountSnapshotStoring {
     private func legacyQuery(forLegacyAccountID accountID: UUID) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.legacyService,
+            kSecAttrService as String: CodexSharedApplicationIdentity.mainApplicationBundleIdentifier + ".accountSecrets",
             kSecAttrAccount as String: accountID.uuidString,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,

@@ -279,7 +279,6 @@ final class IOSAccountsController {
                         identityKey: snapshot.identityKey,
                         name: archive.preferredStoredName ?? Self.defaultName(for: snapshot, existingAccounts: allAccounts),
                         customOrder: nextCustomOrder,
-                        hasLocalSnapshot: true,
                         authModeRaw: snapshot.authMode.rawValue,
                         emailHint: snapshot.email,
                         accountIdentifier: snapshot.accountIdentifier,
@@ -332,6 +331,7 @@ final class IOSAccountsController {
         do {
             for (index, account) in reorderedAccounts.enumerated() {
                 account.customOrder = Double(index)
+                _ = account.normalizeLegacyLocalOnlyFields()
             }
 
             try modelContext.save()
@@ -349,7 +349,7 @@ final class IOSAccountsController {
         on account: StoredAccount
     ) async throws -> Bool {
         let previousIdentityKey = account.identityKey
-        var didChange = false
+        var didChange = account.normalizeLegacyLocalOnlyFields()
 
         if account.identityKey != snapshot.identityKey {
             account.identityKey = snapshot.identityKey
@@ -368,11 +368,6 @@ final class IOSAccountsController {
 
         if account.accountIdentifier != snapshot.accountIdentifier {
             account.accountIdentifier = snapshot.accountIdentifier
-            didChange = true
-        }
-
-        if !account.hasLocalSnapshot {
-            account.hasLocalSnapshot = true
             didChange = true
         }
 

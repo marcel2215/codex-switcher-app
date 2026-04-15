@@ -269,13 +269,13 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
     }
 
     @MainActor
-    init(account: StoredAccount) {
+    init(account: StoredAccount, hasLocalSnapshot: Bool? = nil) {
         self.name = account.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : account.name
         self.iconSystemName = account.iconSystemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? "key.fill"
             : account.iconSystemName
         self.identityKey = account.identityKey
-        self.hasLocalSnapshot = account.hasLocalSnapshot
+        self.hasLocalSnapshot = hasLocalSnapshot ?? account.hasLocalSnapshot
         self.authModeRaw = account.authModeRaw
         self.emailHint = account.emailHint
         self.accountIdentifier = account.accountIdentifier

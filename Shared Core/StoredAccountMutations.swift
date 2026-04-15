@@ -20,7 +20,8 @@ enum StoredAccountMutations {
         }
 
         let trimmedName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard account.name != trimmedName else {
+        let normalizedLegacyFields = account.normalizeLegacyLocalOnlyFields()
+        guard account.name != trimmedName || normalizedLegacyFields else {
             return
         }
 
@@ -39,7 +40,8 @@ enum StoredAccountMutations {
         }
 
         let resolvedSystemName = AccountIconOption.resolve(from: icon.systemName).systemName
-        guard account.iconSystemName != resolvedSystemName else {
+        let normalizedLegacyFields = account.normalizeLegacyLocalOnlyFields()
+        guard account.iconSystemName != resolvedSystemName || normalizedLegacyFields else {
             return
         }
 

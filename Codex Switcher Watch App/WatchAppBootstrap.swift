@@ -22,7 +22,13 @@ enum WatchAppBootstrap {
         )
 
         do {
-            return .ready(try ModelContainer(for: schema, configurations: [configuration]))
+            let modelContainer = try ModelContainer(for: schema, configurations: [configuration])
+            if !isStoredInMemoryOnly {
+                try StoredAccountLegacyCloudSyncRepair.normalizeLocalOnlyFieldsIfNeeded(
+                    in: modelContainer.mainContext
+                )
+            }
+            return .ready(modelContainer)
         } catch {
             return .failed(error.localizedDescription)
         }

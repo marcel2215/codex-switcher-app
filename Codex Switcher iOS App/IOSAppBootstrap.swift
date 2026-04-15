@@ -44,6 +44,14 @@ enum IOSAppBootstrap {
             cloudKitDatabase: isStoredInMemoryOnly ? .none : .automatic
         )
 
-        return try ModelContainer(for: schema, configurations: [configuration])
+        let modelContainer = try ModelContainer(for: schema, configurations: [configuration])
+
+        if !isStoredInMemoryOnly {
+            try StoredAccountLegacyCloudSyncRepair.normalizeLocalOnlyFieldsIfNeeded(
+                in: modelContainer.mainContext
+            )
+        }
+
+        return modelContainer
     }
 }

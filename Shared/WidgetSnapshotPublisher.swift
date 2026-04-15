@@ -23,6 +23,7 @@ enum WidgetSnapshotPublisher {
         selectedAccountIsLive: Bool = false
     ) {
         let store = CodexSharedStateStore()
+        let snapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore()
         let descriptor = FetchDescriptor<StoredAccount>(
             sortBy: [
                 SortDescriptor(\.customOrder),
@@ -50,7 +51,7 @@ enum WidgetSnapshotPublisher {
                     fiveHourDataStatusRaw: account.fiveHourDataStatus.rawValue,
                     rateLimitsObservedAt: account.rateLimitsObservedAt,
                     sortOrder: account.customOrder,
-                    hasLocalSnapshot: account.hasLocalSnapshot
+                    hasLocalSnapshot: snapshotAvailabilityStore.containsSnapshot(forIdentityKey: account.identityKey)
                 )
             }
 
@@ -98,6 +99,7 @@ enum WidgetSnapshotPublisher {
 
     static func fingerprint(for accounts: [StoredAccount]) -> Int {
         var hasher = Hasher()
+        let snapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore()
 
         for account in accounts.sorted(by: widgetSortComparator) {
             hasher.combine(account.id)
@@ -116,7 +118,7 @@ enum WidgetSnapshotPublisher {
             hasher.combine(account.sevenDayDataStatus.rawValue)
             hasher.combine(account.fiveHourDataStatus.rawValue)
             hasher.combine(account.rateLimitsObservedAt)
-            hasher.combine(account.hasLocalSnapshot)
+            hasher.combine(snapshotAvailabilityStore.containsSnapshot(forIdentityKey: account.identityKey))
         }
 
         return hasher.finalize()

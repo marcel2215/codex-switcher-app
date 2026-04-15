@@ -25,6 +25,10 @@ final class StoredAccount {
     // been scrubbed yet.
     @Attribute(.allowsCloudEncryption)
     var authFileContents: String?
+    // Legacy CloudKit field kept only for schema compatibility. Real
+    // per-device snapshot availability now lives outside SwiftData, so this
+    // value should be normalized back to false on startup and ignored by new
+    // code paths.
     var hasLocalSnapshot: Bool = false
     var authModeRaw: String = "chatgpt"
     var emailHint: String?
@@ -127,5 +131,15 @@ final class StoredAccount {
         }
 
         return status
+    }
+
+    @discardableResult
+    func normalizeLegacyLocalOnlyFields() -> Bool {
+        guard hasLocalSnapshot else {
+            return false
+        }
+
+        hasLocalSnapshot = false
+        return true
     }
 }

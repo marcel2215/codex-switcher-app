@@ -1571,6 +1571,85 @@ struct CodexSwitcherTests {
         #expect(hiddenState.selectedAccount == nil)
     }
 
+    @Test func sharedStateUsesLocalSnapshotAvailabilityInsteadOfSyncedModelFlag() async throws {
+        let container = try makeInMemoryContainer()
+        let snapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore(
+            baseURL: try makeTemporaryDirectory()
+        )
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-local-availability")),
+            snapshotAvailabilityStore: snapshotAvailabilityStore
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+
+        let account = StoredAccount(
+            identityKey: "identity-local",
+            name: "Local Only",
+            customOrder: 0,
+            hasLocalSnapshot: false,
+            authModeRaw: "chatgpt"
+        )
+        container.mainContext.insert(account)
+        try container.mainContext.save()
+
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: account.identityKey)
+
+        let sharedState = try controller.sharedStateForTesting()
+        let sharedAccount = try #require(sharedState.accounts.first)
+        #expect(sharedAccount.hasLocalSnapshot)
+    }
+
+    @Test func sharedStateSuppressesStaleSyncedSnapshotAvailability() async throws {
+        let container = try makeInMemoryContainer()
+        let snapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore(
+            baseURL: try makeTemporaryDirectory()
+        )
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-stale-availability")),
+            snapshotAvailabilityStore: snapshotAvailabilityStore
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+
+        let account = StoredAccount(
+            identityKey: "identity-stale",
+            name: "Stale Availability",
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: "chatgpt"
+        )
+        container.mainContext.insert(account)
+        try container.mainContext.save()
+
+        snapshotAvailabilityStore.setSnapshotAvailable(false, forIdentityKey: account.identityKey)
+
+        let sharedState = try controller.sharedStateForTesting()
+        let sharedAccount = try #require(sharedState.accounts.first)
+        #expect(sharedAccount.hasLocalSnapshot == false)
+    }
+
+    @Test func legacySyncedLocalSnapshotFlagIsNormalizedBeforeCloudSync() throws {
+        let container = try makeInMemoryContainer()
+        let account = StoredAccount(
+            identityKey: "identity-legacy-availability",
+            name: "Legacy Availability",
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: "chatgpt"
+        )
+        container.mainContext.insert(account)
+        try container.mainContext.save()
+
+        let didChange = try StoredAccountLegacyCloudSyncRepair.normalizeLocalOnlyFieldsIfNeeded(
+            in: container.mainContext
+        )
+
+        #expect(didChange)
+        let refreshedAccount = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(refreshedAccount.hasLocalSnapshot == false)
+    }
+
     @Test func queuedSharedCommandsAreAcknowledgedOnlyAfterHandling() async throws {
         let temporaryDirectory = try makeTemporaryDirectory()
         let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
@@ -2116,7 +2195,8 @@ struct CodexSwitcherTests {
 @MainActor
 private func makeController(
     authFileManager: any AuthFileManaging,
-    secretStore: FakeSecretStore = FakeSecretStore(),
+    snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore? = nil,
+    secretStore: FakeSecretStore? = nil,
     syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore = FakeSyncedRateLimitCredentialStore(),
     notificationManager: FakeNotificationManager = FakeNotificationManager(),
     rateLimitProvider: CodexRateLimitProviding = FakeRateLimitProvider(),
@@ -2125,9 +2205,18 @@ private func makeController(
     terminateApplication: @escaping () -> Void = {},
     autopilotEnabled: Bool = false
 ) -> AppController {
-    AppController(
+    let resolvedSnapshotAvailabilityStore = snapshotAvailabilityStore ?? LocalAccountSnapshotAvailabilityStore(
+        baseURL: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString, isDirectory: true)
+    )
+    let resolvedSecretStore = secretStore ?? FakeSecretStore(
+        snapshotAvailabilityStore: resolvedSnapshotAvailabilityStore
+    )
+    resolvedSecretStore.attachSnapshotAvailabilityStore(resolvedSnapshotAvailabilityStore)
+
+    return AppController(
         authFileManager: authFileManager,
-        secretStore: secretStore,
+        secretStore: resolvedSecretStore,
+        snapshotAvailabilityStore: resolvedSnapshotAvailabilityStore,
         syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
         notificationManager: notificationManager,
         rateLimitProvider: rateLimitProvider,
@@ -2493,12 +2582,21 @@ actor FakeAuthFileManager: AuthFileManaging {
 
 final class FakeSecretStore: @unchecked Sendable, AccountSnapshotStoring {
     private let lock = NSLock()
+    private var snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore?
     private var snapshots: [String: String] = [:]
     private var legacySecrets: [UUID: String] = [:]
     private var saveError: Error?
     private var loadError: Error?
     private var deleteError: Error?
     private(set) var saveCallCount = 0
+
+    init(snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore? = nil) {
+        self.snapshotAvailabilityStore = snapshotAvailabilityStore
+    }
+
+    func attachSnapshotAvailabilityStore(_ snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore) {
+        self.snapshotAvailabilityStore = snapshotAvailabilityStore
+    }
 
     func saveSnapshot(_ contents: String, forIdentityKey identityKey: String) async throws {
         try withLock {
@@ -2509,6 +2607,7 @@ final class FakeSecretStore: @unchecked Sendable, AccountSnapshotStoring {
             saveCallCount += 1
             snapshots[identityKey] = contents
         }
+        snapshotAvailabilityStore?.setSnapshotAvailable(true, forIdentityKey: identityKey)
     }
 
     func loadSnapshot(forIdentityKey identityKey: String) async throws -> String {
@@ -2533,6 +2632,7 @@ final class FakeSecretStore: @unchecked Sendable, AccountSnapshotStoring {
 
             snapshots.removeValue(forKey: identityKey)
         }
+        snapshotAvailabilityStore?.setSnapshotAvailable(false, forIdentityKey: identityKey)
     }
 
     func containsSnapshot(forIdentityKey identityKey: String) async -> Bool {
@@ -2545,7 +2645,7 @@ final class FakeSecretStore: @unchecked Sendable, AccountSnapshotStoring {
         fromLegacyAccountID accountID: UUID,
         toIdentityKey identityKey: String
     ) async throws -> Bool {
-        try withLock {
+        let didMigrate = try withLock {
             if let saveError {
                 throw saveError
             }
@@ -2560,6 +2660,12 @@ final class FakeSecretStore: @unchecked Sendable, AccountSnapshotStoring {
             legacySecrets.removeValue(forKey: accountID)
             return true
         }
+
+        if didMigrate {
+            snapshotAvailabilityStore?.setSnapshotAvailable(true, forIdentityKey: identityKey)
+        }
+
+        return didMigrate
     }
 
     func saveSecret(_ contents: String, for accountID: UUID) async throws {
