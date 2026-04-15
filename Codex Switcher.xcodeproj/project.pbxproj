@@ -178,6 +178,62 @@
 			);
 			target = 1F310E4D2F8DC3E2006AA106 /* Codex Switcher Watch WidgetsExtension */;
 		};
+		1F45922C2F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F87C9552F8406C9007DED25 /* Codex Switcher Tests */;
+		};
+		1F45922D2F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher UI Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F87C95F2F8406C9007DED25 /* Codex Switcher UI Tests */;
+		};
+		1F45922E2F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS App Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F96B5B52F89BF5200044DB7 /* Codex Switcher iOS App Tests */;
+		};
+		1F45922F2F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS App UI Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F96B5BF2F89BF5200044DB7 /* Codex Switcher iOS App UI Tests */;
+		};
+		1F4592302F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1FA0356A2F8AF68400367DD6 /* Codex Switcher Watch App Tests */;
+		};
+		1F4592312F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App UI Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1FA035742F8AF68400367DD6 /* Codex Switcher Watch App UI Tests */;
+		};
+		1F4592322F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS Widgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F1413322F8C7C930013386A /* Codex Switcher iOS Widgets */;
+		};
+		1F4592332F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch WidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F310E4D2F8DC3E2006AA106 /* Codex Switcher Watch WidgetsExtension */;
+		};
 		1F96B5CE2F89BF5200044DB7 /* Exceptions for "Codex Switcher iOS App" folder in "Codex Switcher iOS App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -310,9 +366,17 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				6F4E3D2C1B0A998877665544 /* Exceptions for "Codex Switcher" folder in "Codex Switcher" target */,
+				1F45922C2F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Tests" target */,
+				1F45922D2F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher UI Tests" target */,
 				1FD673A72F8854A5000FB40D /* Exceptions for "Codex Switcher" folder in "Codex Switcher Widgets" target */,
 				1F96B7502F89D34B00044DB7 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS App" target */,
+				1F45922E2F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS App Tests" target */,
+				1F45922F2F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS App UI Tests" target */,
 				1FA0358B2F8AF7D600367DD6 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App" target */,
+				1F4592302F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App Tests" target */,
+				1F4592312F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch App UI Tests" target */,
+				1F4592322F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher iOS Widgets" target */,
+				1F4592332F8FBB6C00590009 /* Exceptions for "Codex Switcher" folder in "Codex Switcher Watch WidgetsExtension" target */,
 			);
 			path = "Codex Switcher";
 			sourceTree = "<group>";

@@ -10,10 +10,23 @@ import Foundation
 import UniformTypeIdentifiers
 
 nonisolated extension UTType {
+    static let legacyCodexAccountArchive = UTType(
+        importedAs: "com.marcel2215.codexswitcher.account-archive"
+    )
     static let codexAccountArchive = UTType(
-        exportedAs: "com.marcel2215.codexswitcher.account-archive",
+        exportedAs: "com.marcel2215.codexswitcher.account-archive-binary",
         conformingTo: .data
     )
+
+    static let openableCodexAccountArchiveTypes: [UTType] = [
+        .codexAccountArchive,
+        .legacyCodexAccountArchive
+    ]
+
+    var isCodexAccountArchiveType: Bool {
+        identifier == UTType.codexAccountArchive.identifier
+            || identifier == UTType.legacyCodexAccountArchive.identifier
+    }
 }
 
 nonisolated enum CodexAccountArchiveError: LocalizedError, Equatable {
@@ -39,6 +52,11 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
     static let currentVersion = 1
     static let fallbackSuggestedFilename = "Codex Account"
     static let archiveFilenameExtension = UTType.codexAccountArchive.preferredFilenameExtension ?? "cxa"
+    static let encodedArchiveHeader = Data([0x43, 0x58, 0x41, 0x01]) // "CXA" + container version 1
+    // LZFSE is Foundation's usual Apple-platform default, but for these small
+    // archives it can preserve readable plist literals in the output. Use zlib
+    // so Finder and Quick Look see opaque bytes instead of previewable text.
+    static let archiveCompressionAlgorithm: NSData.CompressionAlgorithm = .zlib
 
     let version: Int
     let exportedAt: Date
@@ -101,19 +119,33 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
     func encodedData() throws -> Data {
         try validate()
 
-        // Export new archives as binary property lists so `.cxa` stays opaque on
-        // disk while still using a built-in Foundation format that remains easy
-        // to decode safely in future versions.
+        // Wrap the archive plist in a versioned compressed envelope. Binary
+        // plists still expose readable strings in Quick Look previews; the
+        // compressed container keeps `.cxa` opaque while still relying on
+        // Foundation's built-in compression and plist decoders.
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
-        return try encoder.encode(self)
+        let propertyListData = try encoder.encode(self)
+        let compressedPropertyListData = try Self.compressedArchivePayload(from: propertyListData)
+
+        var encodedArchiveData = Self.encodedArchiveHeader
+        encodedArchiveData.append(compressedPropertyListData)
+        return encodedArchiveData
     }
 
     static func decode(from data: Data) throws -> CodexAccountArchive {
-        do {
-            let archive = try PropertyListDecoder().decode(CodexAccountArchive.self, from: data)
+        if let decompressedPropertyListData = try decompressedArchivePayloadIfPresent(in: data) {
+            let archive = try decodePropertyListArchive(from: decompressedPropertyListData)
             try archive.validate()
             return archive
+        }
+
+        do {
+            let archive = try decodePropertyListArchive(from: data)
+            try archive.validate()
+            return archive
+        } catch let error as CodexAccountArchiveError where error == .invalidData {
+            return try decodeLegacyJSONArchive(from: data)
         } catch let error as CodexAccountArchiveError {
             throw error
         } catch {
@@ -161,6 +193,37 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             .trimmingCharacters(in: CharacterSet(charactersIn: ". ").union(.whitespacesAndNewlines))
 
         return cleaned.isEmpty ? "Codex Account" : cleaned
+    }
+
+    private static func compressedArchivePayload(from propertyListData: Data) throws -> Data {
+        try (propertyListData as NSData).compressed(using: archiveCompressionAlgorithm) as Data
+    }
+
+    private static func decompressedArchivePayloadIfPresent(in data: Data) throws -> Data? {
+        guard data.starts(with: encodedArchiveHeader) else {
+            return nil
+        }
+
+        let compressedPayload = data.dropFirst(encodedArchiveHeader.count)
+        guard !compressedPayload.isEmpty else {
+            throw CodexAccountArchiveError.invalidData
+        }
+
+        do {
+            return try (Data(compressedPayload) as NSData).decompressed(using: archiveCompressionAlgorithm) as Data
+        } catch {
+            throw CodexAccountArchiveError.invalidData
+        }
+    }
+
+    private static func decodePropertyListArchive(from data: Data) throws -> CodexAccountArchive {
+        do {
+            return try PropertyListDecoder().decode(CodexAccountArchive.self, from: data)
+        } catch let error as CodexAccountArchiveError {
+            throw error
+        } catch {
+            throw CodexAccountArchiveError.invalidData
+        }
     }
 
     private static func decodeLegacyJSONArchive(from data: Data) throws -> CodexAccountArchive {

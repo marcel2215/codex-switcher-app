@@ -131,7 +131,7 @@ struct ContentView: View {
         )
         .fileImporter(
             isPresented: $controller.isShowingAccountArchiveImporter,
-            allowedContentTypes: [.codexAccountArchive],
+            allowedContentTypes: UTType.openableCodexAccountArchiveTypes,
             onCompletion: controller.handleAccountArchiveImport
         )
         .fileDialogCustomizationID("codex-auth-location")

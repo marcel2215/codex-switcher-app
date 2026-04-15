@@ -31,7 +31,7 @@ struct CodexAccountArchiveTests {
         #expect(decodedArchive.suggestedFilename == "Work Account")
     }
 
-    @Test func archiveEncodingUsesBinaryPropertyListFormat() throws {
+    @Test func archiveEncodingUsesOpaqueCompressedContainerFormat() throws {
         let archive = CodexAccountArchive(
             name: "Binary Archive",
             iconSystemName: "archivebox.fill",
@@ -44,11 +44,39 @@ struct CodexAccountArchiveTests {
 
         let encodedData = try archive.encodedData()
 
-        #expect(encodedData.starts(with: Data("bplist".utf8)))
+        #expect(encodedData.starts(with: CodexAccountArchive.encodedArchiveHeader))
+        #expect(encodedData.starts(with: Data("bplist".utf8)) == false)
+        #expect(encodedData.range(of: Data("Binary Archive".utf8)) == nil)
+        #expect(encodedData.range(of: Data("access_token".utf8)) == nil)
     }
 
     @Test func archiveTypeStillBehavesLikeAFileDataType() {
         #expect(UTType.codexAccountArchive.conforms(to: .data))
+        #expect(UTType.codexAccountArchive.identifier == "com.marcel2215.codexswitcher.account-archive-binary")
+    }
+
+    @Test func legacyArchiveTypeStillRecognizesOlderIdentifiers() {
+        #expect(UTType.legacyCodexAccountArchive.identifier == "com.marcel2215.codexswitcher.account-archive")
+        #expect(UTType.legacyCodexAccountArchive.isCodexAccountArchiveType)
+        #expect(UTType.codexAccountArchive.isCodexAccountArchiveType)
+    }
+
+    @Test func decodeAcceptsLegacyBinaryPropertyListArchives() throws {
+        let archive = CodexAccountArchive(
+            name: "Legacy Binary Archive",
+            iconSystemName: "archivebox.fill",
+            identityKey: "chatgpt:abc123",
+            authModeRaw: CodexAuthMode.chatgpt.rawValue,
+            emailHint: "legacy@example.com",
+            accountIdentifier: "workspace-123",
+            snapshotContents: #"{"tokens":{"access_token":"abc"}}"#
+        )
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
+
+        let decodedArchive = try CodexAccountArchive.decode(from: try encoder.encode(archive))
+
+        #expect(decodedArchive == archive)
     }
 
     @Test func decodeAcceptsLegacyJSONArchives() throws {

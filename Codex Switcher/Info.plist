@@ -13,8 +13,23 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
+				<string>com.marcel2215.codexswitcher.account-archive-binary</string>
 				<string>com.marcel2215.codexswitcher.account-archive</string>
 			</array>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.content</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Codex Switcher Account Archive (Legacy)</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.marcel2215.codexswitcher.account-archive</string>
 		</dict>
 	</array>
 	<key>UTExportedTypeDeclarations</key>
@@ -28,7 +43,7 @@
 			<key>UTTypeDescription</key>
 			<string>Codex Switcher Account Archive</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.marcel2215.codexswitcher.account-archive</string>
+			<string>com.marcel2215.codexswitcher.account-archive-binary</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

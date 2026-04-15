@@ -454,7 +454,7 @@ final class IOSAccountsController {
 
     private static func isAccountArchiveURL(_ url: URL) -> Bool {
         if let contentType = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType,
-           contentType.conforms(to: .codexAccountArchive) {
+           contentType.isCodexAccountArchiveType {
             return true
         }
 
