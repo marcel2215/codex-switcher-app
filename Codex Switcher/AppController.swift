@@ -616,6 +616,12 @@ final class AppController {
                 return
             }
 
+            let normalizedLegacyFields = account.normalizeLegacyLocalOnlyFields()
+            guard account.name != trimmedName || normalizedLegacyFields else {
+                renameTargetID = nil
+                return
+            }
+
             account.name = trimmedName
             try requireModelContext().save()
             renameTargetID = nil
@@ -632,7 +638,8 @@ final class AppController {
             }
 
             let resolvedSystemName = AccountIconOption.resolve(from: icon.systemName).systemName
-            guard account.iconSystemName != resolvedSystemName else {
+            let normalizedLegacyFields = account.normalizeLegacyLocalOnlyFields()
+            guard account.iconSystemName != resolvedSystemName || normalizedLegacyFields else {
                 return
             }
 
@@ -832,6 +839,7 @@ final class AppController {
             selection = [targetAccount.id]
             renameTargetID = nil
             targetAccount.lastLoginAt = .now
+            _ = targetAccount.normalizeLegacyLocalOnlyFields()
 
             do {
                 try modelContext.save()

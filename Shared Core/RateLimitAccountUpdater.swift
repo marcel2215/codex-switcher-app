@@ -20,7 +20,7 @@ enum RateLimitAccountUpdater {
             return false
         }
 
-        var didChange = false
+        var didChange = account.normalizeLegacyLocalOnlyFields()
 
         if account.rateLimitsObservedAt != adjustedSnapshot.observedAt {
             account.rateLimitsObservedAt = adjustedSnapshot.observedAt

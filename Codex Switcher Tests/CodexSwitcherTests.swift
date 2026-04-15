@@ -85,7 +85,7 @@ struct CodexSwitcherTests {
         #expect(account.name == "acct-123@example.com")
         #expect(account.iconSystemName == AccountIconOption.defaultOption.systemName)
         #expect(account.authFileContents == nil)
-        #expect(account.hasLocalSnapshot)
+        #expect(account.hasLocalSnapshot == false)
         #expect(await secretStore.secret(forIdentityKey: account.identityKey) == makeChatGPTAuthJSON(accountID: "acct-123"))
         #expect(await syncedRateLimitCredentialStore.containsCredential(forIdentityKey: account.identityKey))
         #expect(await syncedRateLimitCredentialStore.saveCallCount() == 1)
@@ -187,7 +187,7 @@ struct CodexSwitcherTests {
 
         let migratedAccount = try #require(fetchAccounts(in: container.mainContext).first)
         #expect(migratedAccount.authFileContents == nil)
-        #expect(migratedAccount.hasLocalSnapshot)
+        #expect(migratedAccount.hasLocalSnapshot == false)
         #expect(await secretStore.secret(forIdentityKey: migratedAccount.identityKey) == legacyContents)
         #expect(await syncedRateLimitCredentialStore.containsCredential(forIdentityKey: migratedAccount.identityKey))
     }
@@ -1219,7 +1219,7 @@ struct CodexSwitcherTests {
         #expect(controller.activeIdentityKey == targetSnapshot.identityKey)
         let storedAccount = try #require(fetchAccounts(in: container.mainContext).first)
         #expect(storedAccount.authFileContents == nil)
-        #expect(storedAccount.hasLocalSnapshot)
+        #expect(storedAccount.hasLocalSnapshot == false)
         #expect(await secretStore.secret(forIdentityKey: targetSnapshot.identityKey) == targetContents)
     }
 
@@ -2187,7 +2187,7 @@ struct CodexSwitcherTests {
         #expect(reconciledAccount.customOrder == 0)
         #expect(reconciledAccount.iconSystemName == AccountIconOption.briefcase.systemName)
         #expect(reconciledAccount.authFileContents == nil)
-        #expect(reconciledAccount.hasLocalSnapshot)
+        #expect(reconciledAccount.hasLocalSnapshot == false)
         #expect(await secretStore.secret(forIdentityKey: snapshot.identityKey) == duplicateContents)
     }
 }
