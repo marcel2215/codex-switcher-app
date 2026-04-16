@@ -6,10 +6,16 @@
 //
 
 import Observation
+import OSLog
 import SwiftData
 import SwiftUI
 
 struct AccountsRootView: View {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+        category: "AccountsRootView"
+    )
+
     private enum ActiveAlert: Identifiable {
         case error(PresentedError)
         case removal(StoredAccount)
@@ -38,6 +44,7 @@ struct AccountsRootView: View {
     @State private var compactNavigationPath = NavigationPath()
     @State private var selectedAccountID: UUID?
     @State private var selectedAccountIDsForEditing: Set<UUID> = []
+    @State private var pendingSpotlightAccountIdentityKey: String?
     @State private var showingSettings = false
     @State private var accountPendingDeletion: StoredAccount?
     @State private var sortPreferences = CloudSortPreferences()
@@ -251,6 +258,8 @@ struct AccountsRootView: View {
         publishWidgetSnapshot()
         refreshHomeScreenQuickActions()
         applyPendingQuickActionIfPossible()
+        consumePendingAccountOpenRequestIfPossible()
+        applyPendingSpotlightAccountOpenIfPossible()
         openNotificationSettingsIfRequested()
     }
 
@@ -278,6 +287,7 @@ struct AccountsRootView: View {
         publishWidgetSnapshot()
         refreshHomeScreenQuickActions()
         applyPendingQuickActionIfPossible()
+        consumePendingAccountOpenRequestIfPossible()
         openNotificationSettingsIfRequested()
     }
 
@@ -307,10 +317,12 @@ struct AccountsRootView: View {
 
         selectedAccountIDsForEditing.formIntersection(Set(ids))
         applyPendingQuickActionIfPossible()
+        applyPendingSpotlightAccountOpenIfPossible()
     }
 
     private func handleIdentityKeysChange(_ identityKeys: [String]) {
         rateLimitRefreshController.reconcileKnownIdentityKeys(identityKeys)
+        applyPendingSpotlightAccountOpenIfPossible()
     }
 
     private func handleDisplayedAccountIDsChange(_ ids: [UUID]) {
@@ -717,12 +729,63 @@ struct AccountsRootView: View {
         editMode = .inactive
         selectedAccountIDsForEditing.removeAll()
         selectedAccountID = importedAccountID
+        controller.searchText = ""
 
         if usesCompactNavigation {
             var updatedPath = NavigationPath()
             updatedPath.append(importedAccountID)
             compactNavigationPath = updatedPath
         }
+    }
+
+    @discardableResult
+    private func focusAccount(withIdentityKey identityKey: String) -> Bool {
+        let normalizedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let account = accounts.first(where: { $0.identityKey == normalizedIdentityKey }) else {
+            return false
+        }
+
+        editMode = .inactive
+        selectedAccountIDsForEditing.removeAll()
+        selectedAccountID = account.id
+        controller.searchText = ""
+        pendingSpotlightAccountIdentityKey = nil
+
+        if usesCompactNavigation {
+            var updatedPath = NavigationPath()
+            updatedPath.append(account.id)
+            compactNavigationPath = updatedPath
+        }
+
+        return true
+    }
+
+    private func consumePendingAccountOpenRequestIfPossible() {
+        guard scenePhase == .active else {
+            return
+        }
+
+        do {
+            guard let request = try CodexPendingAccountOpenRequestStore().consume() else {
+                return
+            }
+
+            if !focusAccount(withIdentityKey: request.identityKey) {
+                pendingSpotlightAccountIdentityKey = request.identityKey
+            }
+        } catch {
+            Self.logger.error(
+                "Couldn't consume pending account-open request: \(String(describing: error), privacy: .private)"
+            )
+        }
+    }
+
+    private func applyPendingSpotlightAccountOpenIfPossible() {
+        guard let pendingSpotlightAccountIdentityKey else {
+            return
+        }
+
+        _ = focusAccount(withIdentityKey: pendingSpotlightAccountIdentityKey)
     }
 
     private func syncRegularSelectedRateLimitTracking(for accountID: UUID?) {

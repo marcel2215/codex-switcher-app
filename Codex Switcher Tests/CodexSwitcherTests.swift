@@ -15,6 +15,30 @@ import Testing
 @Suite(.serialized)
 @MainActor
 struct CodexSwitcherTests {
+    @Test func pendingAccountOpenRequestRoundTripsAndConsumesOnce() throws {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        let store = CodexPendingAccountOpenRequestStore(baseURL: temporaryDirectory)
+
+        try store.save(identityKey: "chatgpt:auth0|acct/with spaces+symbols")
+
+        let firstRead = try #require(try store.consume())
+        #expect(firstRead.identityKey == "chatgpt:auth0|acct/with spaces+symbols")
+        let secondRead = try store.consume()
+        #expect(secondRead == nil)
+    }
+
+    @Test func pendingAccountOpenRequestRejectsBlankIdentityKeys() {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let store = CodexPendingAccountOpenRequestStore(baseURL: temporaryDirectory)
+
+        #expect(throws: CodexPendingAccountOpenRequestError.missingIdentityKey) {
+            try store.save(identityKey: "   ")
+        }
+    }
+
     @Test func parsesChatGPTAuthFile() throws {
         let rawContents = makeChatGPTAuthJSON(
             accountID: "acct-123",

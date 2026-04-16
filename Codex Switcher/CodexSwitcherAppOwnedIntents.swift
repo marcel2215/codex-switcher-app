@@ -29,6 +29,16 @@ struct CodexSwitcherAppShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
+            intent: OpenCodexAccountIntent(),
+            phrases: [
+                "Open \(\.$target) in \(.applicationName)",
+                "Show \(\.$target) in \(.applicationName)",
+            ],
+            shortTitle: "Open Account",
+            systemImageName: "person.text.rectangle"
+        )
+
+        AppShortcut(
             intent: SwitchAccountIntent(),
             phrases: [
                 "Switch Codex account in \(.applicationName)",

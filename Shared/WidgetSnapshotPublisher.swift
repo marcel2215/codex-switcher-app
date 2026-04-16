@@ -75,6 +75,11 @@ enum WidgetSnapshotPublisher {
             try store.save(sharedState)
             Task(priority: .utility) {
                 await RateLimitResetNotificationScheduler.shared.synchronize(with: sharedState)
+                do {
+                    try await CodexSpotlightIndexer.refresh(with: sharedState)
+                } catch {
+                    logger.error("Couldn't refresh Spotlight index: \(String(describing: error), privacy: .private)")
+                }
             }
             CodexSharedSurfaceReloader.reloadAllRateLimitWidgets()
         } catch {

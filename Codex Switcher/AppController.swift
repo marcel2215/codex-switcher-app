@@ -7,7 +7,6 @@
 
 import AppKit
 import AppIntents
-import CoreSpotlight
 import Foundation
 import IOKit.ps
 import Observation
@@ -104,6 +103,7 @@ final class AppController {
     @ObservationIgnored private var activeSwitchOperationID: UUID?
     @ObservationIgnored nonisolated(unsafe) private var remoteSwitchObserver: NSObjectProtocol?
     @ObservationIgnored nonisolated(unsafe) private var sharedCommandObserver: NSObjectProtocol?
+    @ObservationIgnored nonisolated(unsafe) private var pendingAccountOpenObserver: NSObjectProtocol?
     @ObservationIgnored private var systemStateObservationTasks: [Task<Void, Never>] = []
     @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitPollingTask: Task<Void, Never>?
@@ -182,6 +182,9 @@ final class AppController {
         if let sharedCommandObserver {
             DistributedNotificationCenter.default().removeObserver(sharedCommandObserver)
         }
+        if let pendingAccountOpenObserver {
+            DistributedNotificationCenter.default().removeObserver(pendingAccountOpenObserver)
+        }
         systemStateObservationTasks.forEach { $0.cancel() }
     }
 
@@ -219,6 +222,7 @@ final class AppController {
         startObservingRemoteSwitchesIfNeeded()
         if !Self.isRunningMainApplicationUnitTests {
             startObservingSharedCommandsIfNeeded()
+            startObservingPendingAccountOpenRequestsIfNeeded()
         }
         startObservingSystemStateIfNeeded()
 
@@ -386,6 +390,7 @@ final class AppController {
             scheduleAutopilotEvaluationSoon(trigger: .appBecameActive)
             Task { @MainActor [weak self] in
                 await self?.remoteDeletionCleanup?.consumeHistoryIfNeeded()
+                await self?.consumePendingAccountOpenRequestIfNeeded()
             }
         }
 
@@ -1461,6 +1466,22 @@ final class AppController {
                 }
 
                 self.requestPendingSharedCommandsProcessing()
+            }
+        }
+    }
+
+    private func startObservingPendingAccountOpenRequestsIfNeeded() {
+        guard pendingAccountOpenObserver == nil else {
+            return
+        }
+
+        pendingAccountOpenObserver = DistributedNotificationCenter.default().addObserver(
+            forName: CodexPendingAccountOpenSignal.didRequestOpenAccountNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.consumePendingAccountOpenRequestIfNeeded()
             }
         }
     }
@@ -3357,7 +3378,7 @@ final class AppController {
                 await RateLimitResetNotificationScheduler.shared.synchronize(with: sharedState)
                 try Task.checkCancellation()
                 do {
-                    try await Self.refreshSpotlightIndex(with: sharedState)
+                    try await CodexSpotlightIndexer.refresh(with: sharedState)
                 } catch {
                     sharedStateLogger.error(
                         "Couldn't refresh Spotlight index from shared state: \(String(describing: error), privacy: .private)"
@@ -3412,18 +3433,6 @@ final class AppController {
         )
     }
 
-    private nonisolated static func refreshSpotlightIndex(with sharedState: SharedCodexState) async throws {
-        let searchableIndex = CSSearchableIndex.default()
-        try await searchableIndex.deleteAppEntities(ofType: CodexAccountEntity.self)
-
-        let entities = CodexSharedAccountIntentResolver.allEntities(in: sharedState)
-        guard !entities.isEmpty else {
-            return
-        }
-
-        try await searchableIndex.indexAppEntities(entities)
-    }
-
     private func selectedSharedAccountIdentityKey(from accounts: [StoredAccount]) -> String? {
         guard isPrimarySelectionContextPresented else {
             return nil
@@ -3449,6 +3458,51 @@ final class AppController {
         let modelContext = try requireModelContext()
         let descriptor = FetchDescriptor<StoredAccount>()
         return try modelContext.fetch(descriptor)
+    }
+
+    private func consumePendingAccountOpenRequestIfNeeded() async {
+        await waitForInitializationIfNeeded()
+
+        do {
+            guard let request = try CodexPendingAccountOpenRequestStore().consume() else {
+                return
+            }
+
+            _ = await revealAccount(withIdentityKey: request.identityKey)
+        } catch {
+            logger.error(
+                "Couldn't consume pending account-open request: \(String(describing: error), privacy: .private)"
+            )
+        }
+    }
+
+    @discardableResult
+    private func revealAccount(withIdentityKey identityKey: String) async -> Bool {
+        await waitForInitializationIfNeeded()
+
+        let normalizedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedIdentityKey.isEmpty else {
+            return false
+        }
+
+        do {
+            guard let account = try fetchAccounts().first(where: { $0.identityKey == normalizedIdentityKey }) else {
+                logger.error(
+                    "Ignoring pending account-open request because no saved account matched \(normalizedIdentityKey, privacy: .private)"
+                )
+                return false
+            }
+
+            // Spotlight results should reveal the account even if a stale search
+            // filter would otherwise keep the selected row off-screen.
+            searchText = ""
+            selection = [account.id]
+            requestImmediateRateLimitRefresh(for: account.identityKey)
+            return true
+        } catch {
+            logger.error("Couldn't reveal requested account: \(String(describing: error), privacy: .private)")
+            return false
+        }
     }
 
     private func account(withID id: UUID) throws -> StoredAccount? {
