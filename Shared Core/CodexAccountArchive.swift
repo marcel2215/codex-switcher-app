@@ -49,7 +49,61 @@ nonisolated enum CodexAccountArchiveError: LocalizedError, Equatable {
 /// A portable account export that preserves the auth snapshot plus the
 /// user-visible metadata needed to recreate a recognizable account entry.
 nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
-    static let currentVersion = 1
+    nonisolated struct Account: Codable, Sendable, Equatable, Identifiable {
+        let name: String?
+        let iconSystemName: String?
+        let identityKey: String?
+        let authModeRaw: String?
+        let emailHint: String?
+        let accountIdentifier: String?
+        let snapshotContents: String
+
+        var id: String {
+            identityKey ?? "snapshot:\(snapshotContents)"
+        }
+
+        init(
+            name: String?,
+            iconSystemName: String?,
+            identityKey: String?,
+            authModeRaw: String?,
+            emailHint: String?,
+            accountIdentifier: String?,
+            snapshotContents: String
+        ) {
+            self.name = CodexAccountArchive.normalizedOptionalString(name)
+            self.iconSystemName = CodexAccountArchive.normalizedOptionalString(iconSystemName)
+            self.identityKey = CodexAccountArchive.normalizedOptionalString(identityKey)
+            self.authModeRaw = CodexAccountArchive.normalizedOptionalString(authModeRaw)
+            self.emailHint = CodexAccountArchive.normalizedOptionalString(emailHint)
+            self.accountIdentifier = CodexAccountArchive.normalizedOptionalString(accountIdentifier)
+            self.snapshotContents = snapshotContents
+        }
+
+        var preferredStoredName: String? {
+            CodexAccountArchive.normalizedOptionalString(name)
+        }
+
+        var resolvedIconSystemName: String {
+            CodexAccountArchive.normalizedOptionalString(iconSystemName) ?? "key.fill"
+        }
+
+        var suggestedFilename: String {
+            let preferredBaseName = preferredStoredName
+                ?? CodexAccountArchive.normalizedOptionalString(emailHint)
+                ?? CodexAccountArchive.normalizedOptionalString(accountIdentifier)
+                ?? CodexAccountArchive.fallbackSuggestedFilename
+            return CodexAccountArchive.sanitizedFilenameComponent(preferredBaseName)
+        }
+
+        fileprivate func validate() throws {
+            guard !snapshotContents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw CodexAccountArchiveError.missingSnapshotContents
+            }
+        }
+    }
+
+    static let currentVersion = 2
     static let fallbackSuggestedFilename = "Codex Account"
     static let archiveFilenameExtension = UTType.codexAccountArchive.preferredFilenameExtension ?? "cxa"
     static let encodedArchiveHeader = Data([0x43, 0x58, 0x41, 0x01]) // "CXA" + container version 1
@@ -60,16 +114,20 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
 
     let version: Int
     let exportedAt: Date
-    let name: String?
-    let iconSystemName: String?
-    let identityKey: String?
-    let authModeRaw: String?
-    let emailHint: String?
-    let accountIdentifier: String?
-    let snapshotContents: String
+    let accounts: [Account]
 
     init(
-        version: Int = 1,
+        version: Int = currentVersion,
+        exportedAt: Date = Date(),
+        accounts: [Account]
+    ) {
+        self.version = version
+        self.exportedAt = exportedAt
+        self.accounts = accounts
+    }
+
+    init(
+        version: Int = currentVersion,
         exportedAt: Date = Date(),
         name: String?,
         iconSystemName: String?,
@@ -79,31 +137,127 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         accountIdentifier: String?,
         snapshotContents: String
     ) {
-        self.version = version
+        self.init(
+            version: version,
+            exportedAt: exportedAt,
+            accounts: [
+                Account(
+                    name: name,
+                    iconSystemName: iconSystemName,
+                    identityKey: identityKey,
+                    authModeRaw: authModeRaw,
+                    emailHint: emailHint,
+                    accountIdentifier: accountIdentifier,
+                    snapshotContents: snapshotContents
+                )
+            ]
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case version
+        case exportedAt
+        case accounts
+        case name
+        case iconSystemName
+        case identityKey
+        case authModeRaw
+        case emailHint
+        case accountIdentifier
+        case snapshotContents
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedVersion = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        let exportedAt = try container.decodeIfPresent(Date.self, forKey: .exportedAt) ?? .now
+
+        if let accounts = try container.decodeIfPresent([Account].self, forKey: .accounts), !accounts.isEmpty {
+            self.version = decodedVersion
+            self.exportedAt = exportedAt
+            self.accounts = accounts
+            return
+        }
+
+        self.version = Self.currentVersion
         self.exportedAt = exportedAt
-        self.name = Self.normalizedOptionalString(name)
-        self.iconSystemName = Self.normalizedOptionalString(iconSystemName)
-        self.identityKey = Self.normalizedOptionalString(identityKey)
-        self.authModeRaw = Self.normalizedOptionalString(authModeRaw)
-        self.emailHint = Self.normalizedOptionalString(emailHint)
-        self.accountIdentifier = Self.normalizedOptionalString(accountIdentifier)
-        self.snapshotContents = snapshotContents
+        let name = try container.decodeIfPresent(String.self, forKey: .name)
+        let iconSystemName = try container.decodeIfPresent(String.self, forKey: .iconSystemName)
+        let identityKey = try container.decodeIfPresent(String.self, forKey: .identityKey)
+        let authModeRaw = try container.decodeIfPresent(String.self, forKey: .authModeRaw)
+        let emailHint = try container.decodeIfPresent(String.self, forKey: .emailHint)
+        let accountIdentifier = try container.decodeIfPresent(String.self, forKey: .accountIdentifier)
+        let snapshotContents = try container.decode(String.self, forKey: .snapshotContents)
+        self.accounts = [
+            Account(
+                name: name,
+                iconSystemName: iconSystemName,
+                identityKey: identityKey,
+                authModeRaw: authModeRaw,
+                emailHint: emailHint,
+                accountIdentifier: accountIdentifier,
+                snapshotContents: snapshotContents
+            )
+        ]
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        try container.encode(exportedAt, forKey: .exportedAt)
+        try container.encode(accounts, forKey: .accounts)
+    }
+
+    var containsMultipleAccounts: Bool {
+        accounts.count > 1
+    }
+
+    var primaryAccount: Account? {
+        accounts.first
     }
 
     var preferredStoredName: String? {
-        Self.normalizedOptionalString(name)
+        primaryAccount?.preferredStoredName
     }
 
     var resolvedIconSystemName: String {
-        Self.normalizedOptionalString(iconSystemName) ?? "key.fill"
+        primaryAccount?.resolvedIconSystemName ?? "key.fill"
     }
 
     var suggestedFilename: String {
-        let preferredBaseName = preferredStoredName
-            ?? Self.normalizedOptionalString(emailHint)
-            ?? Self.normalizedOptionalString(accountIdentifier)
-            ?? Self.fallbackSuggestedFilename
-        return Self.sanitizedFilenameComponent(preferredBaseName)
+        if accounts.count == 1, let primaryAccount {
+            return primaryAccount.suggestedFilename
+        }
+
+        return Self.sanitizedFilenameComponent("\(accounts.count) Codex Accounts")
+    }
+
+    var name: String? {
+        primaryAccount?.name
+    }
+
+    var iconSystemName: String? {
+        primaryAccount?.iconSystemName
+    }
+
+    var identityKey: String? {
+        primaryAccount?.identityKey
+    }
+
+    var authModeRaw: String? {
+        primaryAccount?.authModeRaw
+    }
+
+    var emailHint: String? {
+        primaryAccount?.emailHint
+    }
+
+    var accountIdentifier: String? {
+        primaryAccount?.accountIdentifier
+    }
+
+    var snapshotContents: String {
+        primaryAccount?.snapshotContents ?? ""
     }
 
     static func exportFilename(for rawValue: String) -> String {
@@ -158,9 +312,11 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             throw CodexAccountArchiveError.unsupportedVersion(version)
         }
 
-        guard !snapshotContents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw CodexAccountArchiveError.missingSnapshotContents
+        guard !accounts.isEmpty else {
+            throw CodexAccountArchiveError.invalidData
         }
+
+        try accounts.forEach { try $0.validate() }
     }
 
     private static func normalizedOptionalString(_ value: String?) -> String? {
@@ -291,6 +447,35 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
     }
 }
 
+nonisolated struct CodexAccountArchiveBatchExportRequest: Sendable, Equatable {
+    let accounts: [CodexAccountArchiveExportRequest]
+
+    init(accounts: [CodexAccountArchiveExportRequest]) {
+        var seenIdentityKeys = Set<String>()
+        self.accounts = accounts.filter { request in
+            seenIdentityKeys.insert(request.identityKey).inserted
+        }
+    }
+
+    var resolvedSuggestedFilename: String {
+        guard let firstAccount = accounts.first else {
+            return CodexAccountArchive.fallbackSuggestedFilename
+        }
+
+        if accounts.count == 1 {
+            return firstAccount.resolvedSuggestedFilename
+        }
+
+        return CodexAccountArchive.normalizedExportFilenameStem(from: "\(accounts.count) Codex Accounts")
+    }
+
+    var availabilityKey: String {
+        accounts
+            .map { "\($0.identityKey)|\($0.hasLocalSnapshot)" }
+            .joined(separator: ",")
+    }
+}
+
 actor CodexAccountArchiveFileExporter {
     private let snapshotStore: AccountSnapshotStoring
     private let fileManager: FileManager
@@ -307,24 +492,55 @@ actor CodexAccountArchiveFileExporter {
     }
 
     func canExport(_ request: CodexAccountArchiveExportRequest) async -> Bool {
-        await snapshotStore.containsSnapshot(forIdentityKey: request.identityKey)
+        await canExport(CodexAccountArchiveBatchExportRequest(accounts: [request]))
+    }
+
+    func canExport(_ request: CodexAccountArchiveBatchExportRequest) async -> Bool {
+        guard !request.accounts.isEmpty else {
+            return false
+        }
+
+        for account in request.accounts {
+            guard await snapshotStore.containsSnapshot(forIdentityKey: account.identityKey) else {
+                return false
+            }
+        }
+
+        return true
     }
 
     func exportData(for request: CodexAccountArchiveExportRequest) async throws -> Data {
-        let snapshotContents = try await snapshotStore.loadSnapshot(forIdentityKey: request.identityKey)
-        let archive = CodexAccountArchive(
-            name: request.name,
-            iconSystemName: request.iconSystemName,
-            identityKey: request.identityKey,
-            authModeRaw: request.authModeRaw,
-            emailHint: request.emailHint,
-            accountIdentifier: request.accountIdentifier,
-            snapshotContents: snapshotContents
-        )
+        try await exportData(for: CodexAccountArchiveBatchExportRequest(accounts: [request]))
+    }
+
+    func exportData(for request: CodexAccountArchiveBatchExportRequest) async throws -> Data {
+        var archiveAccounts: [CodexAccountArchive.Account] = []
+        archiveAccounts.reserveCapacity(request.accounts.count)
+
+        for account in request.accounts {
+            let snapshotContents = try await snapshotStore.loadSnapshot(forIdentityKey: account.identityKey)
+            archiveAccounts.append(
+                CodexAccountArchive.Account(
+                    name: account.name,
+                    iconSystemName: account.iconSystemName,
+                    identityKey: account.identityKey,
+                    authModeRaw: account.authModeRaw,
+                    emailHint: account.emailHint,
+                    accountIdentifier: account.accountIdentifier,
+                    snapshotContents: snapshotContents
+                )
+            )
+        }
+
+        let archive = CodexAccountArchive(accounts: archiveAccounts)
         return try archive.encodedData()
     }
 
     func exportFile(for request: CodexAccountArchiveExportRequest) async throws -> URL {
+        try await exportFile(for: CodexAccountArchiveBatchExportRequest(accounts: [request]))
+    }
+
+    func exportFile(for request: CodexAccountArchiveBatchExportRequest) async throws -> URL {
         let archiveData = try await exportData(for: request)
 
         try fileManager.createDirectory(
@@ -356,18 +572,35 @@ actor CodexAccountArchiveFileExporter {
 
 /// Exposes a `.cxa` archive as a modern Transferable so the same item can back
 /// drag-and-drop, `ShareLink`, and SwiftUI's latest `fileExporter(item:)` API.
-nonisolated struct CodexAccountArchiveTransferItem: Transferable, Sendable {
-    let request: CodexAccountArchiveExportRequest
+nonisolated struct CodexAccountArchiveTransferItem: Transferable, Sendable, Identifiable {
+    let id: UUID
+    let request: CodexAccountArchiveBatchExportRequest
     let reorderToken: String
 
     fileprivate let exporter: CodexAccountArchiveFileExporter
 
     init(
+        id: UUID = UUID(),
         request: CodexAccountArchiveExportRequest,
         reorderToken: String = "",
         exporter: CodexAccountArchiveFileExporter
     ) {
-        self.request = request
+        self.init(
+            id: id,
+            requests: [request],
+            reorderToken: reorderToken,
+            exporter: exporter
+        )
+    }
+
+    init(
+        id: UUID,
+        requests: [CodexAccountArchiveExportRequest],
+        reorderToken: String = "",
+        exporter: CodexAccountArchiveFileExporter
+    ) {
+        self.id = id
+        self.request = CodexAccountArchiveBatchExportRequest(accounts: requests)
         self.reorderToken = reorderToken
         self.exporter = exporter
     }
@@ -381,7 +614,7 @@ nonisolated struct CodexAccountArchiveTransferItem: Transferable, Sendable {
     }
 
     var availabilityKey: String {
-        "\(request.identityKey)|\(request.hasLocalSnapshot)"
+        "\(id.uuidString)|\(request.availabilityKey)"
     }
 
     func canExport() async -> Bool {

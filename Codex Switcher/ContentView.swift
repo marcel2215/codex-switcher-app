@@ -16,10 +16,22 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.undoManager) private var undoManager
     @Query private var accounts: [StoredAccount]
+    @FocusState private var focusedRenameAccountID: UUID?
+    @State private var accountListItems: [AccountListItem] = []
     @State private var iconPickerAccountID: UUID?
+    @State private var pendingCustomOrderIDs: [UUID]?
 
     private var displayedAccounts: [StoredAccount] {
         controller.displayedAccounts(from: accounts)
+    }
+
+    private var displayedAccountListItems: [AccountListItem] {
+        displayedAccounts.map { account in
+            AccountListItem(
+                account: account,
+                isCurrentAccount: controller.activeIdentityKey == account.identityKey
+            )
+        }
     }
 
     private var undoManagerTaskID: ObjectIdentifier? {
@@ -32,6 +44,20 @@ struct ContentView: View {
         }
 
         return accounts.first(where: { $0.id == iconPickerAccountID })
+    }
+
+    private var emptyAccountsTitle: String {
+        controller.searchText.isEmpty ? "No Accounts" : "No Results"
+    }
+
+    private var emptyAccountsSystemImage: String {
+        controller.searchText.isEmpty ? "person.crop.rectangle.stack" : "magnifyingglass"
+    }
+
+    private var emptyAccountsDescription: String {
+        controller.searchText.isEmpty
+            ? "Click the plus button to add the currently used account."
+            : "Try a different search term."
     }
 
     private var isShowingIconPicker: Binding<Bool> {
@@ -56,29 +82,9 @@ struct ContentView: View {
 
             Group {
                 if displayedAccounts.isEmpty {
-                    ContentUnavailableView(
-                        controller.searchText.isEmpty ? "No Accounts" : "No Results",
-                        systemImage: controller.searchText.isEmpty ? "person.crop.rectangle.stack" : "magnifyingglass",
-                        description: Text(
-                            controller.searchText.isEmpty
-                                ? "Click the plus button to add the currently used account."
-                                : "Try a different search term."
-                        )
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    emptyAccountsView
                 } else {
-                    List(selection: $controller.selection) {
-                        ForEach(displayedAccounts) { account in
-                            accountListRow(for: account)
-                        }
-                        .dropDestination(for: String.self) { items, index in
-                            controller.reorderDraggedAccounts(
-                                items,
-                                to: index,
-                                visibleAccounts: displayedAccounts
-                            )
-                        }
-                    }
+                    accountList
                 }
             }
         }
@@ -177,9 +183,28 @@ struct ContentView: View {
         .task {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
             controller.setApplicationActive(NSApplication.shared.isActive)
+            syncAccountListItems(with: displayedAccountListItems)
         }
         .task(id: undoManagerTaskID) {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
+        }
+        .onAppear {
+            syncAccountListItems(with: displayedAccountListItems)
+        }
+        .onChange(of: displayedAccountListItems) { _, newItems in
+            syncAccountListItems(with: newItems)
+        }
+        .onChange(of: accountListItems.map(\.id)) { _, reorderedIDs in
+            persistVisibleAccountOrderIfNeeded(reorderedIDs)
+        }
+        .onChange(of: controller.canEditCustomOrder) { _, canEditCustomOrder in
+            if !canEditCustomOrder {
+                pendingCustomOrderIDs = nil
+            }
+            syncAccountListItems(with: displayedAccountListItems)
+        }
+        .onChange(of: controller.renameTargetID) { _, newValue in
+            handleRenameTargetChange(newValue)
         }
         .onAppear {
             controller.setPrimarySelectionContextPresented(true)
@@ -247,6 +272,42 @@ struct ContentView: View {
         .accessibilityIdentifier("auth-status-banner")
     }
 
+    private var emptyAccountsView: some View {
+        ContentUnavailableView(
+            emptyAccountsTitle,
+            systemImage: emptyAccountsSystemImage,
+            description: Text(emptyAccountsDescription)
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var accountList: some View {
+        if controller.canEditCustomOrder {
+            List(
+                $accountListItems,
+                editActions: [.move],
+                selection: $controller.selection
+            ) { $item in
+                accountListEntry(for: item, draftName: $item.name)
+            }
+            .contextMenu(forSelectionType: UUID.self) { targetIDs in
+                accountContextMenu(forSelectionIDs: targetIDs)
+            } primaryAction: { targetIDs in
+                handlePrimaryAction(forSelectionIDs: targetIDs)
+            }
+        } else {
+            List($accountListItems, selection: $controller.selection) { $item in
+                accountListEntry(for: item, draftName: $item.name)
+            }
+            .contextMenu(forSelectionType: UUID.self) { targetIDs in
+                accountContextMenu(forSelectionIDs: targetIDs)
+            } primaryAction: { targetIDs in
+                handlePrimaryAction(forSelectionIDs: targetIDs)
+            }
+        }
+    }
+
     @ViewBuilder
     private func sortMenuLabel(title: String, isSelected: Bool) -> some View {
         HStack {
@@ -262,49 +323,198 @@ struct ContentView: View {
         Self.supportsRemovalShortcut(modifiers: keyPress.modifiers)
     }
 
-    private func accountListRow(for account: StoredAccount) -> some View {
-        AccountRowView(
-            account: account,
-            isCurrentAccount: controller.activeIdentityKey == account.identityKey,
-            isSelected: controller.selection.contains(account.id),
-            isRenaming: controller.renameTargetID == account.id,
-            canReorder: controller.canEditCustomOrder,
-            exportTransferItem: controller.archiveTransferItem(for: account),
-            onRemove: { controller.removeAccounts(withIDs: [account.id]) },
-            onSelect: { controller.selection = [account.id] },
-            onDoubleClick: {
-                controller.selection = [account.id]
-                controller.login(accountID: account.id)
-            },
-            onCommitRename: { newName in
-                controller.commitRename(for: account.id, proposedName: newName)
-            },
-            onCancelRename: {
-                controller.cancelRename(for: account.id)
+    private func accountListRow(for item: AccountListItem, draftName: Binding<String>) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    if controller.renameTargetID == item.id {
+                        TextField("", text: draftName)
+                            .textFieldStyle(.plain)
+                            .focused($focusedRenameAccountID, equals: item.id)
+                            .onSubmit {
+                                controller.commitRename(for: item.id, proposedName: draftName.wrappedValue)
+                            }
+                            .onChange(of: focusedRenameAccountID) { _, focusedID in
+                                guard controller.renameTargetID == item.id, focusedID != item.id else {
+                                    return
+                                }
+
+                                controller.commitRename(for: item.id, proposedName: draftName.wrappedValue)
+                            }
+                            .onAppear {
+                                focusedRenameAccountID = item.id
+                            }
+                            .onKeyPress(.escape) {
+                                controller.cancelRename(for: item.id)
+                                return .handled
+                            }
+                    } else {
+                        Text(item.name)
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .allowsHitTesting(false)
+                    }
+
+                    AccountMetadataText(
+                        lastLoginAt: item.lastLoginAt,
+                        sevenDayLimitUsedPercent: item.sevenDayLimitUsedPercent,
+                        fiveHourLimitUsedPercent: item.fiveHourLimitUsedPercent,
+                        sevenDayResetsAt: item.sevenDayResetsAt,
+                        fiveHourResetsAt: item.fiveHourResetsAt,
+                        font: .subheadline
+                    )
+                    .allowsHitTesting(false)
+                }
+            } icon: {
+                Image(systemName: item.iconSystemName)
+                    .font(.title3)
+                    .frame(width: 20)
+                    .foregroundStyle(.secondary)
+                    .allowsHitTesting(false)
             }
-        )
-        .contextMenu { accountContextMenu(for: account) }
-        .tag(account.id)
-        .onAppear {
-            controller.setRateLimitVisibility(true, for: account.identityKey)
+
+            Spacer(minLength: 0)
+
+            if item.isCurrentAccount {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.accent)
+                    .help("Currently active in Codex")
+                    .allowsHitTesting(false)
+            }
         }
-        .onDisappear {
-            controller.setRateLimitVisibility(false, for: account.identityKey)
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Keep the row itself presentation-only so the enclosing native list
+        // owns selection, double-click primary action, and row dragging.
+        .contentShape(Rectangle())
+    }
+
+    private func accountListEntry(for item: AccountListItem, draftName: Binding<String>) -> some View {
+        accountListRow(for: item, draftName: draftName)
+            .onAppear {
+                handleRateLimitVisibility(true, for: item.id)
+            }
+            .onDisappear {
+                handleRateLimitVisibility(false, for: item.id)
+            }
+    }
+
+    private func handlePrimaryAction(forSelectionIDs targetIDs: Set<UUID>) {
+        guard
+            controller.renameTargetID == nil,
+            targetIDs.count == 1,
+            let accountID = targetIDs.first
+        else {
+            return
+        }
+
+        controller.selection = targetIDs
+        controller.login(accountID: accountID)
+    }
+
+    private func handleRenameTargetChange(_ newValue: UUID?) {
+        focusedRenameAccountID = newValue
+
+        if newValue == nil {
+            syncAccountListItems(with: displayedAccountListItems)
         }
     }
 
-    private func contextMenuTargetIDs(for accountID: UUID) -> Set<UUID> {
-        Self.contextMenuTargetIDs(
-            clickedAccountID: accountID,
-            currentSelection: controller.selection
-        )
+    private func handleRateLimitVisibility(_ isVisible: Bool, for accountID: UUID) {
+        guard let identityKey = displayedAccounts.first(where: { $0.id == accountID })?.identityKey else {
+            return
+        }
+
+        controller.setRateLimitVisibility(isVisible, for: identityKey)
+    }
+
+    private func syncAccountListItems(with sourceItems: [AccountListItem]) {
+        let sourceIDs = sourceItems.map(\.id)
+
+        if pendingCustomOrderIDs == sourceIDs {
+            pendingCustomOrderIDs = nil
+        }
+
+        let currentItemsByID = Dictionary(uniqueKeysWithValues: accountListItems.map { ($0.id, $0) })
+        let mergedSourceItems = sourceItems.map { sourceItem in
+            guard
+                controller.renameTargetID == sourceItem.id,
+                let currentItem = currentItemsByID[sourceItem.id]
+            else {
+                return sourceItem
+            }
+
+            var mergedItem = sourceItem
+            mergedItem.name = currentItem.name
+            return mergedItem
+        }
+
+        let targetOrderIDs: [UUID]
+        if let pendingCustomOrderIDs,
+           controller.canEditCustomOrder,
+           pendingCustomOrderIDs.count == sourceIDs.count,
+           Set(pendingCustomOrderIDs) == Set(sourceIDs),
+           pendingCustomOrderIDs != sourceIDs {
+            // Keep the user-visible order stable while SwiftData catches up to
+            // a just-finished native move operation.
+            targetOrderIDs = pendingCustomOrderIDs
+        } else {
+            targetOrderIDs = sourceIDs
+        }
+
+        let mergedItemsByID = Dictionary(uniqueKeysWithValues: mergedSourceItems.map { ($0.id, $0) })
+        let orderedItems = targetOrderIDs.compactMap { mergedItemsByID[$0] }
+        let resolvedItems = orderedItems.count == mergedSourceItems.count ? orderedItems : mergedSourceItems
+
+        guard resolvedItems != accountListItems else {
+            return
+        }
+
+        accountListItems = resolvedItems
+    }
+
+    private func persistVisibleAccountOrderIfNeeded(_ reorderedIDs: [UUID]) {
+        guard controller.canEditCustomOrder else {
+            pendingCustomOrderIDs = nil
+            return
+        }
+
+        let visibleIDs = displayedAccountListItems.map(\.id)
+        guard
+            reorderedIDs.count == visibleIDs.count,
+            Set(reorderedIDs) == Set(visibleIDs)
+        else {
+            return
+        }
+
+        guard reorderedIDs != visibleIDs else {
+            if pendingCustomOrderIDs == reorderedIDs {
+                pendingCustomOrderIDs = nil
+            }
+            return
+        }
+
+        pendingCustomOrderIDs = reorderedIDs
+        controller.persistCustomOrder(for: reorderedIDs, visibleAccounts: displayedAccounts)
     }
 
     @ViewBuilder
-    private func accountContextMenu(for account: StoredAccount) -> some View {
-        let targetIDs = contextMenuTargetIDs(for: account.id)
+    private func accountContextMenu(forSelectionIDs targetIDs: Set<UUID>) -> some View {
+        if targetIDs.isEmpty {
+            Button {
+                controller.captureCurrentAccount()
+            } label: {
+                menuActionLabel(title: "Add Account", systemImage: "plus")
+            }
 
-        if targetIDs.count == 1 {
+            Button {
+                controller.beginAccountArchiveImport()
+            } label: {
+                menuActionLabel(title: "Import Archive", systemImage: "square.and.arrow.down")
+            }
+        } else if targetIDs.count == 1,
+                  let accountID = targetIDs.first,
+                  let account = accounts.first(where: { $0.id == accountID }) {
             singleAccountContextMenu(for: account, targetIDs: targetIDs)
         } else {
             removeAccountsButton(targetIDs: targetIDs)
@@ -314,14 +524,14 @@ struct ContentView: View {
     @ViewBuilder
     private func singleAccountContextMenu(for account: StoredAccount, targetIDs: Set<UUID>) -> some View {
         Button {
-            controller.selection = [account.id]
+            controller.selection = targetIDs
             controller.login(accountID: account.id)
         } label: {
             menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
         }
 
         Button {
-            controller.selection = [account.id]
+            controller.selection = targetIDs
             controller.setPinned(!account.isPinned, for: account.id)
         } label: {
             menuActionLabel(
@@ -331,13 +541,14 @@ struct ContentView: View {
         }
 
         Button {
+            controller.selection = targetIDs
             controller.beginRenaming(accountID: account.id)
         } label: {
             menuActionLabel(title: "Rename", systemImage: "pencil")
         }
 
         Button {
-            controller.selection = [account.id]
+            controller.selection = targetIDs
             iconPickerAccountID = account.id
         } label: {
             menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
@@ -366,6 +577,30 @@ struct ContentView: View {
     }
 }
 
+private struct AccountListItem: Identifiable, Hashable {
+    let id: UUID
+    var name: String
+    let iconSystemName: String
+    let lastLoginAt: Date?
+    let sevenDayLimitUsedPercent: Int?
+    let fiveHourLimitUsedPercent: Int?
+    let sevenDayResetsAt: Date?
+    let fiveHourResetsAt: Date?
+    let isCurrentAccount: Bool
+
+    init(account: StoredAccount, isCurrentAccount: Bool) {
+        id = account.id
+        name = account.name
+        iconSystemName = AccountIconOption.resolve(from: account.iconSystemName).systemName
+        lastLoginAt = account.lastLoginAt
+        sevenDayLimitUsedPercent = account.sevenDayLimitUsedPercent
+        fiveHourLimitUsedPercent = account.fiveHourLimitUsedPercent
+        sevenDayResetsAt = account.sevenDayResetsAt
+        fiveHourResetsAt = account.fiveHourResetsAt
+        self.isCurrentAccount = isCurrentAccount
+    }
+}
+
 extension ContentView {
     /// Matches the delete-key combinations this list treats as an account
     /// removal shortcut. Keep this narrow so regular text editing shortcuts
@@ -382,17 +617,6 @@ extension ContentView {
             true
         default:
             false
-        }
-    }
-
-    /// Right-click actions should target the clicked row unless that row is
-    /// already part of the current multi-selection, in which case the menu
-    /// applies to the selected rows together.
-    static func contextMenuTargetIDs(clickedAccountID: UUID, currentSelection: Set<UUID>) -> Set<UUID> {
-        if currentSelection.count > 1, currentSelection.contains(clickedAccountID) {
-            currentSelection
-        } else {
-            [clickedAccountID]
         }
     }
 

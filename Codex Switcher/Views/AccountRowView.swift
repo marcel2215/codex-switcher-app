@@ -12,34 +12,14 @@ struct AccountRowView: View {
     let isCurrentAccount: Bool
     let isSelected: Bool
     let isRenaming: Bool
-    let canReorder: Bool
-    let exportTransferItem: CodexAccountArchiveTransferItem
-    let onRemove: () -> Void
-    let onSelect: () -> Void
-    let onDoubleClick: () -> Void
     let onCommitRename: (String) -> Void
     let onCancelRename: () -> Void
 
     @FocusState private var isRenameFieldFocused: Bool
     @State private var draftName = ""
-    @State private var isArchiveExportAvailable = false
 
     var body: some View {
         rowContent
-            .modifier(
-                ReorderModifier(
-                    isEnabled: canReorder,
-                    dragPayload: account.id.uuidString,
-                    exportTransferItem: exportTransferItem,
-                    isArchiveExportAvailable: isArchiveExportAvailable
-                )
-            )
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button("Remove", systemImage: "trash", role: .destructive, action: onRemove)
-            }
-            .task(id: exportTransferItem.availabilityKey) {
-                isArchiveExportAvailable = await exportTransferItem.canExport()
-            }
     }
 
     private var rowContent: some View {
@@ -48,6 +28,7 @@ struct AccountRowView: View {
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .frame(width: 24, height: 24)
+                .allowsHitTesting(false)
 
             VStack(alignment: .leading, spacing: 1) {
                 if isRenaming {
@@ -75,6 +56,7 @@ struct AccountRowView: View {
                     Text(account.name)
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(.primary)
+                        .allowsHitTesting(false)
                 }
 
                 AccountMetadataText(
@@ -85,31 +67,19 @@ struct AccountRowView: View {
                     fiveHourResetsAt: account.fiveHourResetsAt,
                     font: .subheadline
                 )
+                .allowsHitTesting(false)
             }
 
             Spacer(minLength: 0)
 
             currentAccountIndicator
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 1)
+        // The list container owns selection, primary action, and drag behavior.
+        // Keep the row itself presentation-only so the entire row remains one
+        // native hit target instead of a stack of competing gesture regions.
         .contentShape(Rectangle())
-        .onTapGesture {
-            guard !isRenaming else {
-                return
-            }
-
-            onSelect()
-        }
-        .onTapGesture(count: 2) {
-            guard !isRenaming else {
-                return
-            }
-
-            // Keep activation on the row itself so double-click still works
-            // even when macOS drag export is powered by a custom NSItemProvider.
-            onSelect()
-            onDoubleClick()
-        }
     }
 
     @ViewBuilder
@@ -121,8 +91,10 @@ struct AccountRowView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(isSelected ? Color.white : Color.accentColor)
                     .help("Currently active in Codex")
+                    .allowsHitTesting(false)
             } else {
                 Color.clear
+                    .allowsHitTesting(false)
             }
         }
         .frame(width: 16, height: 16)
@@ -130,36 +102,5 @@ struct AccountRowView: View {
 
     private func commitRename() {
         onCommitRename(draftName)
-    }
-}
-
-private struct ReorderModifier: ViewModifier {
-    let isEnabled: Bool
-    let dragPayload: String
-    let exportTransferItem: CodexAccountArchiveTransferItem
-    let isArchiveExportAvailable: Bool
-
-    func body(content: Content) -> some View {
-#if os(macOS)
-        if isArchiveExportAvailable {
-            content.onDrag {
-                exportTransferItem.macOSItemProvider(includeReorderToken: isEnabled)
-            }
-        } else if isEnabled {
-            content.onDrag {
-                NSItemProvider(object: dragPayload as NSString)
-            }
-        } else {
-            content
-        }
-#else
-        if isArchiveExportAvailable {
-            content.draggable(exportTransferItem)
-        } else if isEnabled {
-            content.draggable(dragPayload)
-        } else {
-            content
-        }
-#endif
     }
 }

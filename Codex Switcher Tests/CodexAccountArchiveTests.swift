@@ -31,6 +31,37 @@ struct CodexAccountArchiveTests {
         #expect(decodedArchive.suggestedFilename == "Work Account")
     }
 
+    @Test func multiAccountArchiveRoundTripPreservesEveryEntry() throws {
+        let archive = CodexAccountArchive(
+            accounts: [
+                .init(
+                    name: "Work Account",
+                    iconSystemName: "briefcase.fill",
+                    identityKey: "chatgpt:work",
+                    authModeRaw: CodexAuthMode.chatgpt.rawValue,
+                    emailHint: "work@example.com",
+                    accountIdentifier: "workspace-1",
+                    snapshotContents: #"{"tokens":{"access_token":"work"}}"#
+                ),
+                .init(
+                    name: "Personal Account",
+                    iconSystemName: "person.fill",
+                    identityKey: "chatgpt:personal",
+                    authModeRaw: CodexAuthMode.chatgpt.rawValue,
+                    emailHint: "personal@example.com",
+                    accountIdentifier: "workspace-2",
+                    snapshotContents: #"{"tokens":{"access_token":"personal"}}"#
+                )
+            ]
+        )
+
+        let decodedArchive = try CodexAccountArchive.decode(from: archive.encodedData())
+
+        #expect(decodedArchive.accounts == archive.accounts)
+        #expect(decodedArchive.containsMultipleAccounts)
+        #expect(decodedArchive.suggestedFilename == "2 Codex Accounts")
+    }
+
     @Test func archiveEncodingUsesOpaqueCompressedContainerFormat() throws {
         let archive = CodexAccountArchive(
             name: "Binary Archive",
@@ -180,6 +211,41 @@ struct CodexAccountArchiveTests {
     }
 
     @MainActor
+    @Test func batchExportRequestUsesPluralFilenameForMultipleAccounts() {
+        let firstAccount = StoredAccount(
+            identityKey: "chatgpt:first",
+            name: "First",
+            createdAt: .now,
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: CodexAuthMode.chatgpt.rawValue,
+            emailHint: nil,
+            accountIdentifier: nil,
+            iconSystemName: "briefcase.fill"
+        )
+        let secondAccount = StoredAccount(
+            identityKey: "chatgpt:second",
+            name: "Second",
+            createdAt: .now,
+            customOrder: 1,
+            hasLocalSnapshot: true,
+            authModeRaw: CodexAuthMode.chatgpt.rawValue,
+            emailHint: nil,
+            accountIdentifier: nil,
+            iconSystemName: "person.fill"
+        )
+
+        let request = CodexAccountArchiveBatchExportRequest(
+            accounts: [
+                CodexAccountArchiveExportRequest(account: firstAccount),
+                CodexAccountArchiveExportRequest(account: secondAccount)
+            ]
+        )
+
+        #expect(request.resolvedSuggestedFilename == "2 Codex Accounts")
+    }
+
+    @MainActor
     @Test func transferItemUsesArchiveFilenameWithExtension() {
         let account = StoredAccount(
             identityKey: "chatgpt:abc123",
@@ -269,6 +335,56 @@ struct CodexAccountArchiveTests {
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
 
         #expect(fileURL.lastPathComponent == "Work Account.cxa")
+    }
+
+    @MainActor
+    @Test func exporterBundlesMultipleAccountsIntoOneArchiveFile() async throws {
+        let snapshotStore = FakeArchiveSnapshotStore()
+        try await snapshotStore.saveSnapshot(
+            #"{"tokens":{"access_token":"first"}}"#,
+            forIdentityKey: "chatgpt:first"
+        )
+        try await snapshotStore.saveSnapshot(
+            #"{"tokens":{"access_token":"second"}}"#,
+            forIdentityKey: "chatgpt:second"
+        )
+
+        let request = CodexAccountArchiveBatchExportRequest(
+            accounts: [
+                CodexAccountArchiveExportRequest(
+                    account: StoredAccount(
+                        identityKey: "chatgpt:first",
+                        name: "First",
+                        createdAt: .now,
+                        customOrder: 0,
+                        hasLocalSnapshot: true,
+                        authModeRaw: CodexAuthMode.chatgpt.rawValue,
+                        emailHint: "first@example.com",
+                        accountIdentifier: "workspace-1",
+                        iconSystemName: "briefcase.fill"
+                    )
+                ),
+                CodexAccountArchiveExportRequest(
+                    account: StoredAccount(
+                        identityKey: "chatgpt:second",
+                        name: "Second",
+                        createdAt: .now,
+                        customOrder: 1,
+                        hasLocalSnapshot: true,
+                        authModeRaw: CodexAuthMode.chatgpt.rawValue,
+                        emailHint: "second@example.com",
+                        accountIdentifier: "workspace-2",
+                        iconSystemName: "person.fill"
+                    )
+                )
+            ]
+        )
+
+        let exporter = CodexAccountArchiveFileExporter(snapshotStore: snapshotStore)
+        let archive = try CodexAccountArchive.decode(from: try await exporter.exportData(for: request))
+
+        #expect(archive.accounts.count == 2)
+        #expect(archive.accounts.map(\.identityKey) == ["chatgpt:first", "chatgpt:second"])
     }
 }
 

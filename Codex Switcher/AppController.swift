@@ -310,15 +310,53 @@ final class AppController {
     }
 
     func archiveTransferItem(for account: StoredAccount) -> CodexAccountArchiveTransferItem {
-        CodexAccountArchiveTransferItem(
-            request: CodexAccountArchiveExportRequest(
+        archiveTransferItem(for: [account])
+    }
+
+    func archiveTransferItem(for accounts: [StoredAccount]) -> CodexAccountArchiveTransferItem {
+        let orderedAccounts = uniqueAccountsPreservingDisplayOrder(accounts)
+        let requests = orderedAccounts.map { account in
+            CodexAccountArchiveExportRequest(
                 account: account,
                 hasLocalSnapshot: hasLocalSnapshot(for: account)
-            ),
-            reorderToken: account.id.uuidString,
+            )
+        }
+
+        return CodexAccountArchiveTransferItem(
+            id: orderedAccounts.first?.id ?? UUID(),
+            requests: requests,
+            reorderToken: orderedAccounts.map(\.id.uuidString).joined(separator: "\n"),
             exporter: archiveExporter
         )
     }
+
+#if os(macOS)
+    func macOSDragItemProvider(
+        for accounts: [StoredAccount],
+        includeReorderToken: Bool
+    ) -> NSItemProvider {
+        let orderedAccounts = uniqueAccountsPreservingDisplayOrder(accounts)
+        let transferItem = archiveTransferItem(for: orderedAccounts)
+
+        guard orderedAccounts.allSatisfy({ hasLocalSnapshot(for: $0) }) else {
+            let provider = NSItemProvider()
+
+            if includeReorderToken, !transferItem.reorderToken.isEmpty {
+                provider.registerDataRepresentation(
+                    forTypeIdentifier: UTType.plainText.identifier,
+                    visibility: .ownProcess
+                ) { completion in
+                    completion(Data(transferItem.reorderToken.utf8), nil)
+                    return nil
+                }
+            }
+
+            return provider
+        }
+
+        return transferItem.macOSItemProvider(includeReorderToken: includeReorderToken)
+    }
+#endif
 
     private func hasLocalSnapshot(for account: StoredAccount) -> Bool {
         snapshotAvailabilityStore.containsSnapshot(forIdentityKey: account.identityKey)
@@ -735,29 +773,60 @@ final class AppController {
     func reorderDraggedAccounts(_ items: [String], to destinationIndex: Int, visibleAccounts: [StoredAccount]) {
         guard
             canEditCustomOrder,
-            let movingID = items.first.flatMap(UUID.init(uuidString:)),
-            let sourceIndex = visibleAccounts.firstIndex(where: { $0.id == movingID })
+            !visibleAccounts.isEmpty
         else {
             return
         }
 
-        let boundedDropIndex = min(max(destinationIndex, 0), visibleAccounts.count)
-        var finalIndex = boundedDropIndex
+        let movingIDs = Self.draggedAccountIDs(from: items)
+        moveAccounts(withIDs: movingIDs, to: destinationIndex, visibleAccounts: visibleAccounts)
+    }
 
-        if sourceIndex < boundedDropIndex {
-            finalIndex -= 1
+    /// Persists the visible list order produced by SwiftUI's binding-based
+    /// editable list API. The caller must provide the full visible sequence so
+    /// the controller can reapply the pinned/unpinned lane invariant before
+    /// saving.
+    func persistCustomOrder(for reorderedVisibleIDs: [UUID], visibleAccounts: [StoredAccount]) {
+        guard
+            canEditCustomOrder,
+            !visibleAccounts.isEmpty,
+            reorderedVisibleIDs.count == visibleAccounts.count
+        else {
+            return
         }
 
-        finalIndex = min(max(finalIndex, 0), max(visibleAccounts.count - 1, 0))
-        moveAccount(withID: movingID, to: finalIndex, visibleAccounts: visibleAccounts)
+        let visibleIDs = visibleAccounts.map(\.id)
+        guard Set(reorderedVisibleIDs) == Set(visibleIDs) else {
+            return
+        }
+
+        let accountsByID = Dictionary(uniqueKeysWithValues: visibleAccounts.map { ($0.id, $0) })
+        let reorderedAccounts = reorderedVisibleIDs.compactMap { accountsByID[$0] }
+        guard reorderedAccounts.count == visibleAccounts.count else {
+            return
+        }
+
+        persistCustomOrder(for: reorderedAccounts)
     }
 
     func moveSelection(direction: MoveCommandDirection, visibleAccounts: [StoredAccount]) {
+        guard canEditCustomOrder else {
+            return
+        }
+
+        let orderedSelection = visibleAccounts.compactMap { account in
+            selection.contains(account.id) ? account.id : nil
+        }
+        guard !orderedSelection.isEmpty else {
+            return
+        }
+
+        let selectedIndexes = visibleAccounts.indices.filter { index in
+            selection.contains(visibleAccounts[index].id)
+        }
         guard
-            canEditCustomOrder,
-            selection.count == 1,
-            let selectedID = selection.first,
-            let currentIndex = visibleAccounts.firstIndex(where: { $0.id == selectedID })
+            let firstSelectedIndex = selectedIndexes.first,
+            let lastSelectedIndex = selectedIndexes.last
         else {
             return
         }
@@ -765,14 +834,14 @@ final class AppController {
         let destinationIndex: Int
         switch direction {
         case .up:
-            destinationIndex = max(currentIndex - 1, 0)
+            destinationIndex = max(firstSelectedIndex - 1, 0)
         case .down:
-            destinationIndex = min(currentIndex + 1, visibleAccounts.count - 1)
+            destinationIndex = min(lastSelectedIndex + 2, visibleAccounts.count)
         default:
             return
         }
 
-        moveAccount(withID: selectedID, to: destinationIndex, visibleAccounts: visibleAccounts)
+        moveAccounts(withIDs: orderedSelection, to: destinationIndex, visibleAccounts: visibleAccounts)
     }
 
     @discardableResult
@@ -1117,47 +1186,59 @@ final class AppController {
             for url in accountArchiveURLs {
                 do {
                     let archive = try Self.loadAccountArchive(from: url)
-                    let snapshot = try await parseSnapshot(from: archive.snapshotContents)
+                    for (accountIndex, archivedAccount) in archive.accounts.enumerated() {
+                        do {
+                            let snapshot = try await parseSnapshot(from: archivedAccount.snapshotContents)
 
-                    if let archivedIdentityKey = archive.identityKey?.trimmingCharacters(in: .whitespacesAndNewlines),
-                       !archivedIdentityKey.isEmpty,
-                       archivedIdentityKey != snapshot.identityKey {
-                        throw ControllerError.accountArchiveIdentityMismatch
+                            if let archivedIdentityKey = archivedAccount.identityKey?.trimmingCharacters(in: .whitespacesAndNewlines),
+                               !archivedIdentityKey.isEmpty,
+                               archivedIdentityKey != snapshot.identityKey {
+                                throw ControllerError.accountArchiveIdentityMismatch
+                            }
+
+                            if let existingAccount = allAccounts.first(where: { $0.identityKey == snapshot.identityKey }) {
+                                _ = try await storeSnapshot(snapshot, on: existingAccount)
+                                _ = Self.applyImportedArchiveMetadata(archivedAccount, to: existingAccount)
+                                // Re-importing an unchanged archive is still a valid
+                                // success case: keep the existing account selected even
+                                // when the imported contents match the local copy.
+                                importedAnyAccounts = true
+                                importedAccountID = existingAccount.id
+                                importedIdentityKey = snapshot.identityKey
+                                continue
+                            }
+
+                            guard allAccounts.count < 1_000 else {
+                                throw ControllerError.accountLimitReached
+                            }
+
+                            let nextCustomOrder = (allAccounts.map(\.customOrder).max() ?? -1) + 1
+                            let account = StoredAccount(
+                                identityKey: snapshot.identityKey,
+                                name: archivedAccount.preferredStoredName
+                                    ?? defaultName(for: snapshot, existingAccounts: allAccounts),
+                                customOrder: nextCustomOrder,
+                                authModeRaw: snapshot.authMode.rawValue,
+                                emailHint: snapshot.email,
+                                accountIdentifier: snapshot.accountIdentifier,
+                                iconSystemName: archivedAccount.resolvedIconSystemName
+                            )
+
+                            modelContext.insert(account)
+                            _ = try await storeSnapshot(snapshot, on: account)
+                            allAccounts.append(account)
+                            importedAnyAccounts = true
+                            importedAccountID = account.id
+                            importedIdentityKey = snapshot.identityKey
+                        } catch {
+                            let accountLabel = archivedAccount.preferredStoredName
+                                ?? archivedAccount.identityKey
+                                ?? "Account \(accountIndex + 1)"
+                            failureMessages.append(
+                                "\(url.lastPathComponent) • \(accountLabel): \(error.localizedDescription)"
+                            )
+                        }
                     }
-
-                    if let existingAccount = allAccounts.first(where: { $0.identityKey == snapshot.identityKey }) {
-                        _ = try await storeSnapshot(snapshot, on: existingAccount)
-                        _ = Self.applyImportedArchiveMetadata(archive, to: existingAccount)
-                        // Re-importing an unchanged archive is still a valid
-                        // success case: keep the existing account selected even
-                        // when the imported contents match the local copy.
-                        importedAnyAccounts = true
-                        importedAccountID = existingAccount.id
-                        importedIdentityKey = snapshot.identityKey
-                        continue
-                    }
-
-                    guard allAccounts.count < 1_000 else {
-                        throw ControllerError.accountLimitReached
-                    }
-
-                    let nextCustomOrder = (allAccounts.map(\.customOrder).max() ?? -1) + 1
-                    let account = StoredAccount(
-                        identityKey: snapshot.identityKey,
-                        name: archive.preferredStoredName ?? defaultName(for: snapshot, existingAccounts: allAccounts),
-                        customOrder: nextCustomOrder,
-                        authModeRaw: snapshot.authMode.rawValue,
-                        emailHint: snapshot.email,
-                        accountIdentifier: snapshot.accountIdentifier,
-                        iconSystemName: archive.resolvedIconSystemName
-                    )
-
-                    modelContext.insert(account)
-                    _ = try await storeSnapshot(snapshot, on: account)
-                    allAccounts.append(account)
-                    importedAnyAccounts = true
-                    importedAccountID = account.id
-                    importedIdentityKey = snapshot.identityKey
                 } catch {
                     failureMessages.append("\(url.lastPathComponent): \(error.localizedDescription)")
                 }
@@ -1232,7 +1313,7 @@ final class AppController {
     }
 
     private static func applyImportedArchiveMetadata(
-        _ archive: CodexAccountArchive,
+        _ archive: CodexAccountArchive.Account,
         to account: StoredAccount
     ) -> Bool {
         var didChange = false
@@ -3347,24 +3428,56 @@ final class AppController {
         return didChange
     }
 
-    private func moveAccount(withID movingID: UUID, to destinationIndex: Int, visibleAccounts: [StoredAccount]) {
-        guard
-            let sourceIndex = visibleAccounts.firstIndex(where: { $0.id == movingID }),
-            !visibleAccounts.isEmpty
-        else {
+    private func uniqueAccountsPreservingDisplayOrder(_ accounts: [StoredAccount]) -> [StoredAccount] {
+        var seenIDs = Set<UUID>()
+        return accounts.filter { account in
+            seenIDs.insert(account.id).inserted
+        }
+    }
+
+    private static func draggedAccountIDs(from payloads: [String]) -> [UUID] {
+        var seenIDs = Set<UUID>()
+        return payloads
+            .flatMap { payload in
+                payload
+                    .split(whereSeparator: \.isNewline)
+                    .compactMap { UUID(uuidString: String($0)) }
+            }
+            .filter { accountID in
+                seenIDs.insert(accountID).inserted
+            }
+    }
+
+    private func moveAccounts(withIDs movingIDs: [UUID], to destinationIndex: Int, visibleAccounts: [StoredAccount]) {
+        let orderedMovingIDs = visibleAccounts.compactMap { account in
+            movingIDs.contains(account.id) ? account.id : nil
+        }
+        guard !orderedMovingIDs.isEmpty, !visibleAccounts.isEmpty else {
             return
         }
 
-        let boundedDestinationIndex = min(max(destinationIndex, 0), visibleAccounts.count - 1)
-        guard boundedDestinationIndex != sourceIndex else {
+        let movingIDSet = Set(orderedMovingIDs)
+        let boundedDestinationIndex = min(max(destinationIndex, 0), visibleAccounts.count)
+        let movingRowsBeforeDestination = visibleAccounts[..<boundedDestinationIndex].reduce(into: 0) { count, account in
+            if movingIDSet.contains(account.id) {
+                count += 1
+            }
+        }
+        let insertionIndex = max(0, boundedDestinationIndex - movingRowsBeforeDestination)
+
+        let movingAccounts = visibleAccounts.filter { movingIDSet.contains($0.id) }
+        var reorderedAccounts = visibleAccounts.filter { !movingIDSet.contains($0.id) }
+        let boundedInsertionIndex = min(insertionIndex, reorderedAccounts.count)
+        reorderedAccounts.insert(contentsOf: movingAccounts, at: boundedInsertionIndex)
+
+        guard reorderedAccounts.map(\.id) != visibleAccounts.map(\.id) else {
             return
         }
 
-        var reorderedAccounts = visibleAccounts
-        let movingAccount = reorderedAccounts.remove(at: sourceIndex)
-        let insertionIndex = min(max(boundedDestinationIndex, 0), reorderedAccounts.count)
-        reorderedAccounts.insert(movingAccount, at: insertionIndex)
+        persistCustomOrder(for: reorderedAccounts)
+    }
 
+    private func persistCustomOrder(for reorderedAccounts: [StoredAccount]) {
         let persistedAccounts = AccountsPresentationLogic.customOrderPersistenceSequence(
             for: reorderedAccounts
         )

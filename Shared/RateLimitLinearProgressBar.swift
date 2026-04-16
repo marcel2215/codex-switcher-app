@@ -45,6 +45,7 @@ struct RateLimitLinearProgressBar: View {
             }
         }
         .frame(height: height)
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 

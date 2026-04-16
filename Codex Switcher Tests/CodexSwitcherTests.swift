@@ -264,6 +264,54 @@ struct CodexSwitcherTests {
         #expect(await secretStore.secret(forIdentityKey: snapshot.identityKey) == snapshotContents)
     }
 
+    @Test func importingMultiAccountArchiveCreatesEveryBundledAccount() async throws {
+        let container = try makeInMemoryContainer()
+        let firstContents = makeChatGPTAuthJSON(accountID: "acct-bundle-first")
+        let secondContents = makeChatGPTAuthJSON(accountID: "acct-bundle-second")
+        let firstSnapshot = try CodexAuthFile.parse(contents: firstContents)
+        let secondSnapshot = try CodexAuthFile.parse(contents: secondContents)
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: firstContents),
+            secretStore: FakeSecretStore()
+        )
+        let archive = CodexAccountArchive(
+            accounts: [
+                .init(
+                    name: "First Bundle Account",
+                    iconSystemName: "briefcase.fill",
+                    identityKey: firstSnapshot.identityKey,
+                    authModeRaw: firstSnapshot.authMode.rawValue,
+                    emailHint: firstSnapshot.email,
+                    accountIdentifier: firstSnapshot.accountIdentifier,
+                    snapshotContents: firstContents
+                ),
+                .init(
+                    name: "Second Bundle Account",
+                    iconSystemName: "person.fill",
+                    identityKey: secondSnapshot.identityKey,
+                    authModeRaw: secondSnapshot.authMode.rawValue,
+                    emailHint: secondSnapshot.email,
+                    accountIdentifier: secondSnapshot.accountIdentifier,
+                    snapshotContents: secondContents
+                )
+            ]
+        )
+        let archiveDirectoryURL = try makeTemporaryDirectory()
+        let archiveURL = archiveDirectoryURL.appendingPathComponent("bundle.cxa", isDirectory: false)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        try archive.encodedData().write(to: archiveURL, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: archiveDirectoryURL) }
+
+        let didImport = await controller.importAccountArchivesForTesting(from: [archiveURL])
+        let importedAccounts = try fetchAccounts(in: container.mainContext)
+
+        #expect(didImport)
+        #expect(importedAccounts.count == 2)
+        #expect(Set(importedAccounts.map(\.identityKey)) == [firstSnapshot.identityKey, secondSnapshot.identityKey])
+        #expect(controller.selection.count == 1)
+    }
+
     @Test func refreshMarksUnsupportedCredentialStoresInline() async throws {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(
@@ -369,7 +417,13 @@ struct CodexSwitcherTests {
         let container = try makeInMemoryContainer()
         let currentContents = makeChatGPTAuthJSON(accountID: "acct-current")
         let authFileManager = FakeAuthFileManager(contents: currentContents)
-        let controller = makeController(authFileManager: authFileManager)
+        let snapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore(
+            baseURL: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString, isDirectory: true)
+        )
+        let controller = makeController(
+            authFileManager: authFileManager,
+            snapshotAvailabilityStore: snapshotAvailabilityStore
+        )
 
         let currentSnapshot = try CodexAuthFile.parse(contents: currentContents)
         let currentAccount = StoredAccount(
@@ -464,6 +518,14 @@ struct CodexSwitcherTests {
         container.mainContext.insert(foxtrotAccount)
         container.mainContext.insert(noSnapshotAccount)
         try container.mainContext.save()
+
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: currentAccount.identityKey)
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: bravoAccount.identityKey)
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: echoAccount.identityKey)
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: alphaAccount.identityKey)
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: charlieAccount.identityKey)
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: foxtrotAccount.identityKey)
+        snapshotAvailabilityStore.setSnapshotAvailable(false, forIdentityKey: noSnapshotAccount.identityKey)
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
         await controller.refreshAuthStateForTesting()
@@ -1309,6 +1371,32 @@ struct CodexSwitcherTests {
         #expect(controller.presentedAlert == nil)
     }
 
+    @Test func persistCustomOrderUsesBindingListVisibleSequence() throws {
+        let container = try makeInMemoryContainer()
+        let controller = makeController(authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")))
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.sortCriterion = .custom
+
+        let first = makeStoredAccount(name: "First", customOrder: 0, accountID: "acct-1")
+        let second = makeStoredAccount(name: "Second", customOrder: 1, accountID: "acct-2")
+        let third = makeStoredAccount(name: "Third", customOrder: 2, accountID: "acct-3")
+
+        container.mainContext.insert(first)
+        container.mainContext.insert(second)
+        container.mainContext.insert(third)
+        try container.mainContext.save()
+
+        controller.persistCustomOrder(
+            for: [third.id, first.id, second.id],
+            visibleAccounts: [first, second, third]
+        )
+
+        let reordered = controller.displayedAccounts(from: try fetchAccounts(in: container.mainContext))
+        #expect(reordered.map(\.name) == ["Third", "First", "Second"])
+        #expect(controller.presentedAlert == nil)
+    }
+
     @Test func pinnedAccountsStayAheadOfUnpinnedAcrossSortModes() {
         let pinnedLater = makeStoredAccount(name: "Zulu", customOrder: 4, accountID: "acct-pinned-later")
         pinnedLater.isPinned = true
@@ -1955,33 +2043,6 @@ struct CodexSwitcherTests {
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.option]) == false)
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.control]) == false)
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.command, .option]) == false)
-    }
-
-    @Test func contextMenuTargetsClickedRowUnlessItBelongsToMultiSelection() {
-        let first = UUID()
-        let second = UUID()
-        let third = UUID()
-
-        #expect(
-            ContentView.contextMenuTargetIDs(
-                clickedAccountID: third,
-                currentSelection: [first, second]
-            ) == [third]
-        )
-
-        #expect(
-            ContentView.contextMenuTargetIDs(
-                clickedAccountID: second,
-                currentSelection: [first, second]
-            ) == [first, second]
-        )
-
-        #expect(
-            ContentView.contextMenuTargetIDs(
-                clickedAccountID: first,
-                currentSelection: [first]
-            ) == [first]
-        )
     }
 
     @Test func spaceShortcutRequiresSingleSelectionAndNoRename() {
