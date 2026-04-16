@@ -282,6 +282,17 @@ final class AppController {
         return AccountIconOption.resolve(from: account.iconSystemName)
     }
 
+    var selectedAccountIsPinned: Bool? {
+        guard
+            let selectedAccountID,
+            let account = try? account(withID: selectedAccountID)
+        else {
+            return nil
+        }
+
+        return account.isPinned
+    }
+
     var shouldShowAuthStatusBanner: Bool {
         authAccessState.showsInlineStatus
     }
@@ -595,6 +606,33 @@ final class AppController {
         }
 
         beginRenaming(accountID: accountID)
+    }
+
+    func setPinned(_ isPinned: Bool, for accountID: UUID) {
+        do {
+            guard let account = try account(withID: accountID) else {
+                throw ControllerError.accountNotFound
+            }
+
+            let normalizedLegacyFields = account.normalizeLegacyLocalOnlyFields()
+            guard account.isPinned != isPinned || normalizedLegacyFields else {
+                return
+            }
+
+            account.isPinned = isPinned
+            try requireModelContext().save()
+            publishSharedState()
+        } catch {
+            present(error, title: isPinned ? "Couldn't Pin Account" : "Couldn't Unpin Account")
+        }
+    }
+
+    func setSelectedAccountPinned(_ isPinned: Bool) {
+        guard let selectedAccountID else {
+            return
+        }
+
+        setPinned(isPinned, for: selectedAccountID)
     }
 
     func beginRenaming(accountID: UUID) {
@@ -3327,7 +3365,11 @@ final class AppController {
         let insertionIndex = min(max(boundedDestinationIndex, 0), reorderedAccounts.count)
         reorderedAccounts.insert(movingAccount, at: insertionIndex)
 
-        for (index, account) in reorderedAccounts.enumerated() {
+        let persistedAccounts = AccountsPresentationLogic.customOrderPersistenceSequence(
+            for: reorderedAccounts
+        )
+
+        for (index, account) in persistedAccounts.enumerated() {
             account.customOrder = Double(index)
             _ = account.normalizeLegacyLocalOnlyFields()
         }
@@ -3417,6 +3459,7 @@ final class AppController {
                     fiveHourDataStatusRaw: account.fiveHourDataStatus.rawValue,
                     rateLimitsObservedAt: account.rateLimitsObservedAt,
                     sortOrder: account.customOrder,
+                    isPinned: account.isPinned,
                     hasLocalSnapshot: hasLocalSnapshot(for: account)
                 )
             }

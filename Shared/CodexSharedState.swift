@@ -45,6 +45,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
     var fiveHourDataStatusRaw: String
     var rateLimitsObservedAt: Date?
     var sortOrder: Double
+    var isPinned: Bool
     var hasLocalSnapshot: Bool
 
     enum CodingKeys: String, CodingKey {
@@ -63,6 +64,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         case fiveHourDataStatusRaw
         case rateLimitsObservedAt
         case sortOrder
+        case isPinned
         case hasLocalSnapshot
         case authFileContents
     }
@@ -83,6 +85,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         fiveHourDataStatusRaw: String,
         rateLimitsObservedAt: Date?,
         sortOrder: Double,
+        isPinned: Bool = false,
         hasLocalSnapshot: Bool
     ) {
         self.id = id
@@ -100,6 +103,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         self.fiveHourDataStatusRaw = fiveHourDataStatusRaw
         self.rateLimitsObservedAt = rateLimitsObservedAt
         self.sortOrder = sortOrder
+        self.isPinned = isPinned
         self.hasLocalSnapshot = hasLocalSnapshot
     }
 
@@ -122,6 +126,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
             ?? SharedCodexAccountRecord.defaultMetricStatusRaw(for: fiveHourLimitUsedPercent)
         rateLimitsObservedAt = try container.decodeIfPresent(Date.self, forKey: .rateLimitsObservedAt)
         sortOrder = try container.decode(Double.self, forKey: .sortOrder)
+        isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
         hasLocalSnapshot = try container.decodeIfPresent(Bool.self, forKey: .hasLocalSnapshot)
             ?? (try container.decodeIfPresent(String.self, forKey: .authFileContents)?.isEmpty == false)
     }
@@ -143,6 +148,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         try container.encodeIfPresent(fiveHourResetsAt, forKey: .fiveHourResetsAt)
         try container.encodeIfPresent(rateLimitsObservedAt, forKey: .rateLimitsObservedAt)
         try container.encode(sortOrder, forKey: .sortOrder)
+        try container.encode(isPinned, forKey: .isPinned)
         try container.encode(hasLocalSnapshot, forKey: .hasLocalSnapshot)
     }
 
@@ -175,7 +181,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
 }
 
 nonisolated struct SharedCodexState: Codable, Sendable {
-    nonisolated static let currentSchemaVersion = 5
+    nonisolated static let currentSchemaVersion = 6
 
     var schemaVersion: Int
     var authState: SharedCodexAuthState

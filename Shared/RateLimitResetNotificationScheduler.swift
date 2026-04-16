@@ -138,11 +138,7 @@ actor RateLimitResetNotificationScheduler {
         let now = Date()
         let scheduledNotifications = sharedState.accounts
             .sorted { lhs, rhs in
-                if lhs.sortOrder != rhs.sortOrder {
-                    return lhs.sortOrder < rhs.sortOrder
-                }
-
-                return lhs.id < rhs.id
+                AccountsPresentationLogic.sharedAccountRecordComparator(lhs: lhs, rhs: rhs)
             }
             .flatMap { account in
                 ResetWindow.allCases.compactMap {

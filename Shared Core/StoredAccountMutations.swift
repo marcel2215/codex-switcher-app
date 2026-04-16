@@ -50,6 +50,25 @@ enum StoredAccountMutations {
     }
 
     @MainActor
+    static func setPinned(
+        _ isPinned: Bool,
+        for account: StoredAccount,
+        in modelContext: ModelContext
+    ) throws {
+        guard !account.isDeleted else {
+            return
+        }
+
+        let normalizedLegacyFields = account.normalizeLegacyLocalOnlyFields()
+        guard account.isPinned != isPinned || normalizedLegacyFields else {
+            return
+        }
+
+        account.isPinned = isPinned
+        try modelContext.save()
+    }
+
+    @MainActor
     static func remove(
         _ account: StoredAccount,
         in modelContext: ModelContext

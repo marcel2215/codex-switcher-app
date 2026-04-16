@@ -321,6 +321,16 @@ struct ContentView: View {
         }
 
         Button {
+            controller.selection = [account.id]
+            controller.setPinned(!account.isPinned, for: account.id)
+        } label: {
+            menuActionLabel(
+                title: account.isPinned ? "Unpin" : "Pin",
+                systemImage: account.isPinned ? "pin.slash" : "pin"
+            )
+        }
+
+        Button {
             controller.beginRenaming(accountID: account.id)
         } label: {
             menuActionLabel(title: "Rename", systemImage: "pencil")

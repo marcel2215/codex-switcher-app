@@ -345,6 +345,7 @@ struct AccountsRootView: View {
                                 archiveAvailabilityRefreshToken: controller.archiveAvailabilityRefreshToken
                             )
                         }
+                        .contextMenu { rowContextMenu(for: account) }
                         .onAppear {
                             rateLimitRefreshController.setVisible(true, for: account.identityKey)
                         }
@@ -387,20 +388,21 @@ struct AccountsRootView: View {
                             exportTransferItem: controller.archiveTransferItem(for: account),
                             archiveAvailabilityRefreshToken: controller.archiveAvailabilityRefreshToken
                         )
-                            .tag(account.id)
-                            .onAppear {
-                                rateLimitRefreshController.setVisible(true, for: account.identityKey)
+                        .tag(account.id)
+                        .contextMenu { rowContextMenu(for: account) }
+                        .onAppear {
+                            rateLimitRefreshController.setVisible(true, for: account.identityKey)
+                        }
+                        .onDisappear {
+                            rateLimitRefreshController.setVisible(false, for: account.identityKey)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                accountPendingDeletion = account
+                            } label: {
+                                Label("Remove", systemImage: "trash")
                             }
-                            .onDisappear {
-                                rateLimitRefreshController.setVisible(false, for: account.identityKey)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    accountPendingDeletion = account
-                                } label: {
-                                    Label("Remove", systemImage: "trash")
-                                }
-                            }
+                        }
                     }
                     .onMove { source, destination in
                         controller.move(
@@ -657,6 +659,21 @@ struct AccountsRootView: View {
             if isSelected {
                 Image(systemName: "checkmark")
             }
+        }
+    }
+
+    @ViewBuilder
+    private func rowContextMenu(for account: StoredAccount) -> some View {
+        Button {
+            controller.setPinned(!account.isPinned, for: account, in: modelContext)
+        } label: {
+            Label(account.isPinned ? "Unpin" : "Pin", systemImage: account.isPinned ? "pin.slash" : "pin")
+        }
+
+        Button(role: .destructive) {
+            accountPendingDeletion = account
+        } label: {
+            Label("Remove", systemImage: "trash")
         }
     }
 

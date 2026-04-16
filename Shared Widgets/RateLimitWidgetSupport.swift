@@ -303,11 +303,7 @@ enum WidgetRateLimitResolver {
         lhs: SharedCodexAccountRecord,
         rhs: SharedCodexAccountRecord
     ) -> Bool {
-        if lhs.sortOrder != rhs.sortOrder {
-            return lhs.sortOrder < rhs.sortOrder
-        }
-
-        return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        AccountsPresentationLogic.sharedAccountRecordComparator(lhs: lhs, rhs: rhs)
     }
 }
 

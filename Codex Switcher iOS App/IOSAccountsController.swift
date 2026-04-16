@@ -164,6 +164,21 @@ final class IOSAccountsController {
         }
     }
 
+    func setPinned(_ isPinned: Bool, for account: StoredAccount, in modelContext: ModelContext) {
+        guard !account.isDeleted else {
+            return
+        }
+
+        do {
+            try StoredAccountMutations.setPinned(isPinned, for: account, in: modelContext)
+        } catch {
+            presentedError = PresentedError(
+                title: isPinned ? "Couldn't Pin Account" : "Couldn't Unpin Account",
+                message: error.localizedDescription
+            )
+        }
+    }
+
     func remove(_ account: StoredAccount, in modelContext: ModelContext) {
         guard !account.isDeleted else {
             return
@@ -329,7 +344,11 @@ final class IOSAccountsController {
         in modelContext: ModelContext
     ) {
         do {
-            for (index, account) in reorderedAccounts.enumerated() {
+            let persistedAccounts = AccountsPresentationLogic.customOrderPersistenceSequence(
+                for: reorderedAccounts
+            )
+
+            for (index, account) in persistedAccounts.enumerated() {
                 account.customOrder = Double(index)
                 _ = account.normalizeLegacyLocalOnlyFields()
             }

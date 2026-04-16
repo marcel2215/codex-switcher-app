@@ -17,6 +17,7 @@ final class StoredAccount {
     var createdAt: Date = Date()
     var lastLoginAt: Date?
     var customOrder: Double = 0
+    var isPinned: Bool = false
 
     // Migration-only legacy field. New builds move auth snapshots into the
     // shared keychain and clear this value so SwiftData/CloudKit only carry
@@ -57,6 +58,7 @@ final class StoredAccount {
         createdAt: Date = .now,
         lastLoginAt: Date? = nil,
         customOrder: Double,
+        isPinned: Bool = false,
         authFileContents: String? = nil,
         hasLocalSnapshot: Bool = false,
         authModeRaw: String,
@@ -78,6 +80,7 @@ final class StoredAccount {
         self.createdAt = createdAt
         self.lastLoginAt = lastLoginAt
         self.customOrder = customOrder
+        self.isPinned = isPinned
         self.authFileContents = authFileContents
         self.hasLocalSnapshot = hasLocalSnapshot
         self.authModeRaw = authModeRaw

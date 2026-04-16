@@ -51,6 +51,7 @@ enum WidgetSnapshotPublisher {
                     fiveHourDataStatusRaw: account.fiveHourDataStatus.rawValue,
                     rateLimitsObservedAt: account.rateLimitsObservedAt,
                     sortOrder: account.customOrder,
+                    isPinned: account.isPinned,
                     hasLocalSnapshot: snapshotAvailabilityStore.containsSnapshot(forIdentityKey: account.identityKey)
                 )
             }
@@ -116,6 +117,7 @@ enum WidgetSnapshotPublisher {
             hasher.combine(account.authModeRaw)
             hasher.combine(account.lastLoginAt)
             hasher.combine(account.customOrder)
+            hasher.combine(account.isPinned)
             hasher.combine(account.sevenDayLimitUsedPercent)
             hasher.combine(account.fiveHourLimitUsedPercent)
             hasher.combine(account.sevenDayResetsAt)
@@ -130,14 +132,6 @@ enum WidgetSnapshotPublisher {
     }
 
     private static func widgetSortComparator(lhs: StoredAccount, rhs: StoredAccount) -> Bool {
-        if lhs.customOrder != rhs.customOrder {
-            return lhs.customOrder < rhs.customOrder
-        }
-
-        if lhs.createdAt != rhs.createdAt {
-            return lhs.createdAt < rhs.createdAt
-        }
-
-        return lhs.id.uuidString < rhs.id.uuidString
+        AccountsPresentationLogic.storedAccountCustomOrderComparator(lhs: lhs, rhs: rhs)
     }
 }

@@ -73,6 +73,22 @@ struct Codex_Switcher_iOS_AppTests {
     }
 
     @Test
+    func pinChangePersistsAndKeepsPinnedAccountsFirst() throws {
+        let first = makeAccount(name: "First", customOrder: 0)
+        let second = makeAccount(name: "Second", customOrder: 1)
+        let harness = try makeHarness(accounts: [first, second])
+
+        harness.controller.sortCriterion = .custom
+        harness.controller.setPinned(true, for: second, in: harness.modelContext)
+
+        let refreshedAccounts = try fetchAccounts(in: harness.modelContext)
+        let refreshedSecond = try #require(refreshedAccounts.first(where: { $0.id == second.id }))
+
+        #expect(refreshedSecond.isPinned)
+        #expect(harness.controller.displayedAccounts(from: refreshedAccounts).map(\.name) == ["Second", "First"])
+    }
+
+    @Test
     func customReorderUpdatesCustomOrder() throws {
         let first = makeAccount(name: "First", customOrder: 0)
         let second = makeAccount(name: "Second", customOrder: 1)
@@ -89,6 +105,27 @@ struct Codex_Switcher_iOS_AppTests {
 
         let reordered = try fetchAccounts(in: harness.modelContext).sorted { $0.customOrder < $1.customOrder }
         #expect(reordered.map(\.name) == ["Third", "First", "Second"])
+    }
+
+    @Test
+    func customReorderPreservesPinnedBoundary() throws {
+        let pinned = makeAccount(name: "Pinned", customOrder: 0, isPinned: true)
+        let first = makeAccount(name: "First", customOrder: 1)
+        let second = makeAccount(name: "Second", customOrder: 2)
+        let harness = try makeHarness(accounts: [pinned, first, second])
+
+        harness.controller.sortCriterion = .custom
+        harness.controller.move(
+            from: IndexSet(integer: 2),
+            to: 0,
+            visibleAccounts: harness.controller.displayedAccounts(from: try fetchAccounts(in: harness.modelContext)),
+            in: harness.modelContext
+        )
+
+        let ordered = try fetchAccounts(in: harness.modelContext)
+            .sorted { $0.customOrder < $1.customOrder }
+        #expect(ordered.map(\.name) == ["Pinned", "Second", "First"])
+        #expect(harness.controller.displayedAccounts(from: ordered).map(\.name) == ["Pinned", "Second", "First"])
     }
 
     @Test
@@ -369,6 +406,7 @@ private func makeAccount(
     emailHint: String? = nil,
     accountIdentifier: String? = nil,
     customOrder: Double,
+    isPinned: Bool = false,
     iconSystemName: String = AccountIconOption.defaultOption.systemName
 ) -> StoredAccount {
     StoredAccount(
@@ -376,6 +414,7 @@ private func makeAccount(
         name: name,
         createdAt: .now,
         customOrder: customOrder,
+        isPinned: isPinned,
         authModeRaw: "chatgpt",
         emailHint: emailHint,
         accountIdentifier: accountIdentifier,

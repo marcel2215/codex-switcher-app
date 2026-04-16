@@ -89,6 +89,16 @@ struct AccountsCommands: Commands {
             .keyboardShortcut("r", modifiers: [.command])
         }
 
+        // This utility app does not print documents, so reuse the standard
+        // Print slot for pinning to avoid conflicting with macOS' built-in Cmd-P.
+        CommandGroup(replacing: .printItem) {
+            Button(controller.selectedAccountIsPinned == true ? "Unpin" : "Pin") {
+                controller.setSelectedAccountPinned(controller.selectedAccountIsPinned != true)
+            }
+            .keyboardShortcut("p", modifiers: [.command])
+            .disabled(controller.selection.count != 1)
+        }
+
         CommandMenu("Account") {
             Button("Log In") {
                 controller.switchSelectedAccount()
@@ -97,6 +107,12 @@ struct AccountsCommands: Commands {
             .disabled(controller.selection.count != 1)
 
             Divider()
+
+            Button(controller.selectedAccountIsPinned == true ? "Unpin" : "Pin") {
+                controller.setSelectedAccountPinned(controller.selectedAccountIsPinned != true)
+            }
+            .keyboardShortcut("p", modifiers: [.command])
+            .disabled(controller.selection.count != 1)
 
             Button("Rename") {
                 controller.beginRenamingSelectedAccount()

@@ -8,11 +8,11 @@
 import Foundation
 
 enum AccountsPresentationLogic {
-    static func normalizedSearchText(_ searchText: String) -> String {
+    nonisolated static func normalizedSearchText(_ searchText: String) -> String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func displayName(for account: StoredAccount) -> String {
+    nonisolated static func displayName(for account: StoredAccount) -> String {
         displayName(
             name: account.name,
             emailHint: account.emailHint,
@@ -21,7 +21,7 @@ enum AccountsPresentationLogic {
         )
     }
 
-    static func displayName(
+    nonisolated static func displayName(
         name: String,
         emailHint: String?,
         accountIdentifier: String?,
@@ -34,14 +34,14 @@ enum AccountsPresentationLogic {
             ?? "Unnamed Account"
     }
 
-    static func normalizedSortDirection(
+    nonisolated static func normalizedSortDirection(
         for sortCriterion: AccountSortCriterion,
         requestedDirection: SortDirection
     ) -> SortDirection {
         sortCriterion == .custom ? .ascending : requestedDirection
     }
 
-    static func canEditCustomOrder(
+    nonisolated static func canEditCustomOrder(
         searchText: String,
         sortCriterion: AccountSortCriterion,
         sortDirection: SortDirection
@@ -51,12 +51,12 @@ enum AccountsPresentationLogic {
             && normalizedSearchText(searchText).isEmpty
     }
 
-    static func normalizedRenamedAccountName(_ proposedName: String) -> String? {
+    nonisolated static func normalizedRenamedAccountName(_ proposedName: String) -> String? {
         let trimmedName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedName.isEmpty ? nil : trimmedName
     }
 
-    static func displayedAccounts(
+    nonisolated static func displayedAccounts(
         from accounts: [StoredAccount],
         searchText: String,
         sortCriterion: AccountSortCriterion,
@@ -83,7 +83,7 @@ enum AccountsPresentationLogic {
         )
     }
 
-    static func sortedAccounts(
+    nonisolated static func sortedAccounts(
         from accounts: [StoredAccount],
         sortCriterion: AccountSortCriterion,
         sortDirection: SortDirection
@@ -94,6 +94,13 @@ enum AccountsPresentationLogic {
         )
 
         return accounts.sorted { lhs, rhs in
+            if let pinnedFirst = pinnedAccountsComeBefore(
+                lhsIsPinned: lhs.isPinned,
+                rhsIsPinned: rhs.isPinned
+            ) {
+                return pinnedFirst
+            }
+
             if sortCriterion == .rateLimit {
                 if areEquivalentForRateLimitSort(lhs, rhs) {
                     return lhs.createdAt < rhs.createdAt
@@ -136,7 +143,69 @@ enum AccountsPresentationLogic {
         }
     }
 
-    private static func isEquivalent(
+    /// Pinned and unpinned accounts form separate custom-order lanes. Keep the
+    /// visible order within each lane while preserving the invariant that every
+    /// pinned account stays above every unpinned account after the save.
+    nonisolated static func customOrderPersistenceSequence(
+        for reorderedAccounts: [StoredAccount]
+    ) -> [StoredAccount] {
+        reorderedAccounts.filter(\.isPinned) + reorderedAccounts.filter { !$0.isPinned }
+    }
+
+    nonisolated static func storedAccountCustomOrderComparator(
+        lhs: StoredAccount,
+        rhs: StoredAccount
+    ) -> Bool {
+        if let pinnedFirst = pinnedAccountsComeBefore(
+            lhsIsPinned: lhs.isPinned,
+            rhsIsPinned: rhs.isPinned
+        ) {
+            return pinnedFirst
+        }
+
+        if lhs.customOrder != rhs.customOrder {
+            return lhs.customOrder < rhs.customOrder
+        }
+
+        if lhs.createdAt != rhs.createdAt {
+            return lhs.createdAt < rhs.createdAt
+        }
+
+        return lhs.id.uuidString < rhs.id.uuidString
+    }
+
+    nonisolated static func sharedAccountRecordComparator(
+        lhs: SharedCodexAccountRecord,
+        rhs: SharedCodexAccountRecord
+    ) -> Bool {
+        if let pinnedFirst = pinnedAccountsComeBefore(
+            lhsIsPinned: lhs.isPinned,
+            rhsIsPinned: rhs.isPinned
+        ) {
+            return pinnedFirst
+        }
+
+        if lhs.sortOrder != rhs.sortOrder {
+            return lhs.sortOrder < rhs.sortOrder
+        }
+
+        return displayName(
+            name: lhs.name,
+            emailHint: lhs.emailHint,
+            accountIdentifier: lhs.accountIdentifier,
+            identityKey: lhs.id
+        )
+        .localizedStandardCompare(
+            displayName(
+                name: rhs.name,
+                emailHint: rhs.emailHint,
+                accountIdentifier: rhs.accountIdentifier,
+                identityKey: rhs.id
+            )
+        ) == .orderedAscending
+    }
+
+    private nonisolated static func isEquivalent(
         _ lhs: StoredAccount,
         _ rhs: StoredAccount,
         for criterion: AccountSortCriterion
@@ -155,7 +224,7 @@ enum AccountsPresentationLogic {
         }
     }
 
-    private static func rateLimitSortComesBefore(
+    private nonisolated static func rateLimitSortComesBefore(
         _ lhs: StoredAccount,
         _ rhs: StoredAccount,
         direction: SortDirection
@@ -182,7 +251,7 @@ enum AccountsPresentationLogic {
         return lhs.createdAt < rhs.createdAt
     }
 
-    private static func areEquivalentForRateLimitSort(
+    private nonisolated static func areEquivalentForRateLimitSort(
         _ lhs: StoredAccount,
         _ rhs: StoredAccount
     ) -> Bool {
@@ -193,7 +262,7 @@ enum AccountsPresentationLogic {
             && lhsMetrics.secondary == rhsMetrics.secondary
     }
 
-    private static func rateLimitSortMetrics(
+    private nonisolated static func rateLimitSortMetrics(
         for account: StoredAccount
     ) -> (isComplete: Bool, primary: Int, secondary: Int) {
         let normalizedValues = normalizedRateLimitSortValues(for: account)
@@ -204,7 +273,7 @@ enum AccountsPresentationLogic {
         )
     }
 
-    private static func normalizedRateLimitSortValues(
+    private nonisolated static func normalizedRateLimitSortValues(
         for account: StoredAccount
     ) -> (isComplete: Bool, values: [Int]) {
         guard let fiveHourRemainingPercent = account.fiveHourLimitUsedPercent,
@@ -219,7 +288,18 @@ enum AccountsPresentationLogic {
         )
     }
 
-    private static func normalizedDisplayText(_ text: String?) -> String? {
+    private nonisolated static func pinnedAccountsComeBefore(
+        lhsIsPinned: Bool,
+        rhsIsPinned: Bool
+    ) -> Bool? {
+        guard lhsIsPinned != rhsIsPinned else {
+            return nil
+        }
+
+        return lhsIsPinned && !rhsIsPinned
+    }
+
+    private nonisolated static func normalizedDisplayText(_ text: String?) -> String? {
         guard let text else {
             return nil
         }

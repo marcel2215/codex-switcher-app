@@ -50,6 +50,9 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
     @Property(title: "Current")
     var isCurrent: Bool
 
+    @Property(title: "Pinned")
+    var isPinned: Bool
+
     @Property(title: "Last Login")
     var lastLoginAt: Date?
 
@@ -68,6 +71,7 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
     nonisolated var displayRepresentation: DisplayRepresentation {
         let subtitleParts = [
             isCurrent ? "Current" : nil,
+            isPinned ? "Pinned" : nil,
             hasLocalSnapshot ? nil : "Needs local capture on this Mac",
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
@@ -88,6 +92,7 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
         attributeSet.displayName = name
         attributeSet.contentDescription = [
             isCurrent ? "Current account" : nil,
+            isPinned ? "Pinned account" : nil,
             hasLocalSnapshot ? nil : "Needs local capture on this Mac",
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
@@ -99,6 +104,7 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
             isCurrent ? "Current" : nil,
+            isPinned ? "Pinned" : nil,
             hasLocalSnapshot ? "Available" : "Needs local capture",
             "Codex",
             "Account",
@@ -121,6 +127,7 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
         self.emailHint = record.emailHint
         self.accountIdentifier = record.accountIdentifier
         self.isCurrent = record.id == currentAccountID
+        self.isPinned = record.isPinned
         self.lastLoginAt = record.lastLoginAt
         self.fiveHourLimitUsedPercent = record.fiveHourLimitUsedPercent
         self.sevenDayLimitUsedPercent = record.sevenDayLimitUsedPercent
@@ -330,6 +337,10 @@ enum CodexSharedAccountIntentResolver {
         lhs: CodexAccountEntity,
         rhs: CodexAccountEntity
     ) -> Bool {
+        if lhs.isPinned != rhs.isPinned {
+            return lhs.isPinned && !rhs.isPinned
+        }
+
         if lhs.isCurrent != rhs.isCurrent {
             return lhs.isCurrent && !rhs.isCurrent
         }

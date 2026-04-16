@@ -1309,6 +1309,57 @@ struct CodexSwitcherTests {
         #expect(controller.presentedAlert == nil)
     }
 
+    @Test func pinnedAccountsStayAheadOfUnpinnedAcrossSortModes() {
+        let pinnedLater = makeStoredAccount(name: "Zulu", customOrder: 4, accountID: "acct-pinned-later")
+        pinnedLater.isPinned = true
+        pinnedLater.createdAt = .now.addingTimeInterval(60)
+
+        let pinnedEarlier = makeStoredAccount(name: "Alpha", customOrder: 1, accountID: "acct-pinned-earlier")
+        pinnedEarlier.isPinned = true
+        pinnedEarlier.createdAt = .now
+
+        let unpinnedEarlier = makeStoredAccount(name: "Bravo", customOrder: 0, accountID: "acct-unpinned-earlier")
+        unpinnedEarlier.createdAt = .now.addingTimeInterval(-60)
+
+        let unpinnedLater = makeStoredAccount(name: "Charlie", customOrder: 3, accountID: "acct-unpinned-later")
+        unpinnedLater.createdAt = .now.addingTimeInterval(120)
+
+        let accounts = [unpinnedEarlier, pinnedLater, unpinnedLater, pinnedEarlier]
+
+        #expect(
+            AccountsPresentationLogic.sortedAccounts(
+                from: accounts,
+                sortCriterion: .custom,
+                sortDirection: .ascending
+            )
+            .map(\.name) == ["Alpha", "Zulu", "Bravo", "Charlie"]
+        )
+
+        #expect(
+            AccountsPresentationLogic.sortedAccounts(
+                from: accounts,
+                sortCriterion: .dateAdded,
+                sortDirection: .descending
+            )
+            .map(\.name) == ["Zulu", "Alpha", "Charlie", "Bravo"]
+        )
+    }
+
+    @Test func customOrderPersistenceSequenceKeepsPinBoundaryWhilePreservingLaneOrder() {
+        let pinnedFirst = makeStoredAccount(name: "Pinned First", customOrder: 0, accountID: "acct-p1")
+        pinnedFirst.isPinned = true
+        let pinnedSecond = makeStoredAccount(name: "Pinned Second", customOrder: 1, accountID: "acct-p2")
+        pinnedSecond.isPinned = true
+        let unpinnedFirst = makeStoredAccount(name: "Unpinned First", customOrder: 2, accountID: "acct-u1")
+        let unpinnedSecond = makeStoredAccount(name: "Unpinned Second", customOrder: 3, accountID: "acct-u2")
+
+        let persisted = AccountsPresentationLogic.customOrderPersistenceSequence(
+            for: [unpinnedSecond, pinnedFirst, unpinnedFirst, pinnedSecond]
+        )
+
+        #expect(persisted.map(\.name) == ["Pinned First", "Pinned Second", "Unpinned Second", "Unpinned First"])
+    }
+
     @Test func rateLimitSortUsesMinimumWindowThenMaximumAndKeepsIncompletePairsLast() throws {
         let container = try makeInMemoryContainer()
         let controller = makeController(authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")))

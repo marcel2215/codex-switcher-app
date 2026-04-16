@@ -104,6 +104,10 @@ struct AccountDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                detailMenu
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
                 shareToolbarItem
             }
         }
@@ -230,5 +234,21 @@ struct AccountDetailView: View {
             }
             .accessibilityLabel("Share Account Archive")
         }
+    }
+
+    private var detailMenu: some View {
+        Menu {
+            Button {
+                controller.setPinned(!account.isPinned, for: account, in: modelContext)
+            } label: {
+                Label(
+                    account.isPinned ? "Unpin Account" : "Pin Account",
+                    systemImage: account.isPinned ? "pin.slash" : "pin"
+                )
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .accessibilityLabel("Account Actions")
     }
 }
