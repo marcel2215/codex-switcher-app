@@ -6,7 +6,7 @@
 	<string>development</string>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.com.marcel2215.Codex-Switcher</string>
+		<string>iCloud.com.marcel2215.codexswitcher</string>
 	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
@@ -18,9 +18,9 @@
 	</array>
 	<key>com.apple.developer.ubiquity-container-identifiers</key>
 	<array>
-		<string>iCloud.com.marcel2215.Codex-Switcher</string>
+		<string>iCloud.com.marcel2215.codexswitcher</string>
 	</array>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
-	<string>$(TeamIdentifierPrefix)com.marcel2215.Codex-Switcher</string>
+	<string>$(TeamIdentifierPrefix)com.marcel2215.codexswitcher</string>
 </dict>
 </plist>
