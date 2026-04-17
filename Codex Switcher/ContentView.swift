@@ -20,6 +20,9 @@ struct ContentView: View {
     @State private var accountListItems: [AccountListItem] = []
     @State private var iconPickerAccountID: UUID?
     @State private var pendingCustomOrderIDs: [UUID]?
+    // Keep move gestures handle-scoped in custom mode so the rest of the row
+    // can remain a pure export drag source for Finder and other apps.
+    @State private var hoveredReorderHandleID: UUID?
 
     private var displayedAccounts: [StoredAccount] {
         controller.displayedAccounts(from: accounts)
@@ -88,6 +91,11 @@ struct ContentView: View {
                 }
             }
         }
+        .background(
+            MouseButtonMonitorBridge {
+                clearReorderHandleInteraction()
+            }
+        )
         .navigationTitle("Codex Switcher")
         .toolbar {
             ToolbarItemGroup {
@@ -200,10 +208,14 @@ struct ContentView: View {
         .onChange(of: controller.canEditCustomOrder) { _, canEditCustomOrder in
             if !canEditCustomOrder {
                 pendingCustomOrderIDs = nil
+                clearReorderHandleInteraction()
             }
             syncAccountListItems(with: displayedAccountListItems)
         }
         .onChange(of: controller.renameTargetID) { _, newValue in
+            if newValue != nil {
+                clearReorderHandleInteraction()
+            }
             handleRenameTargetChange(newValue)
         }
         .onAppear {
@@ -325,6 +337,10 @@ struct ContentView: View {
 
     private func accountListRow(for item: AccountListItem, draftName: Binding<String>) -> some View {
         HStack(alignment: .center, spacing: 8) {
+            if controller.canEditCustomOrder {
+                reorderHandle(for: item.id)
+            }
+
             Image(systemName: item.iconSystemName)
                 .font(.title3)
                 .frame(width: 20, alignment: .center)
@@ -390,10 +406,12 @@ struct ContentView: View {
 
     private func accountListEntry(for item: AccountListItem, draftName: Binding<String>) -> some View {
         accountListRow(for: item, draftName: draftName)
+            .moveDisabled(controller.canEditCustomOrder && !isReorderInteractionArmed)
             .onAppear {
                 handleRateLimitVisibility(true, for: item.id)
             }
             .onDisappear {
+                clearReorderHandleInteractionIfNeeded(for: item.id)
                 handleRateLimitVisibility(false, for: item.id)
             }
             .itemProvider {
@@ -430,8 +448,60 @@ struct ContentView: View {
         controller.setRateLimitVisibility(isVisible, for: identityKey)
     }
 
+    private func reorderHandle(for rowID: UUID) -> some View {
+        Image(systemName: "line.3.horizontal")
+            .font(.callout.weight(.semibold))
+            .foregroundStyle(isReorderHandleHovered(for: rowID) ? .primary : .tertiary)
+            .frame(width: 18, alignment: .center)
+            .padding(.trailing, 2)
+            .contentShape(Rectangle())
+            .help("Drag to reorder")
+            .accessibilityHidden(true)
+            .onHover { hovering in
+                guard !isPrimaryMouseButtonPressed else {
+                    return
+                }
+
+                if hovering {
+                    hoveredReorderHandleID = rowID
+                } else if hoveredReorderHandleID == rowID {
+                    hoveredReorderHandleID = nil
+                }
+            }
+    }
+
+    private func isReorderHandleHovered(for rowID: UUID) -> Bool {
+        hoveredReorderHandleID == rowID
+    }
+
+    private var isReorderInteractionArmed: Bool {
+        controller.canEditCustomOrder
+            && hoveredReorderHandleID != nil
+            && controller.renameTargetID == nil
+    }
+
+    private func clearReorderHandleInteraction() {
+        hoveredReorderHandleID = nil
+    }
+
+    private func clearReorderHandleInteractionIfNeeded(for rowID: UUID) {
+        if hoveredReorderHandleID == rowID {
+            hoveredReorderHandleID = nil
+        }
+    }
+
+    private var isPrimaryMouseButtonPressed: Bool {
+        (NSEvent.pressedMouseButtons & 0x1) != 0
+    }
+
     private func accountListDragItemProvider(forDraggedRowID rowID: UUID) -> NSItemProvider? {
         guard controller.renameTargetID == nil else {
+            return nil
+        }
+
+        // The handle is reserved for in-list moves; only the row body should
+        // vend the external archive payload.
+        if controller.canEditCustomOrder && isReorderHandleHovered(for: rowID) {
             return nil
         }
 
@@ -442,7 +512,7 @@ struct ContentView: View {
 
         return controller.macOSDragItemProvider(
             for: draggedAccounts,
-            includeReorderToken: controller.canEditCustomOrder
+            includeReorderToken: false
         )
     }
 
@@ -513,6 +583,7 @@ struct ContentView: View {
     private func persistVisibleAccountOrderIfNeeded(_ reorderedIDs: [UUID]) {
         guard controller.canEditCustomOrder else {
             pendingCustomOrderIDs = nil
+            clearReorderHandleInteraction()
             return
         }
 
@@ -532,6 +603,7 @@ struct ContentView: View {
         }
 
         pendingCustomOrderIDs = reorderedIDs
+        clearReorderHandleInteraction()
         controller.persistCustomOrder(for: reorderedIDs, visibleAccounts: displayedAccounts)
     }
 
