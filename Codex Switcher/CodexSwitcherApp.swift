@@ -49,6 +49,19 @@ struct CodexSwitcherApp: App {
         let bootstrap = AppBootstrap.make()
         self.sharedModelContainer = bootstrap.modelContainer
         self.storageRecoveryMessage = bootstrap.storageRecoveryMessage
+
+        if !AppRuntimeEnvironment.isRunningUnitTests,
+           let modelContainer = bootstrap.modelContainer {
+            // Control Center can background-launch the app without creating a
+            // visible scene first. Configure the controller eagerly so queued
+            // app-owned commands are observed and drained even in that
+            // headless launch path.
+            bootstrap.controller.configure(
+                modelContext: modelContainer.mainContext,
+                undoManager: nil
+            )
+        }
+
         _controller = State(initialValue: bootstrap.controller)
     }
 
