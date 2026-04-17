@@ -396,6 +396,9 @@ struct ContentView: View {
             .onDisappear {
                 handleRateLimitVisibility(false, for: item.id)
             }
+            .itemProvider {
+                accountListDragItemProvider(forDraggedRowID: item.id)
+            }
     }
 
     private func handlePrimaryAction(forSelectionIDs targetIDs: Set<UUID>) {
@@ -425,6 +428,41 @@ struct ContentView: View {
         }
 
         controller.setRateLimitVisibility(isVisible, for: identityKey)
+    }
+
+    private func accountListDragItemProvider(forDraggedRowID rowID: UUID) -> NSItemProvider? {
+        guard controller.renameTargetID == nil else {
+            return nil
+        }
+
+        let draggedAccounts = dragAccounts(forDraggedRowID: rowID)
+        guard !draggedAccounts.isEmpty else {
+            return nil
+        }
+
+        return controller.macOSDragItemProvider(
+            for: draggedAccounts,
+            includeReorderToken: controller.canEditCustomOrder
+        )
+    }
+
+    private func dragAccounts(forDraggedRowID rowID: UUID) -> [StoredAccount] {
+        // Match native macOS list behavior: dragging a selected row exports the
+        // current ordered selection, while dragging an unselected row leaves
+        // the existing selection alone and scopes the drag to that row only.
+        if controller.selection.contains(rowID) {
+            let selectedIDs = controller.selection
+            let orderedSelection = displayedAccounts.filter { selectedIDs.contains($0.id) }
+            if !orderedSelection.isEmpty {
+                return orderedSelection
+            }
+        }
+
+        guard let draggedAccount = displayedAccounts.first(where: { $0.id == rowID }) else {
+            return []
+        }
+
+        return [draggedAccount]
     }
 
     private func syncAccountListItems(with sourceItems: [AccountListItem]) {
