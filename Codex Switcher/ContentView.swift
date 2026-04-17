@@ -325,62 +325,61 @@ struct ContentView: View {
 
     private func accountListRow(for item: AccountListItem, draftName: Binding<String>) -> some View {
         HStack(alignment: .center, spacing: 8) {
-            Label {
-                VStack(alignment: .leading, spacing: 2) {
-                    if controller.renameTargetID == item.id {
-                        TextField("", text: draftName)
-                            .textFieldStyle(.plain)
-                            .focused($focusedRenameAccountID, equals: item.id)
-                            .onSubmit {
-                                controller.commitRename(for: item.id, proposedName: draftName.wrappedValue)
-                            }
-                            .onChange(of: focusedRenameAccountID) { _, focusedID in
-                                guard controller.renameTargetID == item.id, focusedID != item.id else {
-                                    return
-                                }
+            Image(systemName: item.iconSystemName)
+                .font(.title3)
+                .frame(width: 20, alignment: .center)
+                .foregroundStyle(.secondary)
+                .allowsHitTesting(false)
 
-                                controller.commitRename(for: item.id, proposedName: draftName.wrappedValue)
+            VStack(alignment: .leading, spacing: 2) {
+                if controller.renameTargetID == item.id {
+                    TextField("", text: draftName)
+                        .textFieldStyle(.plain)
+                        .focused($focusedRenameAccountID, equals: item.id)
+                        .onSubmit {
+                            controller.commitRename(for: item.id, proposedName: draftName.wrappedValue)
+                        }
+                        .onChange(of: focusedRenameAccountID) { _, focusedID in
+                            guard controller.renameTargetID == item.id, focusedID != item.id else {
+                                return
                             }
-                            .onAppear {
-                                focusedRenameAccountID = item.id
-                            }
-                            .onKeyPress(.escape) {
-                                controller.cancelRename(for: item.id)
-                                return .handled
-                            }
-                    } else {
-                        Text(item.name)
-                            .font(.callout.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .allowsHitTesting(false)
-                    }
 
-                    AccountMetadataText(
-                        lastLoginAt: item.lastLoginAt,
-                        sevenDayLimitUsedPercent: item.sevenDayLimitUsedPercent,
-                        fiveHourLimitUsedPercent: item.fiveHourLimitUsedPercent,
-                        sevenDayResetsAt: item.sevenDayResetsAt,
-                        fiveHourResetsAt: item.fiveHourResetsAt,
-                        font: .subheadline
-                    )
-                    .allowsHitTesting(false)
+                            controller.commitRename(for: item.id, proposedName: draftName.wrappedValue)
+                        }
+                        .onAppear {
+                            focusedRenameAccountID = item.id
+                        }
+                        .onKeyPress(.escape) {
+                            controller.cancelRename(for: item.id)
+                            return .handled
+                        }
+                } else {
+                    Text(item.name)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .allowsHitTesting(false)
                 }
-            } icon: {
-                Image(systemName: item.iconSystemName)
-                    .font(.title3)
-                    .frame(width: 20)
-                    .foregroundStyle(.secondary)
-                    .allowsHitTesting(false)
+
+                AccountMetadataText(
+                    lastLoginAt: item.lastLoginAt,
+                    sevenDayLimitUsedPercent: item.sevenDayLimitUsedPercent,
+                    fiveHourLimitUsedPercent: item.fiveHourLimitUsedPercent,
+                    sevenDayResetsAt: item.sevenDayResetsAt,
+                    fiveHourResetsAt: item.fiveHourResetsAt,
+                    font: .subheadline
+                )
+                .allowsHitTesting(false)
             }
 
             Spacer(minLength: 0)
 
-            if item.isCurrentAccount {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.accent)
-                    .help("Currently active in Codex")
-                    .allowsHitTesting(false)
-            }
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(controller.selection.contains(item.id) ? Color.white : Color.accentColor)
+                .frame(width: 16, height: 16)
+                .opacity(item.isCurrentAccount ? 1 : 0)
+                .help(item.isCurrentAccount ? "Currently active in Codex" : "")
+                .accessibilityHidden(!item.isCurrentAccount)
+                .allowsHitTesting(false)
         }
         .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
