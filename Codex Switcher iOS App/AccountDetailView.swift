@@ -104,11 +104,11 @@ struct AccountDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                detailMenu
+                shareToolbarItem
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                shareToolbarItem
+                detailMenu
             }
         }
         .navigationDestination(for: DetailDestination.self, destination: destinationView)
