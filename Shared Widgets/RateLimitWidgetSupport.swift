@@ -842,12 +842,8 @@ struct RateLimitCircularAccessoryView: View {
         Gauge(value: metric.fraction) {
             EmptyView()
         } currentValueLabel: {
-            VStack(spacing: 1) {
-                Image(systemName: iconSystemName)
-                    .font(.system(size: 14, weight: .semibold))
-                Text(window.shortLabel)
-                    .font(.system(size: 6, weight: .bold, design: .rounded))
-            }
+            Image(systemName: iconSystemName)
+                .font(.system(size: 16, weight: .semibold))
         }
         .gaugeStyle(.accessoryCircularCapacity)
         .tint(gaugeTint)
