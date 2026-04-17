@@ -606,6 +606,7 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
 #if !os(watchOS)
 private enum RateLimitOverviewMetricLayout {
     static let percentLabelMinimumWidth: CGFloat = 42
+    static let metricLabelFont: Font = .caption2.weight(.semibold)
 }
 
 struct RateLimitOverviewWidgetView: View {
@@ -714,13 +715,13 @@ private struct RateLimitOverviewMetricRow: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Text(title)
-                    .font(.caption2.weight(.semibold))
+                    .font(RateLimitOverviewMetricLayout.metricLabelFont)
                     .foregroundStyle(.secondary)
 
                 Spacer(minLength: 4)
 
                 Text(metric.percentText)
-                    .font(.caption2.monospacedDigit())
+                    .font(RateLimitOverviewMetricLayout.metricLabelFont)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                     .frame(
@@ -760,13 +761,13 @@ private struct RateLimitOverviewMetricCell: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Text(title)
-                    .font(.caption2.weight(.semibold))
+                    .font(RateLimitOverviewMetricLayout.metricLabelFont)
                     .foregroundStyle(.secondary)
 
                 Spacer(minLength: 4)
 
                 Text(metric.percentText)
-                    .font(.caption2.monospacedDigit())
+                    .font(RateLimitOverviewMetricLayout.metricLabelFont)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                     .frame(
