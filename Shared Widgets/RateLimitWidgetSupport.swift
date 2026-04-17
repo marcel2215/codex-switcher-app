@@ -896,42 +896,66 @@ struct RateLimitCircularAccessoryView: View {
     }
 }
 
+private enum BatteryAccessoryRectangularMetrics {
+    static let iconPointSize: CGFloat = 13
+    static let valuePointSize: CGFloat = 20
+    static let subtitlePointSize: CGFloat = 16.5
+
+    static let topRowSpacing: CGFloat = 6
+    static let subtitleTopPadding: CGFloat = 1
+    static let barTopPadding: CGFloat = 4
+
+    static let barHeight: CGFloat = 8
+}
+
 struct RateLimitRectangularAccessoryView: View {
     let account: WidgetRateLimitAccount?
     let window: RateLimitWindow
 
     var body: some View {
-        // The built-in Batteries Lock Screen widget uses a shorter, thicker
-        // progress bar than SwiftUI's default accessory capacity gauge renders
-        // in this layout. Keep the text stack compact, then draw a measured bar
-        // that matches the screenshot geometry more closely.
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .center, spacing: 4) {
+        // Keep all outer margins system-owned for the Lock Screen accessory and
+        // tune only the internal layout so it tracks the built-in Batteries
+        // widget more closely.
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(
+                alignment: .center,
+                spacing: BatteryAccessoryRectangularMetrics.topRowSpacing
+            ) {
                 Image(systemName: iconSystemName)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(
+                        size: BatteryAccessoryRectangularMetrics.iconPointSize,
+                        weight: .semibold
+                    ))
                     .foregroundStyle(.primary)
 
                 Text(metric.percentText)
-                    .font(.system(size: 19, weight: .semibold, design: .rounded))
+                    .font(.system(
+                        size: BatteryAccessoryRectangularMetrics.valuePointSize,
+                        weight: .semibold
+                    ))
                     .monospacedDigit()
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.72)
                     .foregroundStyle(.primary)
 
                 Spacer(minLength: 0)
             }
 
             Text(subtitle)
-                .font(.callout)
+                .font(.system(
+                    size: BatteryAccessoryRectangularMetrics.subtitlePointSize,
+                    weight: .regular
+                ))
                 .lineLimit(1)
-                .minimumScaleFactor(0.78)
+                .minimumScaleFactor(0.80)
+                .padding(.top, BatteryAccessoryRectangularMetrics.subtitleTopPadding)
                 .foregroundStyle(.primary)
 
             BatteryStyleAccessoryProgressBar(
                 fraction: metric.fraction,
                 status: metric.status
             )
-            .padding(.top, 6)
+            .padding(.top, BatteryAccessoryRectangularMetrics.barTopPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityLabel("\(account?.displayName ?? "Missing Account") \(window.shortLabel)")
@@ -975,45 +999,67 @@ private struct BatteryStyleAccessoryProgressBar: View {
     let fraction: Double
     let status: RateLimitMetricDataStatus
 
-    private let widthFactor: CGFloat = 0.94
-    private let barHeight: CGFloat = 8
-
     var body: some View {
         GeometryReader { proxy in
-            let barWidth = proxy.size.width * widthFactor
-            let fillWidth = barWidth * max(0, min(1, fraction))
+            let trackWidth = proxy.size.width
+            let fillWidth = trackWidth * clampedFraction
 
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(trackColor)
-                    .frame(width: barWidth, height: barHeight)
+                    .frame(
+                        width: trackWidth,
+                        height: BatteryAccessoryRectangularMetrics.barHeight
+                    )
 
                 if fillWidth > 0 {
                     Capsule()
                         .fill(fillColor)
-                        .frame(width: fillWidth, height: barHeight)
+                        .frame(
+                            width: fillWidth,
+                            height: BatteryAccessoryRectangularMetrics.barHeight
+                        )
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
-        .frame(height: barHeight)
+        .frame(height: BatteryAccessoryRectangularMetrics.barHeight)
         .accessibilityHidden(true)
     }
 
+    private var clampedFraction: CGFloat {
+        CGFloat(max(0, min(1, fraction)))
+    }
+
     private var trackColor: Color {
-        .primary.opacity(widgetRenderingMode == .vibrant ? 0.22 : 0.18)
+        if widgetRenderingMode == .vibrant {
+            return Color(white: 0.18)
+        }
+
+        return .primary.opacity(0.16)
     }
 
     private var fillColor: Color {
-        let baseColor: Color = widgetRenderingMode == .vibrant ? .white : .primary
+        if widgetRenderingMode == .vibrant {
+            switch status {
+            case .exact:
+                return .white
+            case .cached:
+                return Color(white: 0.76)
+            case .missing:
+                return Color(white: 0.56)
+            }
+        }
+
+        let baseColor = Color.primary
 
         switch status {
         case .exact:
             return baseColor
         case .cached:
-            return baseColor.opacity(0.7)
+            return baseColor.opacity(0.72)
         case .missing:
-            return baseColor.opacity(0.4)
+            return baseColor.opacity(0.42)
         }
     }
 }
