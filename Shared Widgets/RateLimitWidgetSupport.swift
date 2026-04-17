@@ -897,47 +897,43 @@ struct RateLimitCircularAccessoryView: View {
 }
 
 struct RateLimitRectangularAccessoryView: View {
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
-    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
-
     let account: WidgetRateLimitAccount?
     let window: RateLimitWindow
 
     var body: some View {
-        // Match the built-in battery accessory layout more closely: a compact
-        // top value row, one secondary title line, then the native linear
-        // capacity gauge. Avoid oversized hero numerals that make the widget
-        // read like a card instead of a Lock Screen accessory.
+        // The built-in Batteries Lock Screen widget uses a shorter, thicker
+        // progress bar than SwiftUI's default accessory capacity gauge renders
+        // in this layout. Keep the text stack compact, then draw a measured bar
+        // that matches the screenshot geometry more closely.
         VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+            HStack(alignment: .center, spacing: 4) {
                 Image(systemName: iconSystemName)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
 
                 Text(metric.percentText)
-                    .font(.system(size: 23, weight: .semibold, design: .rounded))
+                    .font(.system(size: 19, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.7)
                     .foregroundStyle(.primary)
 
                 Spacer(minLength: 0)
             }
 
             Text(subtitle)
-                .font(.system(size: 14, weight: .regular))
+                .font(.callout)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.78)
                 .foregroundStyle(.primary)
 
-            Gauge(value: metric.fraction) {
-                EmptyView()
-            }
-            .gaugeStyle(.accessoryLinearCapacity)
-            .tint(gaugeTint)
-            .padding(.top, 2)
+            BatteryStyleAccessoryProgressBar(
+                fraction: metric.fraction,
+                status: metric.status
+            )
+            .padding(.top, 6)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityLabel("\(account?.displayName ?? "Missing Account") \(window.shortLabel)")
         .accessibilityValue(accessibilityValue)
     }
@@ -961,14 +957,6 @@ struct RateLimitRectangularAccessoryView: View {
         }
     }
 
-    private var gaugeTint: Color {
-        if widgetRenderingMode == .vibrant {
-            return .white
-        }
-
-        return metric.tint(colorScheme: colorScheme, contrast: colorSchemeContrast)
-    }
-
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
@@ -977,6 +965,55 @@ struct RateLimitRectangularAccessoryView: View {
             return "\(metric.percentText) remaining, cached"
         case .missing:
             return "Unavailable"
+        }
+    }
+}
+
+private struct BatteryStyleAccessoryProgressBar: View {
+    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
+
+    let fraction: Double
+    let status: RateLimitMetricDataStatus
+
+    private let widthFactor: CGFloat = 0.94
+    private let barHeight: CGFloat = 8
+
+    var body: some View {
+        GeometryReader { proxy in
+            let barWidth = proxy.size.width * widthFactor
+            let fillWidth = barWidth * max(0, min(1, fraction))
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(trackColor)
+                    .frame(width: barWidth, height: barHeight)
+
+                if fillWidth > 0 {
+                    Capsule()
+                        .fill(fillColor)
+                        .frame(width: fillWidth, height: barHeight)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
+        .frame(height: barHeight)
+        .accessibilityHidden(true)
+    }
+
+    private var trackColor: Color {
+        .primary.opacity(widgetRenderingMode == .vibrant ? 0.22 : 0.18)
+    }
+
+    private var fillColor: Color {
+        let baseColor: Color = widgetRenderingMode == .vibrant ? .white : .primary
+
+        switch status {
+        case .exact:
+            return baseColor
+        case .cached:
+            return baseColor.opacity(0.7)
+        case .missing:
+            return baseColor.opacity(0.4)
         }
     }
 }
