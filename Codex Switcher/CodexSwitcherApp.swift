@@ -632,6 +632,12 @@ private struct SettingsView: View {
                 Link(destination: AppSupportLink.sourceCodeURL) {
                     settingsActionLabel("Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
+
+                if let notificationSettingsURL = CodexNotificationSettingsLink.sectionFooterURL() {
+                    Link(destination: notificationSettingsURL) {
+                        settingsActionLabel("Notification Settings", systemImage: "bell.badge")
+                    }
+                }
             }
 
             Section("Danger Zone") {

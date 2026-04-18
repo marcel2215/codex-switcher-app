@@ -554,6 +554,7 @@ The app requests authorization only when needed, and it re-registers for the `.p
 - Terms of Service
 - Privacy Policy
 - Source Code
+- Notification Settings
 
 ## Danger Zone actions
 - **Reset Settings**
