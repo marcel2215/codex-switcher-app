@@ -19,7 +19,7 @@ It is distributed as a direct download from **GitHub Releases**, can be **purcha
 
 You can use Codex Switcher in three ways:
 
-- **[GitHub Releases](https://github.com/marcel2215/codex-switcher/releases)** — install the latest direct build from the repository's Releases page
+- **[GitHub Releases](https://github.com/marcel2215/codex-switcher-app/releases)** — install the latest direct build from the repository's Releases page
 - **App Store** — purchase the signed App Store build
 - **Build from source** — open the Xcode project and run your own signed build
 
