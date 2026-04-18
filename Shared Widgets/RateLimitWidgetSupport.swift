@@ -872,7 +872,7 @@ private struct RateLimitOverviewMetricTitle: View {
     let referenceDate: Date
 
     var body: some View {
-        if let resetAt = metric.resetsAt, metric.shouldUseLiveResetCountdown(relativeTo: referenceDate) {
+        if let resetAt = metric.resetsAt, resetAt.timeIntervalSince(referenceDate) > 0 {
             Text(resetAt, style: .relative)
             .monospacedDigit()
             .font(RateLimitOverviewMetricLayout.metricLabelFont)

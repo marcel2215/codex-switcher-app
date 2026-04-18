@@ -24,18 +24,14 @@ struct WatchAccountRow: View {
                     .lineLimit(1)
 
                 WatchRateLimitProgressBar(
-                    title: AccountDisplayFormatter.progressResetLabel(
-                        until: account.fiveHourResetsAt,
-                        fallbackTitle: "5h"
-                    ),
+                    fallbackTitle: "5h",
+                    resetAt: account.fiveHourResetsAt,
                     remainingPercent: account.fiveHourLimitUsedPercent
                 )
 
                 WatchRateLimitProgressBar(
-                    title: AccountDisplayFormatter.progressResetLabel(
-                        until: account.sevenDayResetsAt,
-                        fallbackTitle: "7d"
-                    ),
+                    fallbackTitle: "7d",
+                    resetAt: account.sevenDayResetsAt,
                     remainingPercent: account.sevenDayLimitUsedPercent
                 )
             }
@@ -49,13 +45,18 @@ struct WatchAccountRow: View {
 }
 
 private struct WatchRateLimitProgressBar: View {
-    let title: String
+    let fallbackTitle: String
+    let resetAt: Date?
     let remainingPercent: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
-                Text(title)
+                RateLimitResetText(
+                    resetAt: resetAt,
+                    fallbackText: fallbackTitle
+                )
+                    .monospacedDigit()
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 

@@ -36,11 +36,13 @@ struct AccountMetadataText: View {
         // call sites remain stable while the row UI now mirrors iOS.
         HStack(spacing: 6) {
             progressBar(
-                title: progressLabel(fallbackTitle: "5h", resetAt: fiveHourResetsAt),
+                fallbackTitle: "5h",
+                resetAt: fiveHourResetsAt,
                 remainingPercent: fiveHourLimitUsedPercent
             )
             progressBar(
-                title: progressLabel(fallbackTitle: "7d", resetAt: sevenDayResetsAt),
+                fallbackTitle: "7d",
+                resetAt: sevenDayResetsAt,
                 remainingPercent: sevenDayLimitUsedPercent
             )
         }
@@ -120,10 +122,18 @@ struct AccountMetadataText: View {
     }
 
     @ViewBuilder
-    private func progressBar(title: String, remainingPercent: Int?) -> some View {
+    private func progressBar(
+        fallbackTitle: String,
+        resetAt: Date?,
+        remainingPercent: Int?
+    ) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
-                Text(title)
+                RateLimitResetText(
+                    resetAt: resetAt,
+                    fallbackText: fallbackTitle
+                )
+                    .monospacedDigit()
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 

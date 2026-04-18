@@ -2116,7 +2116,7 @@ struct CodexSwitcherTests {
         )
     }
 
-    @Test func widgetResetCountdownPolicySwitchesBelowTwentyFourHours() {
+    @Test func widgetResetCountdownPolicyUsesRelativeTextForAnyFutureReset() {
         let now = Date(timeIntervalSince1970: 1_000_000)
         let multiDayReset = now.addingTimeInterval((3 * 24 * 60 * 60) + (23 * 60 * 60) + (5 * 60))
         let exactDayReset = now.addingTimeInterval(24 * 60 * 60)
@@ -2126,26 +2126,26 @@ struct CodexSwitcherTests {
             AccountDisplayFormatter.shouldUseLiveWidgetCountdown(
                 until: multiDayReset,
                 relativeTo: now
-            ) == false
+            )
         )
         #expect(
             AccountDisplayFormatter.nextResetLabelRefreshDate(
                 until: multiDayReset,
                 relativeTo: now
-            ) == now.addingTimeInterval(6 * 60)
+            ) == multiDayReset
         )
 
         #expect(
             AccountDisplayFormatter.shouldUseLiveWidgetCountdown(
                 until: exactDayReset,
                 relativeTo: now
-            ) == false
+            )
         )
         #expect(
             AccountDisplayFormatter.nextResetLabelRefreshDate(
                 until: exactDayReset,
                 relativeTo: now
-            ) == now.addingTimeInterval(60)
+            ) == exactDayReset
         )
 
         #expect(

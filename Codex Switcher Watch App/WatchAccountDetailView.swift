@@ -170,12 +170,12 @@ struct WatchAccountDetailView: View {
         Button {
             toggleResetDisplayMode(for: row)
         } label: {
-            Text(
-                AccountDisplayFormatter.resetTimeDescription(
-                    until: value,
-                    displayMode: resetDisplayModes[row] ?? .relative
-                )
+            RateLimitResetText(
+                resetAt: value,
+                fallbackText: "Unavailable",
+                displayMode: resetDisplayModes[row] ?? .relative
             )
+            .monospacedDigit()
             .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
