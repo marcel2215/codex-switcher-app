@@ -77,7 +77,7 @@ struct WatchAccountDetailView: View {
                 }
 
                 LabeledContent("Last Login") {
-                    Text(AccountDisplayFormatter.lastLoginValueDescription(from: account.lastLoginAt))
+                    LastLoginText(lastLoginAt: account.lastLoginAt)
                         .foregroundStyle(.secondary)
                 }
             }
