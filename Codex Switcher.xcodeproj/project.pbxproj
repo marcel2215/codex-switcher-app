@@ -259,7 +259,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				CodexSharedSettingsIntents.swift,
-				CodexSharedSwitchControlIntent.swift,
 				CodexWidgetEntities.swift,
 				CodexWidgetIntents.swift,
 				WidgetSnapshotPublisher.swift,
@@ -269,7 +268,6 @@
 		1FA700020002000200020002 /* Exceptions for "Shared" folder in "Codex Switcher iOS App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				CodexSharedSwitchControlIntent.swift,
 				CodexWidgetEntities.swift,
 				CodexWidgetIntents.swift,
 			);
