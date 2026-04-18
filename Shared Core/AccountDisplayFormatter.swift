@@ -16,6 +16,8 @@ enum AccountDisplayFormatter {
         case absolute
     }
 
+    private static let liveWidgetCountdownThreshold: TimeInterval = 24 * 60 * 60
+
     static func lastLoginValueDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
         guard let lastLoginAt else {
             return "never"
@@ -172,6 +174,55 @@ enum AccountDisplayFormatter {
         }
 
         return resetCountdownDescription(until: resetAt, relativeTo: now)
+    }
+
+    /// Widgets use the live system renderer only once the remaining time drops
+    /// below 24 hours. Above that threshold the shared compact formatter keeps
+    /// multi-day values in the app's `3d 23h` style instead of collapsing
+    /// everything into a localized hour-based countdown.
+    static func shouldUseLiveWidgetCountdown(
+        until resetAt: Date?,
+        relativeTo now: Date = .now
+    ) -> Bool {
+        guard let resetAt else {
+            return false
+        }
+
+        let remainingSeconds = resetAt.timeIntervalSince(now)
+        return remainingSeconds > 0 && remainingSeconds < liveWidgetCountdownThreshold
+    }
+
+    /// Returns the next moment a compact reset label would visibly change.
+    /// Widgets use this to refresh only when the static day/hour label needs to
+    /// tick down, when they should hand off to the live sub-day countdown, or
+    /// exactly when the reset passes so the widget can swap the live relative
+    /// text for the static `now` label.
+    static func nextResetLabelRefreshDate(
+        until resetAt: Date?,
+        relativeTo now: Date = .now
+    ) -> Date? {
+        guard let resetAt else {
+            return nil
+        }
+
+        let remainingSeconds = resetAt.timeIntervalSince(now)
+        guard remainingSeconds > 0 else {
+            return nil
+        }
+
+        if shouldUseLiveWidgetCountdown(until: resetAt, relativeTo: now) {
+            return resetAt
+        }
+
+        let totalMinutes = Int(ceil(remainingSeconds / 60))
+        let totalHours = totalMinutes / 60
+
+        guard totalHours >= 24 else {
+            return resetAt.addingTimeInterval(60)
+        }
+
+        let nextDisplayedMinuteValue = (totalHours * 60) - 1
+        return resetAt.addingTimeInterval(-TimeInterval(nextDisplayedMinuteValue * 60))
     }
 
     static func clampedPercentValue(_ value: Int?) -> Int? {

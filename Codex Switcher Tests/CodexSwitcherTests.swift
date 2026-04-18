@@ -2087,6 +2087,81 @@ struct CodexSwitcherTests {
         )
     }
 
+    @Test func resetCountdownDescriptionUsesCompactExamples() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+
+        #expect(
+            AccountDisplayFormatter.resetCountdownDescription(
+                until: now.addingTimeInterval((3 * 24 * 60 * 60) + (23 * 60 * 60)),
+                relativeTo: now
+            ) == "3d 23h"
+        )
+        #expect(
+            AccountDisplayFormatter.resetCountdownDescription(
+                until: now.addingTimeInterval((12 * 60 * 60) + (32 * 60)),
+                relativeTo: now
+            ) == "12h 32m"
+        )
+        #expect(
+            AccountDisplayFormatter.resetCountdownDescription(
+                until: now.addingTimeInterval(5 * 60),
+                relativeTo: now
+            ) == "5m"
+        )
+        #expect(
+            AccountDisplayFormatter.resetCountdownDescription(
+                until: now,
+                relativeTo: now
+            ) == "now"
+        )
+    }
+
+    @Test func widgetResetCountdownPolicySwitchesBelowTwentyFourHours() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let multiDayReset = now.addingTimeInterval((3 * 24 * 60 * 60) + (23 * 60 * 60) + (5 * 60))
+        let exactDayReset = now.addingTimeInterval(24 * 60 * 60)
+        let subDayReset = now.addingTimeInterval((12 * 60 * 60) + (32 * 60))
+
+        #expect(
+            AccountDisplayFormatter.shouldUseLiveWidgetCountdown(
+                until: multiDayReset,
+                relativeTo: now
+            ) == false
+        )
+        #expect(
+            AccountDisplayFormatter.nextResetLabelRefreshDate(
+                until: multiDayReset,
+                relativeTo: now
+            ) == now.addingTimeInterval(6 * 60)
+        )
+
+        #expect(
+            AccountDisplayFormatter.shouldUseLiveWidgetCountdown(
+                until: exactDayReset,
+                relativeTo: now
+            ) == false
+        )
+        #expect(
+            AccountDisplayFormatter.nextResetLabelRefreshDate(
+                until: exactDayReset,
+                relativeTo: now
+            ) == now.addingTimeInterval(60)
+        )
+
+        #expect(
+            AccountDisplayFormatter.shouldUseLiveWidgetCountdown(
+                until: subDayReset,
+                relativeTo: now
+            )
+        )
+        #expect(
+            AccountDisplayFormatter.nextResetLabelRefreshDate(
+                until: subDayReset,
+                relativeTo: now
+            ) == subDayReset
+        )
+    }
+
     @Test func usageLimitColorInterpolationMatchesRequestedScale() {
         let red = AccountDisplayFormatter.usageColorComponents(forRemainingPercent: 0)
         #expect(abs(red.red - 1) < 0.0001)

@@ -27,6 +27,31 @@ struct WidgetRateLimitMetric: Sendable {
         AccountDisplayFormatter.compactPercentDescription(remainingPercent)
     }
 
+    func resetLabelText(
+        fallbackTitle: String,
+        relativeTo now: Date
+    ) -> String {
+        AccountDisplayFormatter.progressResetLabel(
+            until: resetsAt,
+            fallbackTitle: fallbackTitle,
+            relativeTo: now
+        )
+    }
+
+    func shouldUseLiveResetCountdown(relativeTo now: Date) -> Bool {
+        AccountDisplayFormatter.shouldUseLiveWidgetCountdown(
+            until: resetsAt,
+            relativeTo: now
+        )
+    }
+
+    func nextResetLabelRefreshDate(relativeTo now: Date) -> Date? {
+        AccountDisplayFormatter.nextResetLabelRefreshDate(
+            until: resetsAt,
+            relativeTo: now
+        )
+    }
+
     func tint(
         colorScheme: ColorScheme,
         contrast: ColorSchemeContrast
@@ -246,11 +271,26 @@ enum WidgetRateLimitResolver {
         return .live(from: firstAccount)
     }
 
-    static func nextReset(in accounts: [WidgetRateLimitAccount]) -> Date? {
+    static func nextTimelineRefresh(
+        in accounts: [WidgetRateLimitAccount],
+        relativeTo now: Date
+    ) -> Date? {
         accounts
             .flatMap { [$0.fiveHourMetric, $0.sevenDayMetric] }
-            .compactMap(nextReset(for:))
+            .compactMap { $0.nextResetLabelRefreshDate(relativeTo: now) }
             .min()
+    }
+
+    static func nextTimelineRefresh(
+        for account: WidgetRateLimitAccount?,
+        window: RateLimitWindow,
+        relativeTo now: Date
+    ) -> Date? {
+        guard let account else {
+            return nil
+        }
+
+        return account.metric(for: window).nextResetLabelRefreshDate(relativeTo: now)
     }
 
     static func nextReset(
@@ -269,7 +309,7 @@ enum WidgetRateLimitResolver {
             return nil
         }
 
-        return resetsAt
+        return resetsAt.addingTimeInterval(60)
     }
 
     #if !os(watchOS)
@@ -308,18 +348,15 @@ enum WidgetRateLimitResolver {
 }
 
 enum WidgetTimelineScheduler {
-    private static let minimumReloadInterval: TimeInterval = 5 * 60
+    private static let minimumReloadInterval: TimeInterval = 60
     private static let fallbackReloadInterval: TimeInterval = 30 * 60
 
-    static func reloadDate(after now: Date, nextReset: Date?) -> Date {
-        guard let nextReset else {
+    static func reloadDate(after now: Date, nextRefresh: Date?) -> Date {
+        guard let nextRefresh else {
             return now.addingTimeInterval(fallbackReloadInterval)
         }
 
-        return max(
-            nextReset.addingTimeInterval(60),
-            now.addingTimeInterval(minimumReloadInterval)
-        )
+        return max(nextRefresh, now.addingTimeInterval(minimumReloadInterval))
     }
 }
 
@@ -398,7 +435,10 @@ struct RateLimitOverviewProvider: AppIntentTimelineProvider {
             policy: .after(
                 WidgetTimelineScheduler.reloadDate(
                     after: now,
-                    nextReset: WidgetRateLimitResolver.nextReset(in: accounts)
+                    nextRefresh: WidgetRateLimitResolver.nextTimelineRefresh(
+                        in: accounts,
+                        relativeTo: now
+                    )
                 )
             )
         )
@@ -596,7 +636,10 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
             policy: .after(
                 WidgetTimelineScheduler.reloadDate(
                     after: now,
-                    nextReset: WidgetRateLimitResolver.nextReset(for: account, window: configuration.window)
+                    nextRefresh: WidgetRateLimitResolver.nextReset(
+                        for: account,
+                        window: configuration.window
+                    )
                 )
             )
         )
@@ -620,7 +663,11 @@ struct RateLimitOverviewWidgetView: View {
         } else {
             VStack(alignment: .leading, spacing: verticalSpacing) {
                 ForEach(Array(entry.accounts.enumerated()), id: \.offset) { index, account in
-                    RateLimitOverviewAccountCard(account: account, family: family)
+                    RateLimitOverviewAccountCard(
+                        account: account,
+                        family: family,
+                        entryDate: entry.date
+                    )
                     if index < entry.accounts.count - 1 {
                         Divider()
                     }
@@ -666,6 +713,7 @@ private struct RateLimitOverviewAccountCard: View {
 
     let account: WidgetRateLimitAccount
     let family: WidgetFamily
+    let entryDate: Date
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -690,13 +738,29 @@ private struct RateLimitOverviewAccountCard: View {
 
             if family == .systemSmall {
                 VStack(alignment: .leading, spacing: 6) {
-                    RateLimitOverviewMetricRow(title: "5h", metric: account.fiveHourMetric)
-                    RateLimitOverviewMetricRow(title: "7d", metric: account.sevenDayMetric)
+                    RateLimitOverviewMetricRow(
+                        fallbackTitle: "5h",
+                        metric: account.fiveHourMetric,
+                        referenceDate: entryDate
+                    )
+                    RateLimitOverviewMetricRow(
+                        fallbackTitle: "7d",
+                        metric: account.sevenDayMetric,
+                        referenceDate: entryDate
+                    )
                 }
             } else {
                 HStack(alignment: .top, spacing: 8) {
-                    RateLimitOverviewMetricCell(title: "5h", metric: account.fiveHourMetric)
-                    RateLimitOverviewMetricCell(title: "7d", metric: account.sevenDayMetric)
+                    RateLimitOverviewMetricCell(
+                        fallbackTitle: "5h",
+                        metric: account.fiveHourMetric,
+                        referenceDate: entryDate
+                    )
+                    RateLimitOverviewMetricCell(
+                        fallbackTitle: "7d",
+                        metric: account.sevenDayMetric,
+                        referenceDate: entryDate
+                    )
                 }
             }
         }
@@ -708,15 +772,18 @@ private struct RateLimitOverviewMetricRow: View {
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.widgetRenderingMode) private var widgetRenderingMode
 
-    let title: String
+    let fallbackTitle: String
     let metric: WidgetRateLimitMetric
+    let referenceDate: Date
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Text(title)
-                    .font(RateLimitOverviewMetricLayout.metricLabelFont)
-                    .foregroundStyle(.secondary)
+                RateLimitOverviewMetricTitle(
+                    fallbackTitle: fallbackTitle,
+                    metric: metric,
+                    referenceDate: referenceDate
+                )
 
                 Spacer(minLength: 4)
 
@@ -754,15 +821,18 @@ private struct RateLimitOverviewMetricCell: View {
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.widgetRenderingMode) private var widgetRenderingMode
 
-    let title: String
+    let fallbackTitle: String
     let metric: WidgetRateLimitMetric
+    let referenceDate: Date
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Text(title)
-                    .font(RateLimitOverviewMetricLayout.metricLabelFont)
-                    .foregroundStyle(.secondary)
+                RateLimitOverviewMetricTitle(
+                    fallbackTitle: fallbackTitle,
+                    metric: metric,
+                    referenceDate: referenceDate
+                )
 
                 Spacer(minLength: 4)
 
@@ -793,6 +863,29 @@ private struct RateLimitOverviewMetricCell: View {
             .frame(height: 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct RateLimitOverviewMetricTitle: View {
+    let fallbackTitle: String
+    let metric: WidgetRateLimitMetric
+    let referenceDate: Date
+
+    var body: some View {
+        if let resetAt = metric.resetsAt, metric.shouldUseLiveResetCountdown(relativeTo: referenceDate) {
+            Text(resetAt, style: .relative)
+            .monospacedDigit()
+            .font(RateLimitOverviewMetricLayout.metricLabelFont)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+        } else {
+            Text(metric.resetLabelText(fallbackTitle: fallbackTitle, relativeTo: referenceDate))
+                .font(RateLimitOverviewMetricLayout.metricLabelFont)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
     }
 }
 
