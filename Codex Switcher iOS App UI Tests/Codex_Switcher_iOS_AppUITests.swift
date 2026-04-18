@@ -37,11 +37,26 @@ final class Codex_Switcher_iOS_AppUITests: XCTestCase {
         app.buttons["ios-settings-button"].tap()
 
         XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Version"].exists)
-        XCTAssertTrue(app.staticTexts["Build"].exists)
-        XCTAssertTrue(app.staticTexts["Contact Us"].exists)
-        XCTAssertTrue(app.staticTexts["Privacy Policy"].exists)
-        XCTAssertTrue(app.staticTexts["Source Code"].exists)
+        XCTAssertTrue(
+            settingsViewContainsText(named: "Version", in: app),
+            "Expected the About section to include the Version row."
+        )
+
+        let expectedActions = [
+            "Contact Us",
+            "Visit Our Website",
+            "Terms of Service",
+            "Privacy Policy",
+            "Source Code",
+            "More Settings"
+        ]
+
+        for action in expectedActions {
+            XCTAssertTrue(
+                settingsViewContainsText(named: action, in: app),
+                "Expected settings action '\(action)' to be visible in the list."
+            )
+        }
     }
 
     @MainActor
@@ -80,5 +95,37 @@ final class Codex_Switcher_iOS_AppUITests: XCTestCase {
         app.launchEnvironment["CODEX_SWITCHER_IOS_LAUNCH_SCENARIO"] = scenario
         app.launch()
         return app
+    }
+
+    private func settingsViewContainsText(named name: String, in app: XCUIApplication) -> Bool {
+        let target = app.staticTexts[name].firstMatch
+        if target.waitForExistence(timeout: 1) {
+            return true
+        }
+
+        // SwiftUI Form rows are lazily realized, so lower actions only exist after scrolling them into view.
+        let scrollContainer = settingsScrollContainer(in: app)
+        for _ in 0..<8 {
+            scrollContainer.swipeUp()
+            if target.waitForExistence(timeout: 0.5) {
+                return true
+            }
+        }
+
+        return target.exists
+    }
+
+    private func settingsScrollContainer(in app: XCUIApplication) -> XCUIElement {
+        let collectionView = app.collectionViews.firstMatch
+        if collectionView.exists {
+            return collectionView
+        }
+
+        let table = app.tables.firstMatch
+        if table.exists {
+            return table
+        }
+
+        return app.scrollViews.firstMatch
     }
 }

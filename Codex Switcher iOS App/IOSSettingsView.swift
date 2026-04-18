@@ -103,6 +103,14 @@ struct IOSSettingsView: View {
                     Label("Contact Us", systemImage: "envelope")
                 }
 
+                Link(destination: AppSupportLink.websiteURL) {
+                    Label("Visit Our Website", systemImage: "globe")
+                }
+
+                Link(destination: AppSupportLink.termsOfServiceURL) {
+                    Label("Terms of Service", systemImage: "doc.text")
+                }
+
                 Link(destination: AppSupportLink.privacyPolicyURL) {
                     Label("Privacy Policy", systemImage: "hand.raised")
                 }

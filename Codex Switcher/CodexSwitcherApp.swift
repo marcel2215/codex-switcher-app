@@ -617,6 +617,14 @@ private struct SettingsView: View {
                     settingsActionLabel("Contact Us", systemImage: "envelope")
                 }
 
+                Link(destination: AppSupportLink.websiteURL) {
+                    settingsActionLabel("Visit Our Website", systemImage: "globe")
+                }
+
+                Link(destination: AppSupportLink.termsOfServiceURL) {
+                    settingsActionLabel("Terms of Service", systemImage: "doc.text")
+                }
+
                 Link(destination: AppSupportLink.privacyPolicyURL) {
                     settingsActionLabel("Privacy Policy", systemImage: "hand.raised")
                 }

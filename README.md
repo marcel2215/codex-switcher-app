@@ -546,10 +546,12 @@ all read the same values.
 The app requests authorization only when needed, and it re-registers for the `.providesAppNotificationSettings` option so the system can expose an in-app notification settings entry point.
 
 ## About section
-- Version and build
+- Version (includes build number)
 
 ## Action links
 - Contact Us
+- Visit Our Website
+- Terms of Service
 - Privacy Policy
 - Source Code
 
@@ -641,10 +643,12 @@ The iPhone settings surface is intentionally smaller than macOS settings.
 There is no separate iPhone account-switch notification toggle because iPhone does not directly perform desktop auth switching.
 
 ### About
-- Version and build
+- Version (includes build number)
 
 ### Actions
 - Contact Us
+- Visit Our Website
+- Terms of Service
 - Privacy Policy
 - Source Code
 - More Settings (deep link to iOS Settings)
@@ -728,7 +732,7 @@ The detail view itself is refreshable, so the user can force an immediate live r
 
 ## Watch settings
 The watch settings view includes:
-- version/build display
+- version display (includes build number)
 - Remove All Accounts
 
 The watch settings surface is intentionally minimal.
