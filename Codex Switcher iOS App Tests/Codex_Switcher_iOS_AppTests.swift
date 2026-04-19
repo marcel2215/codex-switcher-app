@@ -51,6 +51,44 @@ struct Codex_Switcher_iOS_AppTests {
     }
 
     @Test
+    func renameAndIconChangesSupportUndoAndRedoWhenUndoManagerConfigured() throws {
+        let account = makeAccount(name: "Original", customOrder: 0)
+        let harness = try makeHarness(accounts: [account])
+        let undoManager = UndoManager()
+        harness.modelContext.undoManager = undoManager
+
+        harness.controller.commitRename(for: account, proposedName: "Renamed", in: harness.modelContext)
+        harness.modelContext.processPendingChanges()
+
+        #expect(try fetchAccounts(in: harness.modelContext).first?.name == "Renamed")
+        #expect(undoManager.canUndo)
+
+        undoManager.undo()
+
+        #expect(try fetchAccounts(in: harness.modelContext).first?.name == "Original")
+
+        undoManager.redo()
+
+        #expect(try fetchAccounts(in: harness.modelContext).first?.name == "Renamed")
+
+        harness.controller.setIcon(.terminal, for: account, in: harness.modelContext)
+        harness.modelContext.processPendingChanges()
+
+        #expect(try fetchAccounts(in: harness.modelContext).first?.iconSystemName == AccountIconOption.terminal.systemName)
+
+        undoManager.undo()
+
+        #expect(
+            try fetchAccounts(in: harness.modelContext).first?.iconSystemName
+                == AccountIconOption.defaultOption.systemName
+        )
+
+        undoManager.redo()
+
+        #expect(try fetchAccounts(in: harness.modelContext).first?.iconSystemName == AccountIconOption.terminal.systemName)
+    }
+
+    @Test
     func displayNameFallsBackToEmailHintWhenNameIsEmpty() {
         let account = makeAccount(
             name: "",
@@ -126,6 +164,50 @@ struct Codex_Switcher_iOS_AppTests {
             .sorted { $0.customOrder < $1.customOrder }
         #expect(ordered.map(\.name) == ["Pinned", "Second", "First"])
         #expect(harness.controller.displayedAccounts(from: ordered).map(\.name) == ["Pinned", "Second", "First"])
+    }
+
+    @Test
+    func customReorderSupportsUndoAndRedoWhenUndoManagerConfigured() throws {
+        let first = makeAccount(name: "First", customOrder: 0)
+        let second = makeAccount(name: "Second", customOrder: 1)
+        let third = makeAccount(name: "Third", customOrder: 2)
+        let harness = try makeHarness(accounts: [first, second, third])
+        let undoManager = UndoManager()
+        harness.modelContext.undoManager = undoManager
+
+        harness.controller.sortCriterion = .custom
+        harness.controller.move(
+            from: IndexSet(integer: 2),
+            to: 0,
+            visibleAccounts: harness.controller.displayedAccounts(from: try fetchAccounts(in: harness.modelContext)),
+            in: harness.modelContext
+        )
+        harness.modelContext.processPendingChanges()
+
+        #expect(
+            try fetchAccounts(in: harness.modelContext)
+                .sorted { $0.customOrder < $1.customOrder }
+                .map(\.name)
+                == ["Third", "First", "Second"]
+        )
+
+        undoManager.undo()
+
+        #expect(
+            try fetchAccounts(in: harness.modelContext)
+                .sorted { $0.customOrder < $1.customOrder }
+                .map(\.name)
+                == ["First", "Second", "Third"]
+        )
+
+        undoManager.redo()
+
+        #expect(
+            try fetchAccounts(in: harness.modelContext)
+                .sorted { $0.customOrder < $1.customOrder }
+                .map(\.name)
+                == ["Third", "First", "Second"]
+        )
     }
 
     @Test

@@ -127,6 +127,95 @@ final class AppController {
     @ObservationIgnored private var lastHandledSessionActivityAt: Date?
     @ObservationIgnored private var isProcessingSharedCommands = false
     @ObservationIgnored private var shouldProcessSharedCommandsAgain = false
+    @ObservationIgnored private var pendingAccountRemovalEpoch: UInt64 = 0
+
+    private struct AccountRemovalResult {
+        let externalIdentityKeysToCleanUp: Set<String>
+    }
+
+    /// Captures every persisted StoredAccount field so delete undo can restore
+    /// the exact row without relying on SwiftData's delete-undo timing.
+    private struct StoredAccountUndoSnapshot {
+        let id: UUID
+        let identityKey: String
+        let name: String
+        let createdAt: Date
+        let lastLoginAt: Date?
+        let customOrder: Double
+        let isPinned: Bool
+        let authFileContents: String?
+        let hasLocalSnapshot: Bool
+        let authModeRaw: String
+        let emailHint: String?
+        let accountIdentifier: String?
+        let sevenDayLimitUsedPercent: Int?
+        let fiveHourLimitUsedPercent: Int?
+        let sevenDayDataStatusRaw: String
+        let fiveHourDataStatusRaw: String
+        let sevenDayResetsAt: Date?
+        let fiveHourResetsAt: Date?
+        let rateLimitsObservedAt: Date?
+        let rateLimitDisplayVersion: Int?
+        let iconSystemName: String
+
+        init(account: StoredAccount) {
+            id = account.id
+            identityKey = account.identityKey
+            name = account.name
+            createdAt = account.createdAt
+            lastLoginAt = account.lastLoginAt
+            customOrder = account.customOrder
+            isPinned = account.isPinned
+            authFileContents = account.authFileContents
+            hasLocalSnapshot = account.hasLocalSnapshot
+            authModeRaw = account.authModeRaw
+            emailHint = account.emailHint
+            accountIdentifier = account.accountIdentifier
+            sevenDayLimitUsedPercent = account.sevenDayLimitUsedPercent
+            fiveHourLimitUsedPercent = account.fiveHourLimitUsedPercent
+            sevenDayDataStatusRaw = account.sevenDayDataStatusRaw
+            fiveHourDataStatusRaw = account.fiveHourDataStatusRaw
+            sevenDayResetsAt = account.sevenDayResetsAt
+            fiveHourResetsAt = account.fiveHourResetsAt
+            rateLimitsObservedAt = account.rateLimitsObservedAt
+            rateLimitDisplayVersion = account.rateLimitDisplayVersion
+            iconSystemName = account.iconSystemName
+        }
+
+        func makeStoredAccount() -> StoredAccount {
+            StoredAccount(
+                id: id,
+                identityKey: identityKey,
+                name: name,
+                createdAt: createdAt,
+                lastLoginAt: lastLoginAt,
+                customOrder: customOrder,
+                isPinned: isPinned,
+                authFileContents: authFileContents,
+                hasLocalSnapshot: hasLocalSnapshot,
+                authModeRaw: authModeRaw,
+                emailHint: emailHint,
+                accountIdentifier: accountIdentifier,
+                sevenDayLimitUsedPercent: sevenDayLimitUsedPercent,
+                fiveHourLimitUsedPercent: fiveHourLimitUsedPercent,
+                sevenDayDataStatusRaw: sevenDayDataStatusRaw,
+                fiveHourDataStatusRaw: fiveHourDataStatusRaw,
+                sevenDayResetsAt: sevenDayResetsAt,
+                fiveHourResetsAt: fiveHourResetsAt,
+                rateLimitsObservedAt: rateLimitsObservedAt,
+                rateLimitDisplayVersion: rateLimitDisplayVersion,
+                iconSystemName: iconSystemName
+            )
+        }
+    }
+
+    private struct DeletedAccountsUndoSnapshot {
+        let accounts: [StoredAccountUndoSnapshot]
+        let deletedAccountIDs: Set<UUID>
+        let deletedIdentityKeys: Set<String>
+        let selectedDeletedIDs: Set<UUID>
+        let renameTargetID: UUID?
+    }
 
     init(
         authFileManager: AuthFileManaging,
@@ -741,33 +830,52 @@ final class AppController {
     }
 
     func removeSelectedAccounts() {
-        Task { [weak self] in
-            guard let self else {
-                return
-            }
-
-            await self.removeAccountsNow(withIDs: self.selection)
-        }
+        removeAccounts(withIDs: selection)
     }
 
     func removeAccounts(withIDs ids: Set<UUID>) {
+        if let removalResult = performImmediateAccountRemovalIfPossible(withIDs: ids) {
+            scheduleExternalSnapshotCleanup(for: removalResult.externalIdentityKeysToCleanUp)
+            return
+        }
+
+        let expectedRemovalEpoch = pendingAccountRemovalEpoch
         Task { [weak self] in
             guard let self else {
                 return
             }
 
-            await self.removeAccountsNow(withIDs: ids)
+            await self.removeAccountsNow(
+                withIDs: ids,
+                expectedPendingRemovalEpoch: expectedRemovalEpoch
+            )
         }
     }
 
     func removeAllAccounts() {
+        do {
+            let allAccountIDs = Set(try fetchAccounts().map(\.id))
+            if let removalResult = performImmediateAccountRemovalIfPossible(withIDs: allAccountIDs) {
+                scheduleExternalSnapshotCleanup(for: removalResult.externalIdentityKeysToCleanUp)
+                return
+            }
+        } catch {
+            present(error, title: "Couldn't Remove Accounts")
+            return
+        }
+
+        let expectedRemovalEpoch = pendingAccountRemovalEpoch
         Task { [weak self] in
             guard let self else {
                 return
             }
 
-            await self.removeAllAccountsNow()
+            await self.removeAllAccountsNow(expectedPendingRemovalEpoch: expectedRemovalEpoch)
         }
+    }
+
+    func invalidatePendingAccountRemovalRequests() {
+        pendingAccountRemovalEpoch &+= 1
     }
 
     func reorderDraggedAccounts(_ items: [String], to destinationIndex: Int, visibleAccounts: [StoredAccount]) {
@@ -987,56 +1095,24 @@ final class AppController {
     }
 
     @discardableResult
-    func removeAccountsNow(withIDs ids: Set<UUID>, allowsInteractiveRecovery: Bool = true) async -> Bool {
+    func removeAccountsNow(
+        withIDs ids: Set<UUID>,
+        allowsInteractiveRecovery: Bool = true,
+        expectedPendingRemovalEpoch: UInt64? = nil
+    ) async -> Bool {
         await waitForInitializationIfNeeded()
+
+        if let expectedPendingRemovalEpoch, expectedPendingRemovalEpoch != pendingAccountRemovalEpoch {
+            return true
+        }
 
         guard !ids.isEmpty else {
             return true
         }
 
         do {
-            let modelContext = try requireModelContext()
-            let allAccounts = try fetchAccounts()
-            let accountsToDelete = allAccounts.filter { ids.contains($0.id) }
-            guard !accountsToDelete.isEmpty else {
-                return true
-            }
-            let remainingIdentityKeys = Set(
-                allAccounts
-                    .filter { !ids.contains($0.id) }
-                    .map(\.identityKey)
-                    .filter { !$0.isEmpty }
-            )
-            let deletedIdentityKeys = Set(
-                accountsToDelete
-                    .map(\.identityKey)
-                    .filter { !$0.isEmpty }
-            )
-
-            for account in accountsToDelete {
-                if !remainingIdentityKeys.contains(account.identityKey) {
-                    try? await secretStore.deleteSnapshot(forIdentityKey: account.identityKey)
-                    try? await syncedRateLimitCredentialStore.delete(forIdentityKey: account.identityKey)
-                }
-                modelContext.delete(account)
-            }
-
-            selection.subtract(ids)
-            if let renameTargetID, ids.contains(renameTargetID) {
-                self.renameTargetID = nil
-            }
-
-            for identityKey in deletedIdentityKeys {
-                rateLimitSnapshotsByIdentityKey.removeValue(forKey: identityKey)
-                visibleRateLimitIdentityCounts.removeValue(forKey: identityKey)
-                pendingForcedRateLimitRefreshes.remove(identityKey)
-                rateLimitRefreshesInFlight.remove(identityKey)
-                rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
-                rateLimitFailureBackoffDurations.removeValue(forKey: identityKey)
-            }
-
-            try modelContext.save()
-            publishSharedState()
+            let removalResult = try removeAccountsFromCurrentContext(withIDs: ids)
+            await cleanUpExternalSnapshots(for: removalResult.externalIdentityKeysToCleanUp)
             return true
         } catch {
             guard allowsInteractiveRecovery else {
@@ -1049,12 +1125,236 @@ final class AppController {
         }
     }
 
-    func removeAllAccountsNow() async {
+    private func performImmediateAccountRemovalIfPossible(withIDs ids: Set<UUID>) -> AccountRemovalResult? {
+        guard !ids.isEmpty, initializationTask == nil else {
+            return nil
+        }
+
+        do {
+            return try removeAccountsFromCurrentContext(withIDs: ids)
+        } catch {
+            present(error, title: ids.count == 1 ? "Couldn't Remove Account" : "Couldn't Remove Accounts")
+            return AccountRemovalResult(externalIdentityKeysToCleanUp: [])
+        }
+    }
+
+    private func removeAccountsFromCurrentContext(withIDs ids: Set<UUID>) throws -> AccountRemovalResult {
+        let modelContext = try requireModelContext()
+        let undoManager = modelContext.undoManager
+        let shouldCleanExternalSnapshots = undoManager == nil
+        let allAccounts = try fetchAccounts()
+        let accountsToDelete = allAccounts.filter { ids.contains($0.id) }
+        guard !accountsToDelete.isEmpty else {
+            return AccountRemovalResult(externalIdentityKeysToCleanUp: [])
+        }
+
+        let deletedAccountIDs = Set(accountsToDelete.map(\.id))
+        let deletedAccountSnapshots = accountsToDelete.map(StoredAccountUndoSnapshot.init)
+
+        let remainingIdentityKeys = Set(
+            allAccounts
+                .filter { !ids.contains($0.id) }
+                .map(\.identityKey)
+                .filter { !$0.isEmpty }
+        )
+        let deletedIdentityKeys = Set(
+            accountsToDelete
+                .map(\.identityKey)
+                .filter { !$0.isEmpty }
+        )
+        let deletedSelection = selection.intersection(deletedAccountIDs)
+        let deletedRenameTargetID = renameTargetID.flatMap { deletedAccountIDs.contains($0) ? $0 : nil }
+        let undoSnapshot = undoManager.map { _ in
+            DeletedAccountsUndoSnapshot(
+                accounts: deletedAccountSnapshots,
+                deletedAccountIDs: deletedAccountIDs,
+                deletedIdentityKeys: deletedIdentityKeys,
+                selectedDeletedIDs: deletedSelection,
+                renameTargetID: deletedRenameTargetID
+            )
+        }
+
+        try performModelMutationWithoutUndoRegistration(on: modelContext) {
+            for account in accountsToDelete {
+                modelContext.delete(account)
+            }
+
+            try modelContext.save()
+        }
+
+        applyDeletedAccountControllerState(
+            deletedAccountIDs: deletedAccountIDs,
+            deletedIdentityKeys: deletedIdentityKeys
+        )
+        publishSharedState()
+
+        if let undoManager, let undoSnapshot {
+            registerDeleteUndo(with: undoManager, snapshot: undoSnapshot)
+        }
+
+        let externalIdentityKeysToCleanUp: Set<String>
+        if shouldCleanExternalSnapshots {
+            externalIdentityKeysToCleanUp = deletedIdentityKeys.subtracting(remainingIdentityKeys)
+        } else {
+            externalIdentityKeysToCleanUp = []
+        }
+
+        return AccountRemovalResult(externalIdentityKeysToCleanUp: externalIdentityKeysToCleanUp)
+    }
+
+    private func scheduleExternalSnapshotCleanup(for identityKeys: Set<String>) {
+        guard !identityKeys.isEmpty else {
+            return
+        }
+
+        Task { [weak self] in
+            await self?.cleanUpExternalSnapshots(for: identityKeys)
+        }
+    }
+
+    private func cleanUpExternalSnapshots(for identityKeys: Set<String>) async {
+        guard !identityKeys.isEmpty else {
+            return
+        }
+
+        for identityKey in identityKeys {
+            try? await secretStore.deleteSnapshot(forIdentityKey: identityKey)
+            try? await syncedRateLimitCredentialStore.delete(forIdentityKey: identityKey)
+        }
+    }
+
+    private func performModelMutationWithoutUndoRegistration<T>(
+        on modelContext: ModelContext,
+        _ mutation: () throws -> T
+    ) throws -> T {
+        let originalUndoManager = modelContext.undoManager
+        let originalUndoManagerID = originalUndoManager.map(ObjectIdentifier.init)
+        if originalUndoManager != nil {
+            modelContext.undoManager = nil
+        }
+        defer {
+            if modelContext.undoManager.map(ObjectIdentifier.init) != originalUndoManagerID {
+                modelContext.undoManager = originalUndoManager
+            }
+        }
+
+        return try mutation()
+    }
+
+    private func applyDeletedAccountControllerState(
+        deletedAccountIDs: Set<UUID>,
+        deletedIdentityKeys: Set<String>
+    ) {
+        selection.subtract(deletedAccountIDs)
+        if let renameTargetID, deletedAccountIDs.contains(renameTargetID) {
+            self.renameTargetID = nil
+        }
+
+        for identityKey in deletedIdentityKeys {
+            rateLimitSnapshotsByIdentityKey.removeValue(forKey: identityKey)
+            visibleRateLimitIdentityCounts.removeValue(forKey: identityKey)
+            pendingForcedRateLimitRefreshes.remove(identityKey)
+            rateLimitRefreshesInFlight.remove(identityKey)
+            rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
+            rateLimitFailureBackoffDurations.removeValue(forKey: identityKey)
+        }
+    }
+
+    private func restoreDeletedAccountControllerState(from snapshot: DeletedAccountsUndoSnapshot) {
+        selection.formUnion(snapshot.selectedDeletedIDs)
+        if let renameTargetID = snapshot.renameTargetID {
+            self.renameTargetID = renameTargetID
+        }
+
+        for identityKey in snapshot.deletedIdentityKeys {
+            requestImmediateRateLimitRefresh(for: identityKey)
+        }
+    }
+
+    private func registerDeleteUndo(
+        with undoManager: UndoManager,
+        snapshot: DeletedAccountsUndoSnapshot
+    ) {
+        undoManager.registerUndo(withTarget: self) { controller in
+            controller.restoreDeletedAccounts(from: snapshot)
+        }
+        undoManager.setActionName(snapshot.accounts.count == 1 ? "Delete Account" : "Delete Accounts")
+    }
+
+    private func restoreDeletedAccounts(from snapshot: DeletedAccountsUndoSnapshot) {
+        invalidatePendingAccountRemovalRequests()
+
+        do {
+            let modelContext = try requireModelContext()
+            try performModelMutationWithoutUndoRegistration(on: modelContext) {
+                let existingAccountIDs = Set(try fetchAccounts().map(\.id))
+                for accountSnapshot in snapshot.accounts where !existingAccountIDs.contains(accountSnapshot.id) {
+                    modelContext.insert(accountSnapshot.makeStoredAccount())
+                }
+
+                try modelContext.save()
+            }
+
+            restoreDeletedAccountControllerState(from: snapshot)
+            publishSharedState()
+
+            if let undoManager = modelContext.undoManager {
+                undoManager.registerUndo(withTarget: self) { controller in
+                    controller.redeleteRestoredAccounts(from: snapshot)
+                }
+                undoManager.setActionName(snapshot.accounts.count == 1 ? "Delete Account" : "Delete Accounts")
+            }
+        } catch {
+            logger.error("Couldn't restore deleted account(s) via undo: \(String(describing: error), privacy: .private)")
+        }
+    }
+
+    private func redeleteRestoredAccounts(from snapshot: DeletedAccountsUndoSnapshot) {
+        invalidatePendingAccountRemovalRequests()
+
+        do {
+            let modelContext = try requireModelContext()
+            let accountsByID = Dictionary(uniqueKeysWithValues: try fetchAccounts().map { ($0.id, $0) })
+
+            try performModelMutationWithoutUndoRegistration(on: modelContext) {
+                for accountID in snapshot.deletedAccountIDs {
+                    guard let account = accountsByID[accountID] else {
+                        continue
+                    }
+
+                    modelContext.delete(account)
+                }
+
+                try modelContext.save()
+            }
+
+            applyDeletedAccountControllerState(
+                deletedAccountIDs: snapshot.deletedAccountIDs,
+                deletedIdentityKeys: snapshot.deletedIdentityKeys
+            )
+            publishSharedState()
+
+            if let undoManager = modelContext.undoManager {
+                registerDeleteUndo(with: undoManager, snapshot: snapshot)
+            }
+        } catch {
+            logger.error("Couldn't redo deleted account(s): \(String(describing: error), privacy: .private)")
+        }
+    }
+
+    func removeAllAccountsNow(expectedPendingRemovalEpoch: UInt64? = nil) async {
         await waitForInitializationIfNeeded()
+
+        if let expectedPendingRemovalEpoch, expectedPendingRemovalEpoch != pendingAccountRemovalEpoch {
+            return
+        }
 
         do {
             let allAccountIDs = Set(try fetchAccounts().map(\.id))
-            await removeAccountsNow(withIDs: allAccountIDs)
+            await removeAccountsNow(
+                withIDs: allAccountIDs,
+                expectedPendingRemovalEpoch: expectedPendingRemovalEpoch
+            )
         } catch {
             present(error, title: "Couldn't Remove Accounts")
         }

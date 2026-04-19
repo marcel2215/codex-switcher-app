@@ -16,6 +16,7 @@ struct WatchSettingsView: View {
     }
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(ModelUndoController.self) private var modelUndoController
     @Query private var accounts: [StoredAccount]
     @State private var showingRemoveAllConfirmation = false
     @State private var presentedSettingsAlert: PresentedSettingsAlert?
@@ -26,6 +27,22 @@ struct WatchSettingsView: View {
                 LabeledContent("Version") {
                     Text(AppAboutInfo.current.formattedVersion)
                 }
+            }
+
+            Section("History") {
+                Button {
+                    modelUndoController.undo()
+                } label: {
+                    Label("Undo", systemImage: "arrow.uturn.backward")
+                }
+                .disabled(!modelUndoController.canUndo)
+
+                Button {
+                    modelUndoController.redo()
+                } label: {
+                    Label("Redo", systemImage: "arrow.uturn.forward")
+                }
+                .disabled(!modelUndoController.canRedo)
             }
 
             Section {

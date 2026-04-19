@@ -20,6 +20,7 @@ struct AccountDetailView: View {
     }
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(ModelUndoController.self) private var modelUndoController
 
     let account: StoredAccount
     let controller: IOSAccountsController
@@ -238,6 +239,22 @@ struct AccountDetailView: View {
 
     private var detailMenu: some View {
         Menu {
+            Button {
+                modelUndoController.undo()
+            } label: {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+            }
+            .disabled(!modelUndoController.canUndo)
+
+            Button {
+                modelUndoController.redo()
+            } label: {
+                Label("Redo", systemImage: "arrow.uturn.forward")
+            }
+            .disabled(!modelUndoController.canRedo)
+
+            Divider()
+
             Button {
                 controller.setPinned(!account.isPinned, for: account, in: modelContext)
             } label: {

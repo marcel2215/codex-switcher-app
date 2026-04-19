@@ -33,10 +33,13 @@ struct AccountsRootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.undoManager) private var undoManager
     @Query private var accounts: [StoredAccount]
 
     @Bindable private var quickActions: IOSHomeScreenQuickActionCoordinator
     @State private var controller = IOSAccountsController()
+    @State private var fallbackUndoManager = UndoManager()
+    @State private var modelUndoController = ModelUndoController()
     @State private var rateLimitRefreshController = IOSRateLimitRefreshController()
     @State private var editMode: EditMode = .inactive
     // The compact stack can push both account IDs and nested detail routes,
@@ -83,6 +86,14 @@ struct AccountsRootView: View {
 
     private var quickActionFingerprint: String {
         "\(widgetSnapshotFingerprint)|\(controller.sortCriterion.rawValue)|\(controller.sortDirection.rawValue)"
+    }
+
+    private var activeUndoManager: UndoManager {
+        undoManager ?? fallbackUndoManager
+    }
+
+    private var undoManagerTaskID: ObjectIdentifier {
+        ObjectIdentifier(activeUndoManager)
     }
 
     private var activeAlert: Binding<ActiveAlert?> {
@@ -165,9 +176,13 @@ struct AccountsRootView: View {
         )
         let baseContent =
             rootContent
+            .environment(modelUndoController)
             .environment(\.editMode, $editMode)
             .task {
                 handleInitialLoad()
+            }
+            .task(id: undoManagerTaskID) {
+                configureUndoSupport()
             }
             .onOpenURL(perform: handleIncomingArchiveURL)
             .dropDestination(for: URL.self, isEnabled: true) { items, _ in
@@ -246,6 +261,7 @@ struct AccountsRootView: View {
     }
 
     private func handleInitialLoad() {
+        configureUndoSupport()
         sortPreferences.synchronize()
         controller.restoreSortPreferences(
             sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
@@ -266,6 +282,7 @@ struct AccountsRootView: View {
     private func settingsSheetView() -> some View {
         NavigationStack {
             IOSSettingsView()
+                .environment(modelUndoController)
         }
         .presentationDragIndicator(.visible)
     }
@@ -478,6 +495,10 @@ struct AccountsRootView: View {
         }
 
         ToolbarItem(placement: .topBarTrailing) {
+            historyMenu
+        }
+
+        ToolbarItem(placement: .topBarTrailing) {
             Button {
                 showingSettings = true
             } label: {
@@ -486,6 +507,28 @@ struct AccountsRootView: View {
             .accessibilityLabel("Settings")
             .accessibilityIdentifier("ios-settings-button")
         }
+    }
+
+    private var historyMenu: some View {
+        Menu {
+            Button {
+                modelUndoController.undo()
+            } label: {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+            }
+            .disabled(!modelUndoController.canUndo)
+
+            Button {
+                modelUndoController.redo()
+            } label: {
+                Label("Redo", systemImage: "arrow.uturn.forward")
+            }
+            .disabled(!modelUndoController.canRedo)
+        } label: {
+            Image(systemName: "arrow.uturn.backward.circle")
+        }
+        .disabled(!modelUndoController.canUndo && !modelUndoController.canRedo)
+        .accessibilityLabel("Undo and Redo")
     }
 
     @ViewBuilder
@@ -753,6 +796,13 @@ struct AccountsRootView: View {
             updatedPath.append(importedAccountID)
             compactNavigationPath = updatedPath
         }
+    }
+
+    private func configureUndoSupport() {
+        modelUndoController.configure(
+            modelContext: modelContext,
+            undoManager: activeUndoManager
+        )
     }
 
     @discardableResult

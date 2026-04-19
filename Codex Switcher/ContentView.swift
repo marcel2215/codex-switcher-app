@@ -15,6 +15,7 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.undoManager) private var undoManager
+    @Environment(ModelUndoController.self) private var modelUndoController
     @Query private var accounts: [StoredAccount]
     @FocusState private var focusedRenameAccountID: UUID?
     @State private var accountListItems: [AccountListItem] = []
@@ -190,11 +191,13 @@ struct ContentView: View {
         }
         .task {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
+            modelUndoController.configure(modelContext: modelContext, undoManager: undoManager)
             controller.setApplicationActive(NSApplication.shared.isActive)
             syncAccountListItems(with: displayedAccountListItems)
         }
         .task(id: undoManagerTaskID) {
             controller.configure(modelContext: modelContext, undoManager: undoManager)
+            modelUndoController.configure(modelContext: modelContext, undoManager: undoManager)
         }
         .onAppear {
             syncAccountListItems(with: displayedAccountListItems)
@@ -744,5 +747,6 @@ extension ContentView {
     )
 
     ContentView(controller: controller)
+        .environment(ModelUndoController())
         .modelContainer(PreviewData.makeContainer())
 }

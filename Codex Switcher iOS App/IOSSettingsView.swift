@@ -64,6 +64,7 @@ struct IOSSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(ModelUndoController.self) private var modelUndoController
     @Query private var accounts: [StoredAccount]
     @AppStorage(
         CodexSharedPreferenceKey.fiveHourResetNotificationsEnabled,
@@ -96,6 +97,22 @@ struct IOSSettingsView: View {
                 LabeledContent("Version") {
                     Text(AppAboutInfo.current.formattedVersion)
                 }
+            }
+
+            Section("History") {
+                Button {
+                    modelUndoController.undo()
+                } label: {
+                    Label("Undo", systemImage: "arrow.uturn.backward")
+                }
+                .disabled(!modelUndoController.canUndo)
+
+                Button {
+                    modelUndoController.redo()
+                } label: {
+                    Label("Redo", systemImage: "arrow.uturn.forward")
+                }
+                .disabled(!modelUndoController.canRedo)
             }
 
             Section("Actions") {
