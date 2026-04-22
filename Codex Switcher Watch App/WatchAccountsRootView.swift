@@ -11,11 +11,8 @@ import SwiftUI
 struct WatchAccountsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.undoManager) private var undoManager
     @Query private var accounts: [StoredAccount]
 
-    @State private var fallbackUndoManager = UndoManager()
-    @State private var modelUndoController = ModelUndoController()
     @State private var refreshController = WatchRateLimitRefreshController()
     @State private var sortPreferences = CloudSortPreferences()
     @State private var searchText = ""
@@ -36,14 +33,6 @@ struct WatchAccountsRootView: View {
 
     private var widgetSnapshotFingerprint: Int {
         WidgetSnapshotPublisher.fingerprint(for: accounts)
-    }
-
-    private var activeUndoManager: UndoManager {
-        undoManager ?? fallbackUndoManager
-    }
-
-    private var undoManagerTaskID: ObjectIdentifier {
-        ObjectIdentifier(activeUndoManager)
     }
 
     var body: some View {
@@ -86,7 +75,12 @@ struct WatchAccountsRootView: View {
             .searchable(text: $searchText, prompt: "Search")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    sortButton
+                    Button {
+                        showingSortOptions = true
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
+                    .accessibilityLabel("Sort")
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -99,7 +93,6 @@ struct WatchAccountsRootView: View {
                 }
             }
         }
-        .environment(modelUndoController)
         .sheet(isPresented: $showingSortOptions) {
             NavigationStack {
                 WatchSortOptionsView(
@@ -113,7 +106,6 @@ struct WatchAccountsRootView: View {
         .sheet(isPresented: $showingSettings) {
             NavigationStack {
                 WatchSettingsView()
-                    .environment(modelUndoController)
             }
         }
         .alert(item: $presentedError) { error in
@@ -125,15 +117,11 @@ struct WatchAccountsRootView: View {
         .task {
             sortPreferences.synchronize()
             restoreSortPreferences()
-            configureUndoSupport()
 
             refreshController.configure(modelContext: modelContext)
             refreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
             refreshController.setScenePhase(scenePhase)
             publishWidgetSnapshot()
-        }
-        .task(id: undoManagerTaskID) {
-            configureUndoSupport()
         }
         .onChange(of: scenePhase) { _, newPhase in
             refreshController.setScenePhase(newPhase)
@@ -156,15 +144,6 @@ struct WatchAccountsRootView: View {
         .task(id: widgetSnapshotFingerprint) {
             publishWidgetSnapshot()
         }
-    }
-
-    private var sortButton: some View {
-        Button {
-            showingSortOptions = true
-        } label: {
-            Image(systemName: "ellipsis.circle")
-        }
-        .accessibilityLabel("Sort")
     }
 
     private func restoreSortPreferences() {
@@ -237,13 +216,6 @@ struct WatchAccountsRootView: View {
             modelContext: modelContext,
             selectedAccountID: selectedAccountID,
             selectedAccountIsLive: selectedAccountIsLive
-        )
-    }
-
-    private func configureUndoSupport() {
-        modelUndoController.configure(
-            modelContext: modelContext,
-            undoManager: activeUndoManager
         )
     }
 }

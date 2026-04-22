@@ -38,7 +38,6 @@ struct CodexSwitcherApp: App {
     @AppStorage(AppPreferenceKey.sortDirection) private var persistedSortDirectionRawValue = AppPreferenceDefaults.sortDirectionRawValue
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
     @State private var controller: AppController
-    @State private var modelUndoController = ModelUndoController()
     @State private var sharedPreferenceObservationTask: Task<Void, Never>?
 
     private let sharedModelContainer: ModelContainer?
@@ -85,7 +84,6 @@ struct CodexSwitcherApp: App {
             AccountsCommands(
                 controller: controller,
                 applicationDelegate: applicationDelegate,
-                modelUndoController: modelUndoController,
                 showsMenuBarExtra: showMenuBarExtra
             )
         }
@@ -105,7 +103,6 @@ struct CodexSwitcherApp: App {
                 areAppPreferencesAtDefaults: areAppPreferencesAtDefaults,
                 onResetSettings: resetStoredSettingsToDefaults
             )
-            .environment(modelUndoController)
             .frame(width: 520, height: 680)
             .task {
                 await performAppStartupTasksIfNeeded()
@@ -293,7 +290,6 @@ struct CodexSwitcherApp: App {
                 persistedSortDirectionRawValue: $persistedSortDirectionRawValue
             ) {
                 ContentView(controller: controller)
-                    .environment(modelUndoController)
                     .modelContainer(sharedModelContainer)
             }
         } else {
@@ -537,10 +533,7 @@ private struct MenuBarStorageRecoveryView: View {
 
 private struct SettingsView: View {
     @Bindable var controller: AppController
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.undoManager) private var undoManager
-    @Environment(ModelUndoController.self) private var modelUndoController
     @Binding var accountSwitchNotificationsEnabled: Bool
     @Binding var fiveHourResetNotificationsEnabled: Bool
     @Binding var sevenDayResetNotificationsEnabled: Bool
@@ -555,10 +548,6 @@ private struct SettingsView: View {
     @State private var presentedSettingsAlert: SettingsAlert?
     @State private var settingsChangeObservationTask: Task<Void, Never>?
     @State private var notificationAuthorizationStatus: UNAuthorizationStatus?
-
-    private var undoManagerTaskID: ObjectIdentifier? {
-        undoManager.map(ObjectIdentifier.init)
-    }
 
     var body: some View {
         Form {
@@ -682,15 +671,9 @@ private struct SettingsView: View {
         .formStyle(.grouped)
         .padding(20)
         .task {
-            controller.configure(modelContext: modelContext, undoManager: undoManager)
-            modelUndoController.configure(modelContext: modelContext, undoManager: undoManager)
             launchAtLoginState = CodexSharedLaunchAtLoginService.currentState()
             startSettingsChangeObservationIfNeeded()
             await refreshNotificationAuthorizationStatus()
-        }
-        .task(id: undoManagerTaskID) {
-            controller.configure(modelContext: modelContext, undoManager: undoManager)
-            modelUndoController.configure(modelContext: modelContext, undoManager: undoManager)
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else {

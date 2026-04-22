@@ -24,7 +24,6 @@ struct WatchAccountDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     @Environment(\.modelContext) private var modelContext
-    @Environment(ModelUndoController.self) private var modelUndoController
 
     let account: StoredAccount
     let refreshController: WatchRateLimitRefreshController
@@ -121,22 +120,6 @@ struct WatchAccountDetailView: View {
                 }
             } header: {
                 Text("Danger Zone")
-            }
-
-            Section("History") {
-                Button {
-                    modelUndoController.undo()
-                } label: {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
-                }
-                .disabled(!modelUndoController.canUndo)
-
-                Button {
-                    modelUndoController.redo()
-                } label: {
-                    Label("Redo", systemImage: "arrow.uturn.forward")
-                }
-                .disabled(!modelUndoController.canRedo)
             }
         }
         .navigationTitle(displayName)
@@ -275,7 +258,6 @@ struct WatchAccountDetailView: View {
         )
     }
     .modelContainer(container)
-    .environment(ModelUndoController())
 }
 
 #Preview("Missing Limits") {
@@ -291,7 +273,6 @@ struct WatchAccountDetailView: View {
         )
     }
     .modelContainer(container)
-    .environment(ModelUndoController())
 }
 
 #Preview("Reduced Luminance") {
@@ -307,6 +288,5 @@ struct WatchAccountDetailView: View {
         )
     }
     .modelContainer(container)
-    .environment(ModelUndoController())
     .environment(\.isLuminanceReduced, true)
 }

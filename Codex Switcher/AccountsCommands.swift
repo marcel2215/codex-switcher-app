@@ -11,33 +11,11 @@ import SwiftUI
 struct AccountsCommands: Commands {
     let controller: AppController
     let applicationDelegate: ApplicationDelegate
-    let modelUndoController: ModelUndoController
     let showsMenuBarExtra: Bool
 
     var body: some Commands {
         // Keep standard macOS categories intact, and only use a custom top-level
         // menu for actions that are truly account-specific.
-        //
-        // Account edits are persisted through SwiftData on the shared model
-        // context, so the responder chain does not reliably surface them to the
-        // default macOS undo/redo command group. Drive Edit > Undo/Redo
-        // directly from the model undo controller instead.
-        CommandGroup(replacing: .undoRedo) {
-            Button(modelUndoController.undoMenuTitle) {
-                controller.invalidatePendingAccountRemovalRequests()
-                modelUndoController.undo()
-            }
-            .keyboardShortcut("z", modifiers: [.command])
-            .disabled(!modelUndoController.canUndo)
-
-            Button(modelUndoController.redoMenuTitle) {
-                controller.invalidatePendingAccountRemovalRequests()
-                modelUndoController.redo()
-            }
-            .keyboardShortcut("z", modifiers: [.command, .shift])
-            .disabled(!modelUndoController.canRedo)
-        }
-
         CommandGroup(replacing: .newItem) {
             Button("Add Account") {
                 controller.captureCurrentAccount()
