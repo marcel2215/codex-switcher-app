@@ -1,5 +1,5 @@
 //
-//  Codex_Switcher_iOS_AppTests.swift
+//  CodexSwitcheriOSAppTests.swift
 //  Codex Switcher iOS AppTests
 //
 //  Created by Codex on 2026-04-11.
@@ -9,10 +9,10 @@ import Foundation
 import SwiftData
 import Testing
 import UIKit
-@testable import Codex_Switcher_iOS_App
+@testable import CodexSwitcher_iOS_App
 
 @MainActor
-struct Codex_Switcher_iOS_AppTests {
+struct CodexSwitcheriOSAppTests {
     @Test
     func searchMatchesNameEmailHintAndAccountIdentifier() throws {
         let harness = try makeHarness(accounts: [

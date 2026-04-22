@@ -1,5 +1,5 @@
 //
-//  Codex_Switcher_iOS_AppUITests.swift
+//  CodexSwitcheriOSAppUITests.swift
 //  Codex Switcher iOS AppUITests
 //
 //  Created by Codex on 2026-04-11.
@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class Codex_Switcher_iOS_AppUITests: XCTestCase {
+final class CodexSwitcheriOSAppUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

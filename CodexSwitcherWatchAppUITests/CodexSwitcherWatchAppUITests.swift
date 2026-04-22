@@ -1,5 +1,5 @@
 //
-//  Codex_Switcher_Watch_App_Watch_AppUITests.swift
+//  CodexSwitcherWatchAppUITests.swift
 //  Codex Switcher Watch App Watch AppUITests
 //
 //  Created by Marcel Kwiatkowski on 2026-04-11.
@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class Codex_Switcher_Watch_App_Watch_AppUITests: XCTestCase {
+final class CodexSwitcherWatchAppUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

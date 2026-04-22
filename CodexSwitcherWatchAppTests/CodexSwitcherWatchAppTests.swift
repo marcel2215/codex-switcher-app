@@ -1,5 +1,5 @@
 //
-//  Codex_Switcher_Watch_App_Watch_AppTests.swift
+//  CodexSwitcherWatchAppTests.swift
 //  Codex Switcher Watch App Tests
 //
 //  Created by Codex on 2026-04-12.
@@ -7,9 +7,9 @@
 
 import SwiftData
 import Testing
-@testable import Codex_Switcher_Watch_App
+@testable import CodexSwitcher_Watch_App
 
-struct Codex_Switcher_Watch_App_Watch_AppTests {
+struct CodexSwitcherWatchAppTests {
     @Test
     @MainActor
     func bootstrapCreatesInMemoryContainer() throws {

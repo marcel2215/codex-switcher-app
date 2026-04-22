@@ -1,5 +1,5 @@
 //
-//  Codex_Switcher_Watch_App_Watch_AppUITestsLaunchTests.swift
+//  CodexSwitcherWatchAppUITestsLaunchTests.swift
 //  Codex Switcher Watch App Watch AppUITests
 //
 //  Created by Marcel Kwiatkowski on 2026-04-11.
@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class Codex_Switcher_Watch_App_Watch_AppUITestsLaunchTests: XCTestCase {
+final class CodexSwitcherWatchAppUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

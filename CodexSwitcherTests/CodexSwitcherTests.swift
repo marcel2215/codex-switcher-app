@@ -10,7 +10,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Testing
-@testable import Codex_Switcher
+@testable import CodexSwitcher
 
 @Suite(.serialized)
 @MainActor
