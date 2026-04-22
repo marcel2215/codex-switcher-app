@@ -1483,10 +1483,10 @@ You need a recent version of Xcode that supports:
 - App Intents
 - modern Apple platform deployment targets used by the project
 
-For exact deployment targets, refer to the Xcode project settings in `Codex Switcher.xcodeproj`.
+For exact deployment targets, refer to the Xcode project settings in `CodexSwitcher.xcodeproj`.
 
 ## Basic build steps
-1. Open `Codex Switcher.xcodeproj`
+1. Open `CodexSwitcher.xcodeproj`
 2. Configure signing for all targets
 3. Build the macOS app
 4. Build the iPhone and watch targets if you want companion surfaces
@@ -1516,15 +1516,15 @@ Without the correct entitlements:
 The repository is organized around a shared-core architecture.
 
 ```text
-Codex Switcher/                 macOS app
-Codex Switcher iOS App/         iPhone companion app
-Codex Switcher Watch App/       Apple Watch companion app
-Codex Switcher Widgets/         macOS widgets and control widgets
-Codex Switcher iOS Widgets/     iPhone widgets
-Codex Switcher Watch Widgets/   watch complications
-Shared Core/                    platform-agnostic models, parsing, refresh logic, archives
+CodexSwitcher/                  macOS app
+CodexSwitcheriOSApp/            iPhone companion app
+CodexSwitcherWatchApp/          Apple Watch companion app
+CodexSwitcherWidgets/           macOS widgets and control widgets
+CodexSwitcheriOSWidgets/        iPhone widgets
+CodexSwitcherWatchWidgets/      watch complications
+SharedCore/                     platform-agnostic models, parsing, refresh logic, archives
 Shared/                         shared state, intents, notifications, stores, sync helpers
-Shared Widgets/                 widget timeline/model/render support
+SharedWidgets/                  widget timeline/model/render support
 ```
 
 This layout is a large part of why the project stays coherent: platform UI stays thin while the parsing, state, switching, refresh, and archive logic are shared.

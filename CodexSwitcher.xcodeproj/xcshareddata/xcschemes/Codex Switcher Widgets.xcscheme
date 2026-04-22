@@ -16,24 +16,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1F310E4D2F8DC3E2006AA106"
-               BuildableName = "Codex Switcher Watch WidgetsExtension.appex"
-               BlueprintName = "Codex Switcher Watch WidgetsExtension"
-               ReferencedContainer = "container:Codex Switcher.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1FA0355E2F8AF68300367DD6"
-               BuildableName = "Codex Switcher Watch App.app"
-               BlueprintName = "Codex Switcher Watch App"
-               ReferencedContainer = "container:Codex Switcher.xcodeproj">
+               BlueprintIdentifier = "1F28ABAB2F86DA4A00639A74"
+               BuildableName = "CodexSwitcher Widgets.appex"
+               BlueprintName = "CodexSwitcher Widgets"
+               ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -45,9 +31,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1F87C9462F8406C7007DED25"
-               BuildableName = "Codex Switcher.app"
-               BlueprintName = "Codex Switcher"
-               ReferencedContainer = "container:Codex Switcher.xcodeproj">
+               BuildableName = "CodexSwitcher.app"
+               BlueprintName = "CodexSwitcher"
+               ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -76,16 +62,16 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "1FA0355E2F8AF68300367DD6"
-            BuildableName = "Codex Switcher Watch App.app"
-            BlueprintName = "Codex Switcher Watch App"
-            ReferencedContainer = "container:Codex Switcher.xcodeproj">
+            BlueprintIdentifier = "1F87C9462F8406C7007DED25"
+            BuildableName = "CodexSwitcher.app"
+            BlueprintName = "CodexSwitcher"
+            ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "_XCWidgetKind"
-            value = ""
+            value = "com.marcel2215.codexswitcher.widget.rate-limit-overview"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
@@ -95,7 +81,7 @@
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "_XCWidgetFamily"
-            value = "systemMedium"
+            value = "medium"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
@@ -105,15 +91,17 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
-      debugDocumentVersioning = "YES">
+      debugDocumentVersioning = "YES"
+      askForAppToLaunch = "Yes"
+      launchAutomaticallySubstyle = "2">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "1F310E4D2F8DC3E2006AA106"
-            BuildableName = "Codex Switcher Watch WidgetsExtension.appex"
-            BlueprintName = "Codex Switcher Watch WidgetsExtension"
-            ReferencedContainer = "container:Codex Switcher.xcodeproj">
+            BlueprintIdentifier = "1F87C9462F8406C7007DED25"
+            BuildableName = "CodexSwitcher.app"
+            BlueprintName = "CodexSwitcher"
+            ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
