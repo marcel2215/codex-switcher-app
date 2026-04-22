@@ -17,7 +17,7 @@ final class Codex_Switcher_iOS_AppUITests: XCTestCase {
         let app = launchApp(scenario: "empty")
 
         XCTAssertTrue(app.staticTexts["No Accounts"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Accounts captured in Codex Switcher on your Mac appear here through iCloud."].exists)
+        XCTAssertTrue(app.staticTexts["Accounts added in Codex Switcher on your Mac will appear here."].exists)
     }
 
     @MainActor

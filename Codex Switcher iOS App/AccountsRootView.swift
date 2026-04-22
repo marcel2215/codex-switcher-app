@@ -451,7 +451,7 @@ struct AccountsRootView: View {
             systemImage: trimmedSearchText.isEmpty ? "person.crop.rectangle.stack" : "magnifyingglass",
             description: Text(
                 trimmedSearchText.isEmpty
-                    ? "Accounts captured in Codex Switcher on your Mac appear here through iCloud."
+                    ? "Accounts added in Codex Switcher on your Mac will appear here."
                     : "Try a different search term."
             )
         )
