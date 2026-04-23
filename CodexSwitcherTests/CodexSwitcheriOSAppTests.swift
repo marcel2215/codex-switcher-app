@@ -9,7 +9,7 @@ import Foundation
 import SwiftData
 import Testing
 import UIKit
-@testable import CodexSwitcher_iOS_App
+@testable import Codex_Switcher
 
 @MainActor
 struct CodexSwitcheriOSAppTests {

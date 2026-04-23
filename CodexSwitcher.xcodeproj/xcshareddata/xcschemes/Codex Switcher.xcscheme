@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1F87C9462F8406C7007DED25"
-               BuildableName = "CodexSwitcher.app"
-               BlueprintName = "CodexSwitcher"
+               BlueprintIdentifier = "1F96B5A52F89BF5100044DB7"
+               BuildableName = "Codex Switcher.app"
+               BlueprintName = "Codex Switcher"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -35,9 +35,9 @@
             parallelizable = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1F87C9552F8406C9007DED25"
-               BuildableName = "CodexSwitcher Tests.xctest"
-               BlueprintName = "CodexSwitcher Tests"
+               BlueprintIdentifier = "1F96B5B52F89BF5200044DB7"
+               BuildableName = "Codex Switcher Tests.xctest"
+               BlueprintName = "Codex Switcher Tests"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -46,9 +46,9 @@
             parallelizable = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1F87C95F2F8406C9007DED25"
-               BuildableName = "CodexSwitcher UI Tests.xctest"
-               BlueprintName = "CodexSwitcher UI Tests"
+               BlueprintIdentifier = "1F96B5BF2F89BF5200044DB7"
+               BuildableName = "Codex Switcher UI Tests.xctest"
+               BlueprintName = "Codex Switcher UI Tests"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -69,9 +69,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "1F87C9462F8406C7007DED25"
-            BuildableName = "CodexSwitcher.app"
-            BlueprintName = "CodexSwitcher"
+            BlueprintIdentifier = "1F96B5A52F89BF5100044DB7"
+            BuildableName = "Codex Switcher.app"
+            BlueprintName = "Codex Switcher"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -86,9 +86,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "1F87C9462F8406C7007DED25"
-            BuildableName = "CodexSwitcher.app"
-            BlueprintName = "CodexSwitcher"
+            BlueprintIdentifier = "1F96B5A52F89BF5100044DB7"
+            BuildableName = "Codex Switcher.app"
+            BlueprintName = "Codex Switcher"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

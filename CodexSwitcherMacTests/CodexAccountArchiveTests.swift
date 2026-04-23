@@ -8,7 +8,7 @@
 import Foundation
 import Testing
 import UniformTypeIdentifiers
-@testable import CodexSwitcher
+@testable import Codex_Switcher_Mac_App
 
 struct CodexAccountArchiveTests {
     @Test func archiveRoundTripPreservesMetadata() throws {

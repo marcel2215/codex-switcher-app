@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-@testable import CodexSwitcher
+@testable import Codex_Switcher_Mac_App
 
 @MainActor
 struct AppSingleInstanceCoordinatorTests {

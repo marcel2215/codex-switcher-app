@@ -8,7 +8,7 @@
 import Foundation
 import Testing
 import UserNotifications
-@testable import CodexSwitcher_iOS_App
+@testable import Codex_Switcher
 
 struct RateLimitResetNotificationSchedulerTests {
     @Test

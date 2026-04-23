@@ -16,8 +16,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1FA0355E2F8AF68300367DD6"
-               BuildableName = "CodexSwitcher Watch App.app"
-               BlueprintName = "CodexSwitcher Watch App"
+               BuildableName = "Codex Switcher Watch App.app"
+               BlueprintName = "Codex Switcher Watch App"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -30,8 +30,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1F87C9462F8406C7007DED25"
-               BuildableName = "CodexSwitcher.app"
-               BlueprintName = "CodexSwitcher"
+               BuildableName = "Codex Switcher Mac App.app"
+               BlueprintName = "Codex Switcher Mac App"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -50,8 +50,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1FA0356A2F8AF68400367DD6"
-               BuildableName = "CodexSwitcher Watch App Tests.xctest"
-               BlueprintName = "CodexSwitcher Watch App Tests"
+               BuildableName = "Codex Switcher Watch Tests.xctest"
+               BlueprintName = "Codex Switcher Watch Tests"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -61,8 +61,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1FA035742F8AF68400367DD6"
-               BuildableName = "CodexSwitcher Watch App UI Tests.xctest"
-               BlueprintName = "CodexSwitcher Watch App UI Tests"
+               BuildableName = "CodexSwitcher Watch UI Tests.xctest"
+               BlueprintName = "CodexSwitcher Watch UI Tests"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -84,8 +84,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1FA0355E2F8AF68300367DD6"
-            BuildableName = "CodexSwitcher Watch App.app"
-            BlueprintName = "CodexSwitcher Watch App"
+            BuildableName = "Codex Switcher Watch App.app"
+            BlueprintName = "Codex Switcher Watch App"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -101,8 +101,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1FA0355E2F8AF68300367DD6"
-            BuildableName = "CodexSwitcher Watch App.app"
-            BlueprintName = "CodexSwitcher Watch App"
+            BuildableName = "Codex Switcher Watch App.app"
+            BlueprintName = "Codex Switcher Watch App"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

@@ -7,7 +7,7 @@
 
 import SwiftData
 import Testing
-@testable import CodexSwitcher_Watch_App
+@testable import Codex_Switcher_Watch_App
 
 struct CodexSwitcherWatchAppTests {
     @Test

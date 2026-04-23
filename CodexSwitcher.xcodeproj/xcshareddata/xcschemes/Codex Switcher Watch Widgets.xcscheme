@@ -17,8 +17,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1F310E4D2F8DC3E2006AA106"
-               BuildableName = "CodexSwitcher Watch WidgetsExtension.appex"
-               BlueprintName = "CodexSwitcher Watch WidgetsExtension"
+               BuildableName = "Codex Switcher Watch Widgets.appex"
+               BlueprintName = "Codex Switcher Watch Widgets"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -31,8 +31,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1FA0355E2F8AF68300367DD6"
-               BuildableName = "CodexSwitcher Watch App.app"
-               BlueprintName = "CodexSwitcher Watch App"
+               BuildableName = "Codex Switcher Watch App.app"
+               BlueprintName = "Codex Switcher Watch App"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -45,8 +45,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1F87C9462F8406C7007DED25"
-               BuildableName = "CodexSwitcher.app"
-               BlueprintName = "CodexSwitcher"
+               BuildableName = "Codex Switcher Mac App.app"
+               BlueprintName = "Codex Switcher Mac App"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -77,8 +77,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1FA0355E2F8AF68300367DD6"
-            BuildableName = "CodexSwitcher Watch App.app"
-            BlueprintName = "CodexSwitcher Watch App"
+            BuildableName = "Codex Switcher Watch App.app"
+            BlueprintName = "Codex Switcher Watch App"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -111,8 +111,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1F310E4D2F8DC3E2006AA106"
-            BuildableName = "CodexSwitcher Watch WidgetsExtension.appex"
-            BlueprintName = "CodexSwitcher Watch WidgetsExtension"
+            BuildableName = "Codex Switcher Watch Widgets.appex"
+            BlueprintName = "Codex Switcher Watch Widgets"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
