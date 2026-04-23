@@ -16,6 +16,7 @@ import UniformTypeIdentifiers
 final class IOSAccountsController {
     private let snapshotStore: AccountSnapshotStoring
     private let archiveExporter: CodexAccountArchiveFileExporter
+    private let syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring
 
     var searchText = ""
     var archiveAvailabilityRefreshToken = 0
@@ -47,10 +48,12 @@ final class IOSAccountsController {
 
     init(
         snapshotStore: AccountSnapshotStoring = SharedKeychainSnapshotStore(),
-        archiveExporter: CodexAccountArchiveFileExporter = CodexAccountArchiveFileExporter()
+        archiveExporter: CodexAccountArchiveFileExporter = CodexAccountArchiveFileExporter(),
+        syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore()
     ) {
         self.snapshotStore = snapshotStore
         self.archiveExporter = archiveExporter
+        self.syncedRateLimitCredentialStore = syncedRateLimitCredentialStore
     }
 
     var canEditCustomOrder: Bool {
@@ -179,13 +182,18 @@ final class IOSAccountsController {
         }
     }
 
-    func remove(_ account: StoredAccount, in modelContext: ModelContext) {
+    func remove(_ account: StoredAccount, in modelContext: ModelContext) async {
         guard !account.isDeleted else {
             return
         }
 
         do {
-            try StoredAccountMutations.remove(account, in: modelContext)
+            try await StoredAccountMutations.remove(
+                account,
+                in: modelContext,
+                snapshotStore: snapshotStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
+            )
         } catch {
             presentedError = PresentedError(
                 title: "Couldn't Remove Account",
@@ -198,7 +206,7 @@ final class IOSAccountsController {
         withIDs accountIDs: Set<UUID>,
         from accounts: [StoredAccount],
         in modelContext: ModelContext
-    ) {
+    ) async {
         guard !accountIDs.isEmpty else {
             return
         }
@@ -209,11 +217,12 @@ final class IOSAccountsController {
         }
 
         do {
-            for account in accountsToRemove {
-                modelContext.delete(account)
-            }
-
-            try modelContext.save()
+            try await StoredAccountMutations.removeAll(
+                accountsToRemove,
+                in: modelContext,
+                snapshotStore: snapshotStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
+            )
         } catch {
             presentedError = PresentedError(
                 title: "Couldn't Remove Accounts",
@@ -260,50 +269,76 @@ final class IOSAccountsController {
             for url in accountArchiveURLs {
                 do {
                     let archive = try Self.loadAccountArchive(from: url)
-                    let snapshot = try Self.parseImportedSnapshot(from: archive.snapshotContents)
+                    for (accountIndex, archivedAccount) in archive.accounts.enumerated() {
+                        do {
+                            let snapshot = try Self.parseImportedSnapshot(
+                                from: archivedAccount.snapshotContents
+                            )
 
-                    if let archivedIdentityKey = archive.identityKey?.trimmingCharacters(in: .whitespacesAndNewlines),
-                       !archivedIdentityKey.isEmpty,
-                       archivedIdentityKey != snapshot.identityKey {
-                        throw IOSAccountImportError.identityMismatch
-                    }
+                            if let archivedIdentityKey = archivedAccount.identityKey?
+                                .trimmingCharacters(in: .whitespacesAndNewlines),
+                               !archivedIdentityKey.isEmpty,
+                               archivedIdentityKey != snapshot.identityKey {
+                                throw IOSAccountImportError.identityMismatch
+                            }
 
-                    if let existingAccount = allAccounts.first(where: { $0.identityKey == snapshot.identityKey }) {
-                        _ = try await storeImportedSnapshot(
-                            archive.snapshotContents,
-                            snapshot: snapshot,
-                            on: existingAccount
-                        )
-                        _ = Self.applyImportedArchiveMetadata(archive, to: existingAccount)
+                            if let existingAccount = allAccounts.first(where: {
+                                $0.identityKey == snapshot.identityKey
+                            }) {
+                                _ = try await storeImportedSnapshot(
+                                    archivedAccount.snapshotContents,
+                                    snapshot: snapshot,
+                                    on: existingAccount,
+                                    in: modelContext
+                                )
+                                _ = Self.applyImportedArchiveMetadata(
+                                    archivedAccount,
+                                    to: existingAccount
+                                )
 
-                        // Treat a byte-for-byte re-import as a successful
-                        // selection/import operation rather than surfacing a
-                        // false failure just because nothing changed locally.
-                        if !importedAccountIDs.contains(existingAccount.id) {
-                            importedAccountIDs.append(existingAccount.id)
+                                // Treat a byte-for-byte re-import as a successful
+                                // selection/import operation rather than surfacing a
+                                // false failure just because nothing changed locally.
+                                if !importedAccountIDs.contains(existingAccount.id) {
+                                    importedAccountIDs.append(existingAccount.id)
+                                }
+                                continue
+                            }
+
+                            guard allAccounts.count < 1_000 else {
+                                throw IOSAccountImportError.accountLimitReached
+                            }
+
+                            let nextCustomOrder = (allAccounts.map(\.customOrder).max() ?? -1) + 1
+                            let account = StoredAccount(
+                                identityKey: snapshot.identityKey,
+                                name: archivedAccount.preferredStoredName
+                                    ?? Self.defaultName(for: snapshot, existingAccounts: allAccounts),
+                                customOrder: nextCustomOrder,
+                                authModeRaw: snapshot.authMode.rawValue,
+                                emailHint: snapshot.email,
+                                accountIdentifier: snapshot.accountIdentifier,
+                                iconSystemName: archivedAccount.resolvedIconSystemName
+                            )
+
+                            modelContext.insert(account)
+                            _ = try await storeImportedSnapshot(
+                                archivedAccount.snapshotContents,
+                                snapshot: snapshot,
+                                on: account,
+                                in: modelContext
+                            )
+                            allAccounts.append(account)
+                            importedAccountIDs.append(account.id)
+                        } catch {
+                            let accountLabel = archivedAccount.preferredStoredName
+                                ?? archivedAccount.identityKey
+                                ?? "Account \(accountIndex + 1)"
+                            failureMessages.append(
+                                "\(url.lastPathComponent) • \(accountLabel): \(error.localizedDescription)"
+                            )
                         }
-                        continue
                     }
-
-                    guard allAccounts.count < 1_000 else {
-                        throw IOSAccountImportError.accountLimitReached
-                    }
-
-                    let nextCustomOrder = (allAccounts.map(\.customOrder).max() ?? -1) + 1
-                    let account = StoredAccount(
-                        identityKey: snapshot.identityKey,
-                        name: archive.preferredStoredName ?? Self.defaultName(for: snapshot, existingAccounts: allAccounts),
-                        customOrder: nextCustomOrder,
-                        authModeRaw: snapshot.authMode.rawValue,
-                        emailHint: snapshot.email,
-                        accountIdentifier: snapshot.accountIdentifier,
-                        iconSystemName: archive.resolvedIconSystemName
-                    )
-
-                    modelContext.insert(account)
-                    _ = try await storeImportedSnapshot(archive.snapshotContents, snapshot: snapshot, on: account)
-                    allAccounts.append(account)
-                    importedAccountIDs.append(account.id)
                 } catch {
                     failureMessages.append("\(url.lastPathComponent): \(error.localizedDescription)")
                 }
@@ -365,41 +400,50 @@ final class IOSAccountsController {
     private func storeImportedSnapshot(
         _ snapshotContents: String,
         snapshot: SharedCodexAuthSnapshot,
-        on account: StoredAccount
+        on account: StoredAccount,
+        in modelContext: ModelContext
     ) async throws -> Bool {
         let previousIdentityKey = account.identityKey
-        var didChange = account.normalizeLegacyLocalOnlyFields()
-
-        if account.identityKey != snapshot.identityKey {
-            account.identityKey = snapshot.identityKey
-            didChange = true
-        }
-
-        if account.authModeRaw != snapshot.authMode.rawValue {
-            account.authModeRaw = snapshot.authMode.rawValue
-            didChange = true
-        }
-
-        if account.emailHint != snapshot.email {
-            account.emailHint = snapshot.email
-            didChange = true
-        }
-
-        if account.accountIdentifier != snapshot.accountIdentifier {
-            account.accountIdentifier = snapshot.accountIdentifier
-            didChange = true
-        }
+        var didChange = StoredAccountCloudSyncSupport.update(account, from: snapshot)
 
         if account.authFileContents != nil {
             account.authFileContents = nil
             didChange = true
         }
 
-        try await snapshotStore.saveSnapshot(snapshotContents, forIdentityKey: snapshot.identityKey)
+        var shouldSaveSnapshot = true
+        if previousIdentityKey == snapshot.identityKey {
+            do {
+                let existingSnapshotContents = try await snapshotStore.loadSnapshot(
+                    forIdentityKey: snapshot.identityKey
+                )
+                shouldSaveSnapshot = existingSnapshotContents != snapshotContents
+            } catch AccountSnapshotStoreError.missingSnapshot {
+                shouldSaveSnapshot = true
+            }
+        }
+
+        if shouldSaveSnapshot {
+            try await snapshotStore.saveSnapshot(snapshotContents, forIdentityKey: snapshot.identityKey)
+        }
+
+        _ = await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
+            from: snapshotContents,
+            expectedIdentityKey: snapshot.identityKey,
+            in: modelContext,
+            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+            excludingAccountIDsForDelete: [account.id]
+        )
 
         if previousIdentityKey != snapshot.identityKey,
            previousIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            try? await snapshotStore.deleteSnapshot(forIdentityKey: previousIdentityKey)
+            await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
+                identityKey: previousIdentityKey,
+                in: modelContext,
+                snapshotStore: snapshotStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                excludingAccountIDs: [account.id]
+            )
         }
 
         return didChange
@@ -410,7 +454,7 @@ final class IOSAccountsController {
     }
 
     private static func applyImportedArchiveMetadata(
-        _ archive: CodexAccountArchive,
+        _ archive: CodexAccountArchive.Account,
         to account: StoredAccount
     ) -> Bool {
         var didChange = false

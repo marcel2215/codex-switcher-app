@@ -71,30 +71,62 @@ enum StoredAccountMutations {
     @MainActor
     static func remove(
         _ account: StoredAccount,
-        in modelContext: ModelContext
-    ) throws {
+        in modelContext: ModelContext,
+        snapshotStore: AccountSnapshotStoring = SharedKeychainSnapshotStore(),
+        syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore()
+    ) async throws {
         guard !account.isDeleted else {
             return
         }
 
+        let deletedIdentityKey = account.identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
         modelContext.delete(account)
         try modelContext.save()
+
+        guard !deletedIdentityKey.isEmpty else {
+            return
+        }
+
+        await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
+            identityKey: deletedIdentityKey,
+            in: modelContext,
+            snapshotStore: snapshotStore,
+            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
+        )
     }
 
     @MainActor
     static func removeAll(
         _ accounts: [StoredAccount],
-        in modelContext: ModelContext
-    ) throws {
+        in modelContext: ModelContext,
+        snapshotStore: AccountSnapshotStoring = SharedKeychainSnapshotStore(),
+        syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore()
+    ) async throws {
         let accountsToRemove = accounts.filter { !$0.isDeleted }
         guard !accountsToRemove.isEmpty else {
             return
         }
+
+        let deletedIdentityKeys = Set(
+            accountsToRemove
+                .map(\.identityKey)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        )
 
         for account in accountsToRemove {
             modelContext.delete(account)
         }
 
         try modelContext.save()
+
+        for identityKey in deletedIdentityKeys {
+            await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
+                identityKey: identityKey,
+                in: modelContext,
+                snapshotStore: snapshotStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
+            )
+        }
     }
 }

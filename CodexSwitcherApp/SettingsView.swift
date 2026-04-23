@@ -339,13 +339,15 @@ struct IOSSettingsView: View {
     }
 
     private func removeAllAccounts() {
-        do {
-            try StoredAccountMutations.removeAll(accounts, in: modelContext)
-        } catch {
-            presentedSettingsAlert = .error(
-                title: "Couldn't Remove Accounts",
-                message: error.localizedDescription
-            )
+        Task { @MainActor in
+            do {
+                try await StoredAccountMutations.removeAll(accounts, in: modelContext)
+            } catch {
+                presentedSettingsAlert = .error(
+                    title: "Couldn't Remove Accounts",
+                    message: error.localizedDescription
+                )
+            }
         }
     }
 

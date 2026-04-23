@@ -15,12 +15,19 @@ enum WidgetSnapshotPublisher {
         subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
         category: "WidgetSnapshotPublisher"
     )
+    private static let initialEmptyStoreFallbackWindow: TimeInterval = 30
+    private static let launchedAt = Date()
+
+    static var shouldAllowInitialEmptyStoreFallback: Bool {
+        Date().timeIntervalSince(launchedAt) <= initialEmptyStoreFallbackWindow
+    }
 
     static func publish(
         modelContext: ModelContext,
         currentAccountID: String? = nil,
         selectedAccountID: String? = nil,
-        selectedAccountIsLive: Bool = false
+        selectedAccountIsLive: Bool = false,
+        allowEmptyStoreFallback: Bool = false
     ) {
         let store = CodexSharedStateStore()
         let snapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore()
@@ -59,7 +66,8 @@ enum WidgetSnapshotPublisher {
         let existingState = (try? store.load()) ?? .empty
         let resolvedAccounts = mergedAccounts(
             localAccounts: sharedAccounts,
-            existingState: existingState
+            existingState: existingState,
+            allowEmptyStoreFallback: allowEmptyStoreFallback
         )
         let sharedState = SharedCodexState(
             schemaVersion: SharedCodexState.currentSchemaVersion,
@@ -90,16 +98,18 @@ enum WidgetSnapshotPublisher {
 
     static func mergedAccounts(
         localAccounts: [SharedCodexAccountRecord],
-        existingState: SharedCodexState
+        existingState: SharedCodexState,
+        allowEmptyStoreFallback: Bool
     ) -> [SharedCodexAccountRecord] {
-        guard localAccounts.isEmpty, !existingState.accounts.isEmpty else {
+        guard allowEmptyStoreFallback,
+              localAccounts.isEmpty,
+              !existingState.accounts.isEmpty else {
             return localAccounts
         }
 
-        // iPhone/watch frequently launch before CloudKit finishes replaying the
-        // local account database. Preserve the last non-empty shared snapshot
-        // instead of replacing it with an empty list and leaving widgets stuck
-        // in placeholder state.
+        // iPhone/watch can briefly boot before CloudKit replays the local
+        // account store. Limit the stale-state fallback to a short startup
+        // window so real deletions eventually propagate through widgets.
         return existingState.accounts
     }
 

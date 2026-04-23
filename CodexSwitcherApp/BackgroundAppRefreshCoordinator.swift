@@ -19,6 +19,7 @@ final class IOSBackgroundAppRefreshCoordinator {
     static let shared = IOSBackgroundAppRefreshCoordinator()
 
     private let provider: CodexRateLimitProviding
+    private let snapshotStore: AccountSnapshotStoring
     private let credentialStore: SyncedRateLimitCredentialStoring
     private let logger: Logger
     private let backgroundRefreshStatusProvider: @MainActor () -> UIBackgroundRefreshStatus
@@ -28,6 +29,7 @@ final class IOSBackgroundAppRefreshCoordinator {
 
     init(
         provider: CodexRateLimitProviding = CodexRateLimitProvider(),
+        snapshotStore: AccountSnapshotStoring = SharedKeychainSnapshotStore(),
         credentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore(),
         backgroundRefreshStatusProvider: @escaping @MainActor () -> UIBackgroundRefreshStatus = {
             UIApplication.shared.backgroundRefreshStatus
@@ -47,6 +49,7 @@ final class IOSBackgroundAppRefreshCoordinator {
         )
     ) {
         self.provider = provider
+        self.snapshotStore = snapshotStore
         self.credentialStore = credentialStore
         self.backgroundRefreshStatusProvider = backgroundRefreshStatusProvider
         self.submitRequest = submitRequest
@@ -88,6 +91,25 @@ final class IOSBackgroundAppRefreshCoordinator {
     @discardableResult
     func performRefresh(using modelContainer: ModelContainer) async -> Bool {
         let modelContext = modelContainer.mainContext
+        do {
+            try await StoredAccountLegacyCloudSyncRepair.run(
+                in: modelContext,
+                snapshotStore: snapshotStore,
+                syncedRateLimitCredentialStore: credentialStore,
+                logger: logger
+            )
+        } catch {
+            logger.error("Background sync repair failed: \(String(describing: error), privacy: .private)")
+        }
+
+        let remoteDeletionCleanup = RemoteAccountDeletionCleanup(
+            modelContainer: modelContainer,
+            secretStore: snapshotStore,
+            syncedRateLimitCredentialStore: credentialStore,
+            logger: logger
+        )
+        await remoteDeletionCleanup.consumeHistoryIfNeeded()
+
         let identityKeys = loadTrackedIdentityKeys(from: modelContext)
 
         // Reuse the main refresh engine so background updates honor the same auth, retry, and backoff rules.

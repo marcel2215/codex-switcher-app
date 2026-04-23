@@ -48,6 +48,8 @@ struct AccountsRootView: View {
     @State private var showingSettings = false
     @State private var accountPendingDeletion: StoredAccount?
     @State private var sortPreferences = CloudSortPreferences()
+    @State private var remoteDeletionCleanup: RemoteAccountDeletionCleanup?
+    @State private var isRunningCloudSyncMaintenance = false
 
     init(quickActions: IOSHomeScreenQuickActionCoordinator = .shared) {
         self.quickActions = quickActions
@@ -167,7 +169,7 @@ struct AccountsRootView: View {
             rootContent
             .environment(\.editMode, $editMode)
             .task {
-                handleInitialLoad()
+                await handleInitialLoad()
             }
             .onOpenURL(perform: handleIncomingArchiveURL)
             .dropDestination(for: URL.self, isEnabled: true) { items, _ in
@@ -208,7 +210,9 @@ struct AccountsRootView: View {
                 handleCompactNavigationChange(isCompact)
             }
             .onChange(of: scenePhase) { _, newPhase in
-                handleScenePhaseChange(newPhase)
+                Task { @MainActor in
+                    await handleScenePhaseChange(newPhase)
+                }
             }
             .onChange(of: editMode) { _, newMode in
                 handleEditModeChange(newMode)
@@ -232,7 +236,9 @@ struct AccountsRootView: View {
         let contentWithObservers =
             interactionObservedContent
             .task(id: widgetSnapshotFingerprint) {
-                publishWidgetSnapshot()
+                publishWidgetSnapshot(
+                    allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
+                )
             }
             .task(id: quickActionFingerprint) {
                 refreshHomeScreenQuickActions()
@@ -245,7 +251,7 @@ struct AccountsRootView: View {
             .alert(item: activeAlert, content: makeAlert)
     }
 
-    private func handleInitialLoad() {
+    private func handleInitialLoad() async {
         sortPreferences.synchronize()
         controller.restoreSortPreferences(
             sortCriterionRawValue: sortPreferences.sortCriterionRawValue,
@@ -255,7 +261,10 @@ struct AccountsRootView: View {
         rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
         rateLimitRefreshController.setScenePhase(scenePhase)
         syncRegularSelectedRateLimitTracking(for: selectedAccountID)
-        publishWidgetSnapshot()
+        await performCloudSyncMaintenanceIfNeeded()
+        publishWidgetSnapshot(
+            allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
+        )
         refreshHomeScreenQuickActions()
         applyPendingQuickActionIfPossible()
         consumePendingAccountOpenRequestIfPossible()
@@ -276,7 +285,7 @@ struct AccountsRootView: View {
         }
     }
 
-    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+    private func handleScenePhaseChange(_ newPhase: ScenePhase) async {
         rateLimitRefreshController.setScenePhase(newPhase)
 
         guard newPhase == .active else {
@@ -284,7 +293,10 @@ struct AccountsRootView: View {
             return
         }
 
-        publishWidgetSnapshot()
+        await performCloudSyncMaintenanceIfNeeded()
+        publishWidgetSnapshot(
+            allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
+        )
         refreshHomeScreenQuickActions()
         applyPendingQuickActionIfPossible()
         consumePendingAccountOpenRequestIfPossible()
@@ -514,11 +526,12 @@ struct AccountsRootView: View {
         )
     }
 
-    private func publishWidgetSnapshot() {
+    private func publishWidgetSnapshot(allowEmptyStoreFallback: Bool = false) {
         WidgetSnapshotPublisher.publish(
             modelContext: modelContext,
             selectedAccountID: selectedAccountID.flatMap { account(for: $0)?.identityKey },
-            selectedAccountIsLive: selectedAccountID != nil && !isEditing
+            selectedAccountIsLive: selectedAccountID != nil && !isEditing,
+            allowEmptyStoreFallback: allowEmptyStoreFallback
         )
     }
 
@@ -555,12 +568,14 @@ struct AccountsRootView: View {
             self.selectedAccountID = nil
         }
 
-        controller.removeAccounts(
-            withIDs: accountIDsToDelete,
-            from: accounts,
-            in: modelContext
-        )
-        selectedAccountIDsForEditing.removeAll()
+        Task { @MainActor in
+            await controller.removeAccounts(
+                withIDs: accountIDsToDelete,
+                from: accounts,
+                in: modelContext
+            )
+            selectedAccountIDsForEditing.removeAll()
+        }
     }
 
     private func removeAccountFromDetailOrList(_ account: StoredAccount) {
@@ -582,8 +597,42 @@ struct AccountsRootView: View {
             // object disappears. Otherwise compact stacks can keep the stale
             // UUID route alive long enough to show "Account Unavailable."
             await Task.yield()
-            controller.remove(account, in: modelContext)
+            await controller.remove(account, in: modelContext)
         }
+    }
+
+    private func ensureRemoteDeletionCleanup() -> RemoteAccountDeletionCleanup {
+        if let remoteDeletionCleanup {
+            return remoteDeletionCleanup
+        }
+
+        let cleanup = RemoteAccountDeletionCleanup(
+            modelContainer: modelContext.container,
+            secretStore: SharedKeychainSnapshotStore(),
+            syncedRateLimitCredentialStore: SyncedRateLimitCredentialStore(),
+            logger: Self.logger
+        )
+        remoteDeletionCleanup = cleanup
+        return cleanup
+    }
+
+    private func performCloudSyncMaintenanceIfNeeded() async {
+        guard !isRunningCloudSyncMaintenance else {
+            return
+        }
+
+        isRunningCloudSyncMaintenance = true
+        defer {
+            isRunningCloudSyncMaintenance = false
+        }
+
+        do {
+            try await StoredAccountLegacyCloudSyncRepair.run(in: modelContext)
+        } catch {
+            Self.logger.error("Cloud sync repair failed: \(String(describing: error), privacy: .private)")
+        }
+
+        await ensureRemoteDeletionCleanup().consumeHistoryIfNeeded()
     }
 
     private func toggleEditingSelection(for accountID: UUID) {

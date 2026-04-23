@@ -232,7 +232,7 @@ struct WatchAccountDetailView: View {
             await Task.yield()
 
             do {
-                try StoredAccountMutations.remove(account, in: modelContext)
+                try await StoredAccountMutations.remove(account, in: modelContext)
             } catch {
                 onError(
                     PresentedError(

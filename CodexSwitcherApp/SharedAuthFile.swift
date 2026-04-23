@@ -105,6 +105,44 @@ enum SharedCodexAuthFile {
         )
     }
 
+    nonisolated static func parseRateLimitCredentials(contents: String) throws -> CodexRateLimitCredentials {
+        guard let data = contents.data(using: .utf8) else {
+            throw SharedCodexAuthFileError.invalidEncoding
+        }
+
+        let payload: SharedCodexPayload
+        do {
+            payload = try JSONDecoder().decode(SharedCodexPayload.self, from: data)
+        } catch {
+            throw SharedCodexAuthFileError.invalidJSON
+        }
+
+        let authMode = SharedCodexAuthMode(payloadAuthMode: payload.authMode, apiKey: payload.openAIAPIKey)
+        let claims = decodeClaims(from: payload.tokens?.idToken ?? payload.tokens?.accessToken)
+        let email = firstNonEmpty(
+            claims?.email,
+            claims?.profile?.email
+        )?.lowercased()
+
+        guard let identityKey = stableChatGPTIdentityKey(
+            workspaceID: claims?.auth?.chatgptWorkspaceID,
+            accountID: firstNonEmpty(payload.tokens?.accountID, claims?.auth?.chatgptAccountID),
+            userID: claims?.auth?.chatgptUserID,
+            subject: claims?.subject,
+            email: email
+        ) ?? email.map({ "email:\($0)" }) else {
+            throw SharedCodexAuthFileError.missingCredentials
+        }
+
+        return CodexRateLimitCredentials(
+            identityKey: identityKey,
+            authMode: CodexAuthMode(rawValue: authMode.rawValue) ?? .chatgpt,
+            accountID: firstNonEmpty(payload.tokens?.accountID, claims?.auth?.chatgptAccountID),
+            accessToken: firstNonEmpty(payload.tokens?.accessToken),
+            idToken: firstNonEmpty(payload.tokens?.idToken)
+        )
+    }
+
     private nonisolated static func decodeClaims(from token: String?) -> SharedCodexJWTClaims? {
         guard
             let token,

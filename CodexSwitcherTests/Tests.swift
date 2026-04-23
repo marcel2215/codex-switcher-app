@@ -166,11 +166,11 @@ struct Tests {
     }
 
     @Test
-    func deleteRemovesTheRowFromSwiftData() throws {
+    func deleteRemovesTheRowFromSwiftData() async throws {
         let account = makeAccount(name: "Work", customOrder: 0)
         let harness = try makeHarness(accounts: [account])
 
-        harness.controller.remove(account, in: harness.modelContext)
+        await harness.controller.remove(account, in: harness.modelContext)
 
         #expect(try fetchAccounts(in: harness.modelContext).isEmpty)
     }
@@ -294,6 +294,199 @@ struct Tests {
     }
 
     @Test
+    func importingMultiAccountArchiveImportsEveryAccount() async throws {
+        let firstSnapshotContents = makeChatGPTAuthJSON(accountID: "acct-multi-1")
+        let secondSnapshotContents = makeChatGPTAuthJSON(accountID: "acct-multi-2")
+        let firstSnapshot = try SharedCodexAuthFile.parse(contents: firstSnapshotContents)
+        let secondSnapshot = try SharedCodexAuthFile.parse(contents: secondSnapshotContents)
+        let snapshotStore = FakeSnapshotStore()
+        let harness = try makeHarness(accounts: [], snapshotStore: snapshotStore)
+        let archiveURL = try makeArchiveFile(
+            archive: CodexAccountArchive(
+                accounts: [
+                    CodexAccountArchive.Account(
+                        name: "First",
+                        iconSystemName: AccountIconOption.briefcase.systemName,
+                        identityKey: firstSnapshot.identityKey,
+                        authModeRaw: firstSnapshot.authMode.rawValue,
+                        emailHint: firstSnapshot.email,
+                        accountIdentifier: firstSnapshot.accountIdentifier,
+                        snapshotContents: firstSnapshotContents
+                    ),
+                    CodexAccountArchive.Account(
+                        name: "Second",
+                        iconSystemName: AccountIconOption.house.systemName,
+                        identityKey: secondSnapshot.identityKey,
+                        authModeRaw: secondSnapshot.authMode.rawValue,
+                        emailHint: secondSnapshot.email,
+                        accountIdentifier: secondSnapshot.accountIdentifier,
+                        snapshotContents: secondSnapshotContents
+                    ),
+                ]
+            )
+        )
+        defer { try? FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent()) }
+
+        let importedAccountIDs = await harness.controller.importAccountArchives(
+            from: [archiveURL],
+            in: harness.modelContext
+        )
+
+        let accounts = try fetchAccounts(in: harness.modelContext)
+        #expect(importedAccountIDs.count == 2)
+        #expect(accounts.count == 2)
+        #expect(Set(accounts.map(\.identityKey)) == Set([firstSnapshot.identityKey, secondSnapshot.identityKey]))
+        #expect(await snapshotStore.snapshot(forIdentityKey: firstSnapshot.identityKey) == firstSnapshotContents)
+        #expect(await snapshotStore.snapshot(forIdentityKey: secondSnapshot.identityKey) == secondSnapshotContents)
+    }
+
+    @Test
+    func importingArchiveExportsSyncedRateLimitCredential() async throws {
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-credential-export")
+        let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)
+        let syncedCredentialStore = FakeSyncedRateLimitCredentialStore()
+        let harness = try makeHarness(
+            accounts: [],
+            syncedRateLimitCredentialStore: syncedCredentialStore
+        )
+        let archiveURL = try makeArchiveFile(
+            archive: CodexAccountArchive(
+                name: "Credential Export",
+                iconSystemName: AccountIconOption.defaultOption.systemName,
+                identityKey: snapshot.identityKey,
+                authModeRaw: snapshot.authMode.rawValue,
+                emailHint: snapshot.email,
+                accountIdentifier: snapshot.accountIdentifier,
+                snapshotContents: snapshotContents
+            )
+        )
+        defer { try? FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent()) }
+
+        let importedAccountIDs = await harness.controller.importAccountArchives(
+            from: [archiveURL],
+            in: harness.modelContext
+        )
+
+        #expect(importedAccountIDs.count == 1)
+        #expect(await syncedCredentialStore.containsCredential(forIdentityKey: snapshot.identityKey))
+    }
+
+    @Test
+    func deletingAccountRemovesSnapshotAndSyncedCredentialWhenLastIdentityIsDeleted() async throws {
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-delete-cleanup")
+        let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)
+        let snapshotStore = FakeSnapshotStore()
+        let syncedCredentialStore = FakeSyncedRateLimitCredentialStore()
+        let account = StoredAccount(
+            identityKey: snapshot.identityKey,
+            name: "Delete Me",
+            customOrder: 0,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier
+        )
+        let harness = try makeHarness(
+            accounts: [account],
+            snapshotStore: snapshotStore,
+            syncedRateLimitCredentialStore: syncedCredentialStore
+        )
+
+        try await snapshotStore.saveSnapshot(snapshotContents, forIdentityKey: snapshot.identityKey)
+        let rateLimitCredentials = try SharedCodexAuthFile.parseRateLimitCredentials(contents: snapshotContents)
+        try await syncedCredentialStore.save(SyncedRateLimitCredential(credentials: rateLimitCredentials))
+
+        await harness.controller.remove(account, in: harness.modelContext)
+
+        #expect(try fetchAccounts(in: harness.modelContext).isEmpty)
+        #expect(await snapshotStore.snapshot(forIdentityKey: snapshot.identityKey) == nil)
+        #expect(await syncedCredentialStore.containsCredential(forIdentityKey: snapshot.identityKey) == false)
+    }
+
+    @Test
+    func sharedCloudSyncRepairMigratesLegacyAuthFileContents() async throws {
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-legacy-repair")
+        let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)
+        let snapshotStore = FakeSnapshotStore()
+        let syncedCredentialStore = FakeSyncedRateLimitCredentialStore()
+        let account = StoredAccount(
+            identityKey: "legacy-placeholder",
+            name: "",
+            customOrder: 0,
+            authFileContents: snapshotContents,
+            hasLocalSnapshot: true,
+            authModeRaw: "chatgpt"
+        )
+        let harness = try makeHarness(
+            accounts: [account],
+            snapshotStore: snapshotStore,
+            syncedRateLimitCredentialStore: syncedCredentialStore
+        )
+
+        let didChange = try await StoredAccountLegacyCloudSyncRepair.run(
+            in: harness.modelContext,
+            snapshotStore: snapshotStore,
+            syncedRateLimitCredentialStore: syncedCredentialStore
+        )
+
+        let repairedAccount = try #require(fetchAccounts(in: harness.modelContext).first)
+        #expect(didChange)
+        #expect(repairedAccount.identityKey == snapshot.identityKey)
+        #expect(repairedAccount.authFileContents == nil)
+        #expect(repairedAccount.hasLocalSnapshot == false)
+        #expect(await snapshotStore.snapshot(forIdentityKey: snapshot.identityKey) == snapshotContents)
+        #expect(await syncedCredentialStore.containsCredential(forIdentityKey: snapshot.identityKey))
+    }
+
+    @Test
+    func widgetSnapshotFallbackRequiresExplicitStartupAllowance() {
+        let existingState = SharedCodexState(
+            schemaVersion: SharedCodexState.currentSchemaVersion,
+            authState: .ready,
+            linkedFolderPath: nil,
+            currentAccountID: nil,
+            selectedAccountID: nil,
+            selectedAccountIsLive: false,
+            accounts: [
+                SharedCodexAccountRecord(
+                    id: "identity-fallback",
+                    name: "Fallback",
+                    iconSystemName: AccountIconOption.defaultOption.systemName,
+                    emailHint: nil,
+                    accountIdentifier: nil,
+                    authModeRaw: CodexAuthMode.chatgpt.rawValue,
+                    lastLoginAt: nil,
+                    sevenDayLimitUsedPercent: nil,
+                    fiveHourLimitUsedPercent: nil,
+                    sevenDayResetsAt: nil,
+                    fiveHourResetsAt: nil,
+                    sevenDayDataStatusRaw: RateLimitMetricDataStatus.missing.rawValue,
+                    fiveHourDataStatusRaw: RateLimitMetricDataStatus.missing.rawValue,
+                    rateLimitsObservedAt: nil,
+                    sortOrder: 0,
+                    isPinned: false,
+                    hasLocalSnapshot: true
+                )
+            ],
+            updatedAt: .now
+        )
+
+        #expect(
+            WidgetSnapshotPublisher.mergedAccounts(
+                localAccounts: [],
+                existingState: existingState,
+                allowEmptyStoreFallback: false
+            ).isEmpty
+        )
+        #expect(
+            WidgetSnapshotPublisher.mergedAccounts(
+                localAccounts: [],
+                existingState: existingState,
+                allowEmptyStoreFallback: true
+            ) == existingState.accounts
+        )
+    }
+
+    @Test
     func restoringCustomSortForcesAscendingDirection() throws {
         let harness = try makeHarness(accounts: [])
 
@@ -367,7 +560,8 @@ struct Tests {
 @MainActor
 private func makeHarness(
     accounts: [StoredAccount],
-    snapshotStore: FakeSnapshotStore = FakeSnapshotStore()
+    snapshotStore: FakeSnapshotStore = FakeSnapshotStore(),
+    syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore = FakeSyncedRateLimitCredentialStore()
 ) throws -> TestHarness {
     let schema = Schema([StoredAccount.self])
     let configuration = ModelConfiguration(
@@ -390,7 +584,8 @@ private func makeHarness(
         modelContext: modelContext,
         controller: IOSAccountsController(
             snapshotStore: snapshotStore,
-            archiveExporter: CodexAccountArchiveFileExporter(snapshotStore: snapshotStore)
+            archiveExporter: CodexAccountArchiveFileExporter(snapshotStore: snapshotStore),
+            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
         )
     )
 }
@@ -502,6 +697,30 @@ final class FakeSnapshotStore: @unchecked Sendable, AccountSnapshotStoring {
         lock.lock()
         defer { lock.unlock() }
         return try body()
+    }
+}
+
+actor FakeSyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
+    private var credentials: [String: SyncedRateLimitCredential] = [:]
+
+    func save(_ credential: SyncedRateLimitCredential) async throws {
+        credentials[credential.identityKey] = credential
+    }
+
+    func load(forIdentityKey identityKey: String) async throws -> SyncedRateLimitCredential {
+        guard let credential = credentials[identityKey] else {
+            throw SyncedRateLimitCredentialStoreError.missingCredential
+        }
+
+        return credential
+    }
+
+    func delete(forIdentityKey identityKey: String) async throws {
+        credentials.removeValue(forKey: identityKey)
+    }
+
+    func containsCredential(forIdentityKey identityKey: String) async -> Bool {
+        credentials[identityKey] != nil
     }
 }
 

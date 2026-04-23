@@ -5,10 +5,16 @@
 //  Created by Marcel Kwiatkowski on 2026-04-12.
 //
 
+import OSLog
 import SwiftData
 import SwiftUI
 
 struct WatchAccountsRootView: View {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
+        category: "WatchAccountsRootView"
+    )
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Query private var accounts: [StoredAccount]
@@ -21,6 +27,8 @@ struct WatchAccountsRootView: View {
     @State private var showingSortOptions = false
     @State private var showingSettings = false
     @State private var presentedError: PresentedError?
+    @State private var remoteDeletionCleanup: RemoteAccountDeletionCleanup?
+    @State private var isRunningCloudSyncMaintenance = false
 
     private var displayedAccounts: [StoredAccount] {
         AccountsPresentationLogic.displayedAccounts(
@@ -42,7 +50,9 @@ struct WatchAccountsRootView: View {
                     WatchEmptyStateView(searchText: searchText)
                         .onAppear {
                             clearSelectedRateLimitTracking()
-                            publishWidgetSnapshot()
+                            publishWidgetSnapshot(
+                                allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
+                            )
                         }
                 } else {
                     List(displayedAccounts) { account in
@@ -67,7 +77,9 @@ struct WatchAccountsRootView: View {
                     }
                     .onAppear {
                         clearSelectedRateLimitTracking()
-                        publishWidgetSnapshot()
+                        publishWidgetSnapshot(
+                            allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
+                        )
                     }
                 }
             }
@@ -121,16 +133,24 @@ struct WatchAccountsRootView: View {
             refreshController.configure(modelContext: modelContext)
             refreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
             refreshController.setScenePhase(scenePhase)
-            publishWidgetSnapshot()
+            await performCloudSyncMaintenanceIfNeeded()
+            publishWidgetSnapshot(
+                allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
+            )
         }
         .onChange(of: scenePhase) { _, newPhase in
-            refreshController.setScenePhase(newPhase)
+            Task { @MainActor in
+                refreshController.setScenePhase(newPhase)
 
-            guard newPhase == .active else {
-                return
+                guard newPhase == .active else {
+                    return
+                }
+
+                await performCloudSyncMaintenanceIfNeeded()
+                publishWidgetSnapshot(
+                    allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
+                )
             }
-
-            publishWidgetSnapshot()
         }
         .onChange(of: accounts.map(\.identityKey)) { _, newIdentityKeys in
             refreshController.reconcileKnownIdentityKeys(newIdentityKeys)
@@ -142,7 +162,9 @@ struct WatchAccountsRootView: View {
             restoreSortPreferences()
         }
         .task(id: widgetSnapshotFingerprint) {
-            publishWidgetSnapshot()
+            publishWidgetSnapshot(
+                allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
+            )
         }
     }
 
@@ -210,13 +232,49 @@ struct WatchAccountsRootView: View {
 
     private func publishWidgetSnapshot(
         selectedAccountID: String? = nil,
-        selectedAccountIsLive: Bool = false
+        selectedAccountIsLive: Bool = false,
+        allowEmptyStoreFallback: Bool = false
     ) {
         WidgetSnapshotPublisher.publish(
             modelContext: modelContext,
             selectedAccountID: selectedAccountID,
-            selectedAccountIsLive: selectedAccountIsLive
+            selectedAccountIsLive: selectedAccountIsLive,
+            allowEmptyStoreFallback: allowEmptyStoreFallback
         )
+    }
+
+    private func ensureRemoteDeletionCleanup() -> RemoteAccountDeletionCleanup {
+        if let remoteDeletionCleanup {
+            return remoteDeletionCleanup
+        }
+
+        let cleanup = RemoteAccountDeletionCleanup(
+            modelContainer: modelContext.container,
+            secretStore: SharedKeychainSnapshotStore(),
+            syncedRateLimitCredentialStore: SyncedRateLimitCredentialStore(),
+            logger: Self.logger
+        )
+        remoteDeletionCleanup = cleanup
+        return cleanup
+    }
+
+    private func performCloudSyncMaintenanceIfNeeded() async {
+        guard !isRunningCloudSyncMaintenance else {
+            return
+        }
+
+        isRunningCloudSyncMaintenance = true
+        defer {
+            isRunningCloudSyncMaintenance = false
+        }
+
+        do {
+            try await StoredAccountLegacyCloudSyncRepair.run(in: modelContext)
+        } catch {
+            Self.logger.error("Cloud sync repair failed: \(String(describing: error), privacy: .private)")
+        }
+
+        await ensureRemoteDeletionCleanup().consumeHistoryIfNeeded()
     }
 }
 

@@ -79,13 +79,15 @@ struct WatchSettingsView: View {
     }
 
     private func removeAllAccounts() {
-        do {
-            try StoredAccountMutations.removeAll(accounts, in: modelContext)
-        } catch {
-            presentedSettingsAlert = PresentedSettingsAlert(
-                title: "Couldn't Remove Accounts",
-                message: error.localizedDescription
-            )
+        Task { @MainActor in
+            do {
+                try await StoredAccountMutations.removeAll(accounts, in: modelContext)
+            } catch {
+                presentedSettingsAlert = PresentedSettingsAlert(
+                    title: "Couldn't Remove Accounts",
+                    message: error.localizedDescription
+                )
+            }
         }
     }
 }

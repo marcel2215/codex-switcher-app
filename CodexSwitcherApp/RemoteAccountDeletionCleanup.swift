@@ -1,6 +1,6 @@
 //
 //  RemoteAccountDeletionCleanup.swift
-//  Codex Switcher Mac App
+//  Codex Switcher
 //
 //  Created by Marcel Kwiatkowski on 2026-04-11.
 //
@@ -49,22 +49,20 @@ final class RemoteAccountDeletionCleanup {
 
         let modelContext = modelContainer.mainContext
 
-        let transactions: [DefaultHistoryTransaction]
+        let lastProcessedToken = loadLastProcessedToken()
+        let pendingTransactions: [DefaultHistoryTransaction]
         do {
-            transactions = try modelContext.fetchHistory(HistoryDescriptor<DefaultHistoryTransaction>())
+            var descriptor = HistoryDescriptor<DefaultHistoryTransaction>()
+            if let lastProcessedToken {
+                descriptor.predicate = #Predicate<DefaultHistoryTransaction> { transaction in
+                    transaction.token > lastProcessedToken
+                }
+            }
+            pendingTransactions = try modelContext.fetchHistory(descriptor)
                 .sorted { $0.token < $1.token }
         } catch {
             logger.error("Failed to fetch SwiftData history for remote deletion cleanup: \(String(describing: error), privacy: .private)")
             return
-        }
-
-        let lastProcessedToken = loadLastProcessedToken()
-        let pendingTransactions = transactions.filter { transaction in
-            guard let lastProcessedToken else {
-                return true
-            }
-
-            return transaction.token > lastProcessedToken
         }
 
         guard !pendingTransactions.isEmpty else {
