@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  Codex Switcher
+//  Codex Switcher Mac App
 //
 //  Created by Marcel Kwiatkowski on 2026-04-06.
 //

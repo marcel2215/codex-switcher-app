@@ -1,8 +1,8 @@
 //
-//  CodexSwitcherWidgets.swift
-//  Codex Switcher Widgets
+//  MacWidgets.swift
+//  Codex Switcher Mac Widgets
 //
-//  Created by Codex on 2026-04-08.
+//  Created by Marcel Kwiatkowski on 2026-04-08.
 //
 
 import AppIntents

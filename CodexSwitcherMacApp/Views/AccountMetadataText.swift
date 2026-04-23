@@ -1,8 +1,8 @@
 //
 //  AccountMetadataText.swift
-//  Codex Switcher
+//  Codex Switcher Mac App
 //
-//  Created by Codex on 2026-04-09.
+//  Created by Marcel Kwiatkowski on 2026-04-09.
 //
 
 import SwiftUI

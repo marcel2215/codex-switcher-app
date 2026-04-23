@@ -1,8 +1,8 @@
 //
 //  Tests.swift
-//  Codex Switcher iOS AppUITests
+//  Codex Switcher UI Tests
 //
-//  Created by Codex on 2026-04-11.
+//  Created by Marcel Kwiatkowski on 2026-04-11.
 //
 
 import XCTest

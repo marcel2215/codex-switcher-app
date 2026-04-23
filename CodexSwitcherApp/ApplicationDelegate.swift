@@ -1,8 +1,8 @@
 //
-//  IOSApplicationDelegate.swift
-//  Codex Switcher iOS App
+//  ApplicationDelegate.swift
+//  Codex Switcher
 //
-//  Created by Codex on 2026-04-14.
+//  Created by Marcel Kwiatkowski on 2026-04-14.
 //
 
 import UIKit

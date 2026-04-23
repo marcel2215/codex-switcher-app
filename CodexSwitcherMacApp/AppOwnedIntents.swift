@@ -1,8 +1,8 @@
 //
-//  CodexSwitcherAppOwnedIntents.swift
-//  Codex Switcher
+//  AppOwnedIntents.swift
+//  Codex Switcher Mac App
 //
-//  Created by Codex on 2026-04-10.
+//  Created by Marcel Kwiatkowski on 2026-04-10.
 //
 
 import AppIntents

@@ -1,6 +1,6 @@
 //
 //  Tests.swift
-//  Codex SwitcherUITests
+//  Codex Switcher Mac UI Tests
 //
 //  Created by Marcel Kwiatkowski on 2026-04-06.
 //

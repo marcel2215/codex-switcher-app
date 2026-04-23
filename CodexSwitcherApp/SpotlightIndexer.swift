@@ -2,7 +2,7 @@
 //  SpotlightIndexer.swift
 //  Codex Switcher
 //
-//  Created by Codex on 2026-04-16.
+//  Created by Marcel Kwiatkowski on 2026-04-16.
 //
 
 import AppIntents

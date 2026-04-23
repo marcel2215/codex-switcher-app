@@ -1,8 +1,8 @@
 //
-//  WatchAccountsRootView.swift
+//  AccountsRootView.swift
 //  Codex Switcher Watch App
 //
-//  Created by Codex on 2026-04-12.
+//  Created by Marcel Kwiatkowski on 2026-04-12.
 //
 
 import SwiftData

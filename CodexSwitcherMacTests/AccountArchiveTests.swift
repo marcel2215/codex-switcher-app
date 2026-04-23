@@ -1,8 +1,8 @@
 //
 //  AccountArchiveTests.swift
-//  Codex Switcher Tests
+//  Codex Switcher Mac Tests
 //
-//  Created by Codex on 2026-04-14.
+//  Created by Marcel Kwiatkowski on 2026-04-14.
 //
 
 import Foundation

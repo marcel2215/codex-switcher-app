@@ -1,8 +1,8 @@
 //
 //  MouseButtonMonitorBridge.swift
-//  Codex Switcher
+//  Codex Switcher Mac App
 //
-//  Created by Codex on 2026-04-17.
+//  Created by Marcel Kwiatkowski on 2026-04-17.
 //
 
 import AppKit

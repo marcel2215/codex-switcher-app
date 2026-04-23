@@ -2,7 +2,7 @@
 //  OpenAppIntent.swift
 //  Codex Switcher
 //
-//  Created by Codex on 2026-04-13.
+//  Created by Marcel Kwiatkowski on 2026-04-13.
 //
 
 @preconcurrency import AppIntents

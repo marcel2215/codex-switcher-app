@@ -1,6 +1,6 @@
 //
 //  Tests.swift
-//  Codex Switcher Watch UI Tests
+//  CodexSwitcher Watch UI Tests
 //
 //  Created by Marcel Kwiatkowski on 2026-04-11.
 //

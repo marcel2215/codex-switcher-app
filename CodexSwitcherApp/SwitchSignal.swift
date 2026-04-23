@@ -2,7 +2,7 @@
 //  SwitchSignal.swift
 //  Codex Switcher
 //
-//  Created by Codex on 2026-04-09.
+//  Created by Marcel Kwiatkowski on 2026-04-09.
 //
 
 import Foundation

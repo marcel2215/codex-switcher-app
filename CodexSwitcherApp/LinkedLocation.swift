@@ -2,7 +2,7 @@
 //  LinkedLocation.swift
 //  Codex Switcher
 //
-//  Created by Codex on 2026-04-11.
+//  Created by Marcel Kwiatkowski on 2026-04-11.
 //
 
 import Foundation

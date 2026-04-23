@@ -1,6 +1,6 @@
 //
 //  App.swift
-//  Codex Switcher App
+//  Codex Switcher
 //
 //  Created by Marcel Kwiatkowski on 2026-04-11.
 //

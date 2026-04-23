@@ -2,7 +2,7 @@
 //  SwitchControlIntent.swift
 //  Codex Switcher
 //
-//  Created by Codex on 2026-04-12.
+//  Created by Marcel Kwiatkowski on 2026-04-12.
 //
 
 @preconcurrency import AppIntents

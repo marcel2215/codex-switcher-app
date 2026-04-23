@@ -2,7 +2,7 @@
 //  SettingsIntents.swift
 //  Codex Switcher
 //
-//  Created by Codex on 2026-04-10.
+//  Created by Marcel Kwiatkowski on 2026-04-10.
 //
 
 @preconcurrency import AppIntents

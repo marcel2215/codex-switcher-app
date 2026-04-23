@@ -1,8 +1,8 @@
 //
 //  RateLimitAccessory.swift
-//  Codex Switcher iOS Widgets
+//  Codex Switcher Widgets
 //
-//  Created by Codex on 2026-04-13.
+//  Created by Marcel Kwiatkowski on 2026-04-13.
 //
 
 import SwiftUI

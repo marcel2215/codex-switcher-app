@@ -1,8 +1,8 @@
 //
 //  AccountsCommands.swift
-//  Codex Switcher
+//  Codex Switcher Mac App
 //
-//  Created by Codex on 2026-04-07.
+//  Created by Marcel Kwiatkowski on 2026-04-07.
 //
 
 import AppKit

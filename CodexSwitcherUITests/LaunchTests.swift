@@ -1,6 +1,6 @@
 //
 //  LaunchTests.swift
-//  Codex Switcher iOS AppUITests
+//  Codex Switcher UI Tests
 //
 //  Created by Marcel Kwiatkowski on 2026-04-11.
 //
