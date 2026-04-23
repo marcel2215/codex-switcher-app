@@ -178,62 +178,6 @@
 			);
 			target = 1F310E4D2F8DC3E2006AA106 /* Codex Switcher Watch Widgets */;
 		};
-		1F45922C2F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Mac Tests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1F87C9552F8406C9007DED25 /* Codex Switcher Mac Tests */;
-		};
-		1F45922D2F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Mac UI Tests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1F87C95F2F8406C9007DED25 /* Codex Switcher Mac UI Tests */;
-		};
-		1F45922E2F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Tests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1F96B5B52F89BF5200044DB7 /* Codex Switcher Tests */;
-		};
-		1F45922F2F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher UI Tests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1F96B5BF2F89BF5200044DB7 /* Codex Switcher UI Tests */;
-		};
-		1F4592302F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Watch Tests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1FA0356A2F8AF68400367DD6 /* Codex Switcher Watch Tests */;
-		};
-		1F4592312F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "CodexSwitcher Watch UI Tests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1FA035742F8AF68400367DD6 /* CodexSwitcher Watch UI Tests */;
-		};
-		1F4592322F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Widgets" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1F1413322F8C7C930013386A /* Codex Switcher Widgets */;
-		};
-		1F4592332F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Watch Widgets" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1F310E4D2F8DC3E2006AA106 /* Codex Switcher Watch Widgets */;
-		};
 		1F96B5CE2F89BF5200044DB7 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -243,20 +187,6 @@
 				WidgetIntents.swift,
 			);
 			target = 1F96B5A52F89BF5100044DB7 /* Codex Switcher */;
-		};
-		1F96B7502F89D34B00044DB7 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1F96B5A52F89BF5100044DB7 /* Codex Switcher */;
-		};
-		1FA0358B2F8AF7D600367DD6 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Watch App" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIcon.icon,
-			);
-			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
 		};
 		1FA700010001000100010001 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -321,12 +251,47 @@
 			);
 			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
 		};
-		1FD673A72F8854A5000FB40D /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Mac Widgets" target */ = {
+		1FD17AA52F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Tests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AppIcon.icon,
 			);
-			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Mac Widgets */;
+			target = 1F96B5B52F89BF5200044DB7 /* Codex Switcher Tests */;
+		};
+		1FD17AA62F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F87C9552F8406C9007DED25 /* Codex Switcher Mac Tests */;
+		};
+		1FD17AA72F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Watch Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1FA0356A2F8AF68400367DD6 /* Codex Switcher Watch Tests */;
+		};
+		1FD17AA82F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher UI Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F96B5BF2F89BF5200044DB7 /* Codex Switcher UI Tests */;
+		};
+		1FD17AA92F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac UI Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1F87C95F2F8406C9007DED25 /* Codex Switcher Mac UI Tests */;
+		};
+		1FD17AAA2F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "CodexSwitcher Watch UI Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 1FA035742F8AF68400367DD6 /* CodexSwitcher Watch UI Tests */;
 		};
 		3D4E5F60718293A4B5C6D7E8 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -460,18 +425,7 @@
 		1F87C9492F8406C7007DED25 /* CodexSwitcherMacApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				1F96B7502F89D34B00044DB7 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher" target */,
 				6F4E3D2C1B0A998877665544 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Mac App" target */,
-				1FA0358B2F8AF7D600367DD6 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Watch App" target */,
-				1F4592322F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Widgets" target */,
-				1FD673A72F8854A5000FB40D /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Mac Widgets" target */,
-				1F4592332F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Watch Widgets" target */,
-				1F45922E2F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Tests" target */,
-				1F45922C2F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Mac Tests" target */,
-				1F4592302F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Watch Tests" target */,
-				1F45922F2F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher UI Tests" target */,
-				1F45922D2F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "Codex Switcher Mac UI Tests" target */,
-				1F4592312F8FBB6C00590009 /* Exceptions for "CodexSwitcherMacApp" folder in "CodexSwitcher Watch UI Tests" target */,
 			);
 			path = CodexSwitcherMacApp;
 			sourceTree = "<group>";
@@ -495,6 +449,12 @@
 				4A1B2C3D4E5F60718293A4B6 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Widgets" target */,
 				3D4E5F60718293A4B5C6D7E8 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac Widgets" target */,
 				5C1A2B3C4D5E6F708192A3B4 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Watch Widgets" target */,
+				1FD17AA52F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Tests" target */,
+				1FD17AA62F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac Tests" target */,
+				1FD17AA72F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Watch Tests" target */,
+				1FD17AA82F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher UI Tests" target */,
+				1FD17AA92F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac UI Tests" target */,
+				1FD17AAA2F99C01500E62F0E /* Exceptions for "CodexSwitcherApp" folder in "CodexSwitcher Watch UI Tests" target */,
 			);
 			path = CodexSwitcherApp;
 			sourceTree = "<group>";
