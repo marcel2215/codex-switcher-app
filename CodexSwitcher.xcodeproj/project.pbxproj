@@ -25,70 +25,70 @@
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1F1413322F8C7C930013386A;
-			remoteInfo = "Codex Switcher iOS WidgetsExtension";
+			remoteInfo = "Codex Switcher Widgets";
 		};
 		1F28ABBC2F86DA4C00639A74 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1F28ABAB2F86DA4A00639A74;
-			remoteInfo = "Codex Switcher WidgetsExtension";
+			remoteInfo = "Codex Switcher Mac Widgets";
 		};
 		1F310E592F8DC3E3006AA106 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1F310E4D2F8DC3E2006AA106;
-			remoteInfo = "Codex Switcher Watch WidgetsExtension";
+			remoteInfo = "Codex Switcher Watch Widgets";
 		};
 		1F87C9572F8406C9007DED25 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1F87C9462F8406C7007DED25;
-			remoteInfo = "Codex Switcher";
+			remoteInfo = "Codex Switcher Mac App";
 		};
 		1F87C9612F8406C9007DED25 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1F87C9462F8406C7007DED25;
-			remoteInfo = "Codex Switcher";
+			remoteInfo = "Codex Switcher Mac App";
 		};
 		1F96B5B72F89BF5200044DB7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1F96B5A52F89BF5100044DB7;
-			remoteInfo = "Codex Switcher iOS App";
+			remoteInfo = "Codex Switcher";
 		};
 		1F96B5C12F89BF5200044DB7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1F96B5A52F89BF5100044DB7;
-			remoteInfo = "Codex Switcher iOS App";
+			remoteInfo = "Codex Switcher";
 		};
 		1FA0356C2F8AF68400367DD6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1FA0355E2F8AF68300367DD6;
-			remoteInfo = "Codex Switcher Watch App Watch App";
+			remoteInfo = "Codex Switcher Watch App";
 		};
 		1FA035762F8AF68400367DD6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1FA0355E2F8AF68300367DD6;
-			remoteInfo = "Codex Switcher Watch App Watch App";
+			remoteInfo = "Codex Switcher Watch App";
 		};
 		1FA0357D2F8AF68400367DD6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F87C93F2F8406C7007DED25 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 1FA0355E2F8AF68300367DD6;
-			remoteInfo = "Codex Switcher Watch App Watch App";
+			remoteInfo = "Codex Switcher Watch App";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -237,7 +237,10 @@
 		1F96B5CE2F89BF5200044DB7 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				WidgetEntities.swift,
+				WidgetIntents.swift,
 				Info.plist,
+				RateLimitWidgetSupport.swift,
 			);
 			target = 1F96B5A52F89BF5100044DB7 /* Codex Switcher */;
 		};
@@ -255,32 +258,66 @@
 			);
 			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
 		};
-		1FA700010001000100010001 /* Exceptions for "Shared" folder in "Codex Switcher Mac App" target */ = {
+		1FA700010001000100010001 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				CodexSharedSettingsIntents.swift,
-				CodexWidgetEntities.swift,
-				CodexWidgetIntents.swift,
+				AccountDetailView.swift,
+				AccountIconPickerView.swift,
+				AccountNameEditorView.swift,
+				AccountRow.swift,
+				AccountsController.swift,
+				AccountsRootView.swift,
+				AppBootstrap.swift,
+				AppLaunchScenario.swift,
+				ApplicationDelegate.swift,
+				Assets.xcassets,
+				BackgroundAppRefreshCoordinator.swift,
+				SettingsIntents.swift,
+				App.swift,
+				WidgetEntities.swift,
+				WidgetIntents.swift,
+				HomeScreenQuickActionAccountItem.swift,
+				HomeScreenQuickActionCoordinator.swift,
+				Info.plist,
+				PreviewData.swift,
+				RateLimitRefreshController.swift,
+				RateLimitWidgetSupport.swift,
+				SettingsView.swift,
+				StorageUnavailableView.swift,
 				WidgetSnapshotPublisher.swift,
+				WindowSceneDelegate.swift,
 			);
 			target = 1F87C9462F8406C7007DED25 /* Codex Switcher Mac App */;
 		};
-		1FA700020002000200020002 /* Exceptions for "Shared" folder in "Codex Switcher" target */ = {
+		1FA700030003000300030003 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Watch App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				CodexWidgetEntities.swift,
-				CodexWidgetIntents.swift,
-			);
-			target = 1F96B5A52F89BF5100044DB7 /* Codex Switcher */;
-		};
-		1FA700030003000300030003 /* Exceptions for "Shared" folder in "Codex Switcher Watch App" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				CodexSharedAppIntents.swift,
-				CodexSharedSettingsIntents.swift,
-				CodexSharedSwitchControlIntent.swift,
-				CodexWidgetEntities.swift,
-				CodexWidgetIntents.swift,
+				AccountDetailView.swift,
+				AccountIconPickerView.swift,
+				AccountNameEditorView.swift,
+				AccountRow.swift,
+				AccountsController.swift,
+				AccountsRootView.swift,
+				AppBootstrap.swift,
+				AppLaunchScenario.swift,
+				ApplicationDelegate.swift,
+				Assets.xcassets,
+				BackgroundAppRefreshCoordinator.swift,
+				SharedAppIntents.swift,
+				SettingsIntents.swift,
+				SwitchControlIntent.swift,
+				App.swift,
+				WidgetEntities.swift,
+				WidgetIntents.swift,
+				HomeScreenQuickActionAccountItem.swift,
+				HomeScreenQuickActionCoordinator.swift,
+				Info.plist,
+				PreviewData.swift,
+				RateLimitRefreshController.swift,
+				RateLimitWidgetSupport.swift,
+				SettingsView.swift,
+				StorageUnavailableView.swift,
+				WindowSceneDelegate.swift,
 			);
 			target = 1FA0355E2F8AF68300367DD6 /* Codex Switcher Watch App */;
 		};
@@ -291,31 +328,91 @@
 			);
 			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Mac Widgets */;
 		};
-		3D4E5F60718293A4B5C6D7E8 /* Exceptions for "Shared" folder in "Codex Switcher Mac Widgets" target */ = {
+		3D4E5F60718293A4B5C6D7E8 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				CodexSharedSettingsIntents.swift,
+				AccountDetailView.swift,
+				AccountIconPickerView.swift,
+				AccountNameEditorView.swift,
+				AccountRow.swift,
+				AccountsController.swift,
+				AccountsRootView.swift,
+				AppBootstrap.swift,
+				AppLaunchScenario.swift,
+				ApplicationDelegate.swift,
+				Assets.xcassets,
+				BackgroundAppRefreshCoordinator.swift,
+				SettingsIntents.swift,
+				App.swift,
+				HomeScreenQuickActionAccountItem.swift,
+				HomeScreenQuickActionCoordinator.swift,
+				Info.plist,
+				PreviewData.swift,
+				RateLimitRefreshController.swift,
+				SettingsView.swift,
+				StorageUnavailableView.swift,
 				WidgetSnapshotPublisher.swift,
+				WindowSceneDelegate.swift,
 			);
 			target = 1F28ABAB2F86DA4A00639A74 /* Codex Switcher Mac Widgets */;
 		};
-		4A1B2C3D4E5F60718293A4B6 /* Exceptions for "Shared" folder in "Codex Switcher Widgets" target */ = {
+		4A1B2C3D4E5F60718293A4B6 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				CodexSharedAppIntents.swift,
-				CodexSharedSettingsIntents.swift,
-				CodexSharedSwitchControlIntent.swift,
+				AccountDetailView.swift,
+				AccountIconPickerView.swift,
+				AccountNameEditorView.swift,
+				AccountRow.swift,
+				AccountsController.swift,
+				AccountsRootView.swift,
+				AppBootstrap.swift,
+				AppLaunchScenario.swift,
+				ApplicationDelegate.swift,
+				Assets.xcassets,
+				BackgroundAppRefreshCoordinator.swift,
+				SharedAppIntents.swift,
+				SettingsIntents.swift,
+				SwitchControlIntent.swift,
+				App.swift,
+				HomeScreenQuickActionAccountItem.swift,
+				HomeScreenQuickActionCoordinator.swift,
+				Info.plist,
+				PreviewData.swift,
+				RateLimitRefreshController.swift,
+				SettingsView.swift,
+				StorageUnavailableView.swift,
 				WidgetSnapshotPublisher.swift,
+				WindowSceneDelegate.swift,
 			);
 			target = 1F1413322F8C7C930013386A /* Codex Switcher Widgets */;
 		};
-		5C1A2B3C4D5E6F708192A3B4 /* Exceptions for "Shared" folder in "Codex Switcher Watch Widgets" target */ = {
+		5C1A2B3C4D5E6F708192A3B4 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Watch Widgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				CodexSharedAppIntents.swift,
-				CodexSharedSettingsIntents.swift,
-				CodexSharedSwitchControlIntent.swift,
+				AccountDetailView.swift,
+				AccountIconPickerView.swift,
+				AccountNameEditorView.swift,
+				AccountRow.swift,
+				AccountsController.swift,
+				AccountsRootView.swift,
+				AppBootstrap.swift,
+				AppLaunchScenario.swift,
+				ApplicationDelegate.swift,
+				Assets.xcassets,
+				BackgroundAppRefreshCoordinator.swift,
+				SharedAppIntents.swift,
+				SettingsIntents.swift,
+				SwitchControlIntent.swift,
+				App.swift,
+				HomeScreenQuickActionAccountItem.swift,
+				HomeScreenQuickActionCoordinator.swift,
+				Info.plist,
+				PreviewData.swift,
+				RateLimitRefreshController.swift,
+				SettingsView.swift,
+				StorageUnavailableView.swift,
 				WidgetSnapshotPublisher.swift,
+				WindowSceneDelegate.swift,
 			);
 			target = 1F310E4D2F8DC3E2006AA106 /* Codex Switcher Watch Widgets */;
 		};
@@ -393,6 +490,11 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				1F96B5CE2F89BF5200044DB7 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher" target */,
+				1FA700010001000100010001 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac App" target */,
+				1FA700030003000300030003 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Watch App" target */,
+				4A1B2C3D4E5F60718293A4B6 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Widgets" target */,
+				3D4E5F60718293A4B5C6D7E8 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Mac Widgets" target */,
+				5C1A2B3C4D5E6F708192A3B4 /* Exceptions for "CodexSwitcherApp" folder in "Codex Switcher Watch Widgets" target */,
 			);
 			path = CodexSwitcherApp;
 			sourceTree = "<group>";
@@ -423,29 +525,6 @@
 		1FA035782F8AF68400367DD6 /* CodexSwitcherWatchAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = CodexSwitcherWatchAppUITests;
-			sourceTree = "<group>";
-		};
-		5B2C4D6E7F8091A2B3C4D5E6 /* SharedWidgets */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = SharedWidgets;
-			sourceTree = "<group>";
-		};
-		6AE84D562BE14E0FA0856BF2 /* SharedCore */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = SharedCore;
-			sourceTree = "<group>";
-		};
-		7A1B2C3D4E5F60718293A4B5 /* Shared */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				1FA700020002000200020002 /* Exceptions for "Shared" folder in "Codex Switcher" target */,
-				1FA700010001000100010001 /* Exceptions for "Shared" folder in "Codex Switcher Mac App" target */,
-				1FA700030003000300030003 /* Exceptions for "Shared" folder in "Codex Switcher Watch App" target */,
-				4A1B2C3D4E5F60718293A4B6 /* Exceptions for "Shared" folder in "Codex Switcher Widgets" target */,
-				3D4E5F60718293A4B5C6D7E8 /* Exceptions for "Shared" folder in "Codex Switcher Mac Widgets" target */,
-				5C1A2B3C4D5E6F708192A3B4 /* Exceptions for "Shared" folder in "Codex Switcher Watch Widgets" target */,
-			);
-			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -557,8 +636,6 @@
 			isa = PBXGroup;
 			children = (
 				1F87C9492F8406C7007DED25 /* CodexSwitcher */,
-				6AE84D562BE14E0FA0856BF2 /* SharedCore */,
-				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 				1F87C9592F8406C9007DED25 /* CodexSwitcherMacTests */,
 				1F87C9632F8406C9007DED25 /* CodexSwitcherMacUITests */,
 				1F28ABB22F86DA4B00639A74 /* CodexSwitcherMacWidgets */,
@@ -568,7 +645,6 @@
 				1FA035602F8AF68300367DD6 /* CodexSwitcherWatchApp */,
 				1FA0356E2F8AF68400367DD6 /* CodexSwitcherWatchAppTests */,
 				1FA035782F8AF68400367DD6 /* CodexSwitcherWatchAppUITests */,
-				5B2C4D6E7F8091A2B3C4D5E6 /* SharedWidgets */,
 				1F1413362F8C7C930013386A /* CodexSwitcherWidgets */,
 				1F310E512F8DC3E2006AA106 /* CodexSwitcherWatchWidgets */,
 				1F28ABAD2F86DA4A00639A74 /* Frameworks */,
@@ -612,9 +688,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F1413362F8C7C930013386A /* CodexSwitcherWidgets */,
-				5B2C4D6E7F8091A2B3C4D5E6 /* SharedWidgets */,
-				6AE84D562BE14E0FA0856BF2 /* SharedCore */,
-				7A1B2C3D4E5F60718293A4B5 /* Shared */,
+				1F96B5A72F89BF5100044DB7 /* CodexSwitcherApp */,
 			);
 			name = "Codex Switcher Widgets";
 			packageProductDependencies = (
@@ -637,9 +711,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F28ABB22F86DA4B00639A74 /* CodexSwitcherMacWidgets */,
-				5B2C4D6E7F8091A2B3C4D5E6 /* SharedWidgets */,
-				6AE84D562BE14E0FA0856BF2 /* SharedCore */,
-				7A1B2C3D4E5F60718293A4B5 /* Shared */,
+				1F96B5A72F89BF5100044DB7 /* CodexSwitcherApp */,
 			);
 			name = "Codex Switcher Mac Widgets";
 			packageProductDependencies = (
@@ -662,9 +734,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F310E512F8DC3E2006AA106 /* CodexSwitcherWatchWidgets */,
-				5B2C4D6E7F8091A2B3C4D5E6 /* SharedWidgets */,
-				6AE84D562BE14E0FA0856BF2 /* SharedCore */,
-				7A1B2C3D4E5F60718293A4B5 /* Shared */,
+				1F96B5A72F89BF5100044DB7 /* CodexSwitcherApp */,
 			);
 			name = "Codex Switcher Watch Widgets";
 			packageProductDependencies = (
@@ -691,8 +761,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F87C9492F8406C7007DED25 /* CodexSwitcher */,
-				6AE84D562BE14E0FA0856BF2 /* SharedCore */,
-				7A1B2C3D4E5F60718293A4B5 /* Shared */,
+				1F96B5A72F89BF5100044DB7 /* CodexSwitcherApp */,
 			);
 			name = "Codex Switcher Mac App";
 			packageProductDependencies = (
@@ -763,8 +832,6 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1F96B5A72F89BF5100044DB7 /* CodexSwitcherApp */,
-				6AE84D562BE14E0FA0856BF2 /* SharedCore */,
-				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher";
 			packageProductDependencies = (
@@ -834,9 +901,8 @@
 				1F310E5A2F8DC3E3006AA106 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				1F96B5A72F89BF5100044DB7 /* CodexSwitcherApp */,
 				1FA035602F8AF68300367DD6 /* CodexSwitcherWatchApp */,
-				6AE84D562BE14E0FA0856BF2 /* SharedCore */,
-				7A1B2C3D4E5F60718293A4B5 /* Shared */,
 			);
 			name = "Codex Switcher Watch App";
 			packageProductDependencies = (
@@ -1209,7 +1275,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = "CodexSwitcherWidgets/Codex Switcher iOS Widgets.entitlements";
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcherWidgets/CodexSwitcherWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = YN958LW8P7;
@@ -1242,7 +1308,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = "CodexSwitcherWidgets/Codex Switcher iOS Widgets.entitlements";
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcherWidgets/CodexSwitcherWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = YN958LW8P7;
@@ -1277,7 +1343,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = "CodexSwitcherMacWidgets/Codex Switcher Widgets.entitlements";
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcherMacWidgets/CodexSwitcherMacWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1323,7 +1389,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = "CodexSwitcherMacWidgets/Codex Switcher Widgets.entitlements";
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcherMacWidgets/CodexSwitcherMacWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1368,7 +1434,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = "CodexSwitcherWatchWidgets/Codex Switcher Watch Widgets.entitlements";
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcherWatchWidgets/CodexSwitcherWatchWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1403,7 +1469,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = "CodexSwitcherWatchWidgets/Codex Switcher Watch Widgets.entitlements";
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcherWatchWidgets/CodexSwitcherWatchWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1559,7 +1625,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "CodexSwitcher/Codex Switcher.entitlements";
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcher/CodexSwitcherMacApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -1612,7 +1678,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "CodexSwitcher/Codex Switcher.entitlements";
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcher/CodexSwitcherMacApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -1746,7 +1812,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = CodexSwitcherApp/CodexSwitcheriOSApp.entitlements;
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcherApp/CodexSwitcher.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = YN958LW8P7;
@@ -1788,7 +1854,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = CodexSwitcherApp/CodexSwitcheriOSApp.entitlements;
+				CODE_SIGN_ENTITLEMENTS = CodexSwitcherApp/CodexSwitcher.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = YN958LW8P7;

@@ -1513,21 +1513,18 @@ Without the correct entitlements:
 
 ## Repository structure
 
-The repository is organized around a shared-core architecture.
+The repository is organized around target folders, with reusable storage, model, sync, and intent code flattened into the iPhone app folder and reused from there across targets.
 
 ```text
 CodexSwitcher/                  macOS app
-CodexSwitcheriOSApp/            iPhone companion app
+CodexSwitcherApp/               iPhone companion app plus reused cross-target support sources
 CodexSwitcherWatchApp/          Apple Watch companion app
-CodexSwitcherWidgets/           macOS widgets and control widgets
-CodexSwitcheriOSWidgets/        iPhone widgets
+CodexSwitcherMacWidgets/        macOS widgets and control widgets
+CodexSwitcherWidgets/           iPhone widgets
 CodexSwitcherWatchWidgets/      watch complications
-SharedCore/                     platform-agnostic models, parsing, refresh logic, archives
-Shared/                         shared state, intents, notifications, stores, sync helpers
-SharedWidgets/                  widget timeline/model/render support
 ```
 
-This layout is a large part of why the project stays coherent: platform UI stays thin while the parsing, state, switching, refresh, and archive logic are shared.
+This layout keeps platform UI thin while the parsing, state, switching, refresh, archive, and widget-support layers stay reusable across targets.
 
 ---
 
