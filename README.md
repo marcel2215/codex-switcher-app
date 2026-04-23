@@ -1516,7 +1516,7 @@ Without the correct entitlements:
 The repository is organized around target folders, with reusable storage, model, sync, and intent code flattened into the iPhone app folder and reused from there across targets.
 
 ```text
-CodexSwitcher/                  macOS app
+CodexSwitcherMacApp/            macOS app
 CodexSwitcherApp/               iPhone companion app plus reused cross-target support sources
 CodexSwitcherWatchApp/          Apple Watch companion app
 CodexSwitcherMacWidgets/        macOS widgets and control widgets
