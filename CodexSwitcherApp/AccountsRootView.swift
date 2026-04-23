@@ -633,6 +633,7 @@ struct AccountsRootView: View {
         }
 
         await ensureRemoteDeletionCleanup().consumeHistoryIfNeeded()
+        controller.archiveAvailabilityRefreshToken &+= 1
     }
 
     private func toggleEditingSelection(for accountID: UUID) {

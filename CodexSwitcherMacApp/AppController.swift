@@ -872,8 +872,8 @@ final class AppController {
                     accountIdentifier: snapshot.accountIdentifier
                 )
 
-                modelContext.insert(account)
                 _ = try await storeSnapshot(snapshot, on: account)
+                modelContext.insert(account)
 
                 selection = [account.id]
             }
@@ -1224,8 +1224,8 @@ final class AppController {
                                 iconSystemName: archivedAccount.resolvedIconSystemName
                             )
 
-                            modelContext.insert(account)
                             _ = try await storeSnapshot(snapshot, on: account)
+                            modelContext.insert(account)
                             allAccounts.append(account)
                             importedAnyAccounts = true
                             importedAccountID = account.id
@@ -2719,6 +2719,7 @@ final class AppController {
 
     private func migrateLegacySnapshotIfNeeded(for account: StoredAccount) async -> Bool {
         var didChange = false
+        let previousIdentityKey = account.identityKey
 
         if let syncedContents = account.authFileContents, !syncedContents.isEmpty {
             do {
@@ -2735,6 +2736,20 @@ final class AppController {
                 )
                 account.authFileContents = nil
                 didChange = true
+
+                let normalizedPreviousIdentityKey = previousIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                if normalizedPreviousIdentityKey != migratedSnapshot.identityKey,
+                   !normalizedPreviousIdentityKey.isEmpty,
+                   let modelContext = try? requireModelContext() {
+                    await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
+                        identityKey: normalizedPreviousIdentityKey,
+                        in: modelContext,
+                        snapshotStore: secretStore,
+                        syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                        excludingAccountIDs: [account.id],
+                        logger: logger
+                    )
+                }
             } catch {
                 logger.error(
                     "Couldn't migrate synced snapshot for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)"
@@ -2809,73 +2824,33 @@ final class AppController {
             return false
         }
 
-        do {
-            let credentials = try CodexAuthFile.parseRateLimitCredentials(contents: rawContents)
-
-            guard
-                credentials.identityKey == normalizedIdentityKey,
-                credentials.authMode != .apiKey,
-                credentials.accessToken?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-            else {
-                await deleteSyncedRateLimitCredentialIfUnused(
-                    identityKey: normalizedIdentityKey,
-                    excludingAccountIDs: excludingAccountIDsForDelete
-                )
-                return false
-            }
-
-            let syncedCredential = try SyncedRateLimitCredential(credentials: credentials)
-            let existingCredential = try? await syncedRateLimitCredentialStore.load(forIdentityKey: normalizedIdentityKey)
-            guard existingCredential?.fingerprint != syncedCredential.fingerprint else {
-                return false
-            }
-
-            do {
-                try await syncedRateLimitCredentialStore.save(syncedCredential)
-            } catch {
-                logger.error(
-                    "Couldn't save synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
-                )
-                return false
-            }
-
-            return true
-        } catch {
-            logger.error(
-                "Couldn't export synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
-            )
+        guard let modelContext = try? requireModelContext() else {
             return false
         }
-    }
 
-    private func deleteSyncedRateLimitCredentialIfUnused(
-        identityKey: String,
-        excludingAccountIDs: Set<UUID> = []
-    ) async {
-        let normalizedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedIdentityKey.isEmpty else {
-            return
-        }
+        let didExport = await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
+            from: rawContents,
+            expectedIdentityKey: normalizedIdentityKey,
+            in: modelContext,
+            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+            excludingAccountIDsForDelete: excludingAccountIDsForDelete,
+            forceRewrite: StoredAccountCloudSyncSupport.shouldForceRewriteSyncedRateLimitCredential(
+                for: normalizedIdentityKey
+            ),
+            logger: logger
+        )
 
-        do {
-            let remainingIdentityKeys = Set(
-                try fetchAccounts()
-                    .filter { !excludingAccountIDs.contains($0.id) }
-                    .map(\.identityKey)
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
+        if didExport {
+            StoredAccountCloudSyncSupport.markSyncedRateLimitCredentialAccessibilityMigrated(
+                for: normalizedIdentityKey
             )
-
-            guard !remainingIdentityKeys.contains(normalizedIdentityKey) else {
-                return
-            }
-
-            try await syncedRateLimitCredentialStore.delete(forIdentityKey: normalizedIdentityKey)
-        } catch {
-            logger.error(
-                "Couldn't delete synced rate-limit credential for \(normalizedIdentityKey, privacy: .private): \(String(describing: error), privacy: .private)"
+        } else if let snapshot = try? CodexAuthFile.parse(contents: rawContents), snapshot.authMode == .apiKey {
+            StoredAccountCloudSyncSupport.markSyncedRateLimitCredentialAccessibilityMigrated(
+                for: normalizedIdentityKey
             )
         }
+
+        return didExport
     }
 
     private func storeSnapshot(
@@ -2883,6 +2858,7 @@ final class AppController {
         rateLimitObservation: CodexRateLimitObservation? = nil,
         on account: StoredAccount
     ) async throws -> Bool {
+        let modelContext = try requireModelContext()
         let previousIdentityKey = account.identityKey
         let metadataChanged = update(account: account, from: snapshot)
         let rateLimitsChanged = rateLimitObservation.map {
@@ -2901,10 +2877,15 @@ final class AppController {
             excludingAccountIDsForDelete: [account.id]
         )
 
-        if previousIdentityKey != snapshot.identityKey {
-            await deleteSyncedRateLimitCredentialIfUnused(
+        if previousIdentityKey != snapshot.identityKey,
+           previousIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
                 identityKey: previousIdentityKey,
-                excludingAccountIDs: [account.id]
+                in: modelContext,
+                snapshotStore: secretStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                excludingAccountIDs: [account.id],
+                logger: logger
             )
         }
 
@@ -3386,12 +3367,19 @@ final class AppController {
             didChange = true
         }
 
+        if !survivor.isPinned && duplicate.isPinned {
+            survivor.isPinned = true
+            didChange = true
+        }
+
         if (duplicate.rateLimitsObservedAt ?? .distantPast) > (survivor.rateLimitsObservedAt ?? .distantPast) {
             survivor.rateLimitsObservedAt = duplicate.rateLimitsObservedAt
             survivor.sevenDayLimitUsedPercent = duplicate.sevenDayLimitUsedPercent
             survivor.fiveHourLimitUsedPercent = duplicate.fiveHourLimitUsedPercent
             survivor.sevenDayResetsAt = duplicate.sevenDayResetsAt
             survivor.fiveHourResetsAt = duplicate.fiveHourResetsAt
+            survivor.sevenDayDataStatusRaw = duplicate.sevenDayDataStatusRaw
+            survivor.fiveHourDataStatusRaw = duplicate.fiveHourDataStatusRaw
             survivor.rateLimitDisplayVersion = duplicate.rateLimitDisplayVersion
             didChange = true
         }

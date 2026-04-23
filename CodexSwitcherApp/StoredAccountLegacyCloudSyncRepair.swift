@@ -67,7 +67,53 @@ enum StoredAccountLegacyCloudSyncRepair {
 
             do {
                 let snapshot = try SharedCodexAuthFile.parse(contents: storedContents)
+                let previousIdentityKey = account.identityKey
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let repairedIdentityKey = snapshot.identityKey
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
                 didChange = StoredAccountCloudSyncSupport.update(account, from: snapshot) || didChange
+
+                if previousIdentityKey != repairedIdentityKey,
+                   !repairedIdentityKey.isEmpty {
+                    try await snapshotStore.saveSnapshot(
+                        storedContents,
+                        forIdentityKey: repairedIdentityKey
+                    )
+
+                    if !previousIdentityKey.isEmpty {
+                        await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
+                            identityKey: previousIdentityKey,
+                            in: modelContext,
+                            snapshotStore: snapshotStore,
+                            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                            excludingAccountIDs: [account.id],
+                            logger: logger
+                        )
+                    }
+
+                    didChange = true
+                }
+
+                let didExportSyncedCredential =
+                    await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
+                        from: storedContents,
+                        expectedIdentityKey: repairedIdentityKey,
+                        in: modelContext,
+                        syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                        excludingAccountIDsForDelete: [account.id],
+                        forceRewrite: StoredAccountCloudSyncSupport.shouldForceRewriteSyncedRateLimitCredential(
+                            for: repairedIdentityKey
+                        ),
+                        logger: logger
+                    )
+                didChange = didExportSyncedCredential || didChange
+                if didExportSyncedCredential || snapshot.authMode == .apiKey {
+                    StoredAccountCloudSyncSupport.markSyncedRateLimitCredentialAccessibilityMigrated(
+                        for: repairedIdentityKey
+                    )
+                }
+
                 if account.authFileContents != nil {
                     account.authFileContents = nil
                     didChange = true
@@ -109,14 +155,23 @@ enum StoredAccountLegacyCloudSyncRepair {
                     syncedContents,
                     forIdentityKey: migratedSnapshot.identityKey
                 )
-                _ = await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
+                let didExportSyncedCredential =
+                    await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
                     from: syncedContents,
                     expectedIdentityKey: migratedSnapshot.identityKey,
                     in: modelContext,
                     syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
                     excludingAccountIDsForDelete: [account.id],
+                    forceRewrite: StoredAccountCloudSyncSupport.shouldForceRewriteSyncedRateLimitCredential(
+                        for: migratedSnapshot.identityKey
+                    ),
                     logger: logger
                 )
+                if didExportSyncedCredential || migratedSnapshot.authMode == .apiKey {
+                    StoredAccountCloudSyncSupport.markSyncedRateLimitCredentialAccessibilityMigrated(
+                        for: migratedSnapshot.identityKey
+                    )
+                }
                 account.authFileContents = nil
                 didChange = true
 
@@ -149,14 +204,24 @@ enum StoredAccountLegacyCloudSyncRepair {
                     if let migratedContents = try? await snapshotStore.loadSnapshot(
                         forIdentityKey: normalizedIdentityKey
                     ) {
-                        _ = await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
-                            from: migratedContents,
-                            expectedIdentityKey: normalizedIdentityKey,
-                            in: modelContext,
-                            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
-                            excludingAccountIDsForDelete: [account.id],
-                            logger: logger
-                        )
+                        let migratedSnapshot = try? SharedCodexAuthFile.parse(contents: migratedContents)
+                        let didExportSyncedCredential =
+                            await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
+                                from: migratedContents,
+                                expectedIdentityKey: normalizedIdentityKey,
+                                in: modelContext,
+                                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                                excludingAccountIDsForDelete: [account.id],
+                                forceRewrite: StoredAccountCloudSyncSupport.shouldForceRewriteSyncedRateLimitCredential(
+                                    for: normalizedIdentityKey
+                                ),
+                                logger: logger
+                            )
+                        if didExportSyncedCredential || migratedSnapshot?.authMode == .apiKey {
+                            StoredAccountCloudSyncSupport.markSyncedRateLimitCredentialAccessibilityMigrated(
+                                for: normalizedIdentityKey
+                            )
+                        }
                     }
                     didChange = true
                 }

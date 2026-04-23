@@ -11,6 +11,11 @@ import SwiftData
 
 @MainActor
 enum StoredAccountCloudSyncSupport {
+    private enum StorageKey {
+        static let syncedRateLimitCredentialAccessibilityMigrationPrefix =
+            "stored-account-cloud-sync-support.synced-rate-limit-credential-accessibility."
+    }
+
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
         category: "StoredAccountCloudSyncSupport"
@@ -55,6 +60,7 @@ enum StoredAccountCloudSyncSupport {
         in modelContext: ModelContext,
         syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring,
         excludingAccountIDsForDelete: Set<UUID> = [],
+        forceRewrite: Bool = false,
         logger: Logger = Self.logger
     ) async -> Bool {
         let normalizedIdentityKey = normalizedIdentityKey(expectedIdentityKey)
@@ -96,7 +102,7 @@ enum StoredAccountCloudSyncSupport {
             let existingCredential = try? await syncedRateLimitCredentialStore.load(
                 forIdentityKey: normalizedIdentityKey
             )
-            guard existingCredential?.fingerprint != syncedCredential.fingerprint else {
+            guard forceRewrite || existingCredential?.fingerprint != syncedCredential.fingerprint else {
                 return false
             }
 
@@ -123,6 +129,35 @@ enum StoredAccountCloudSyncSupport {
             )
             return false
         }
+    }
+
+    static func shouldForceRewriteSyncedRateLimitCredential(
+        for identityKey: String,
+        userDefaults: UserDefaults = .standard
+    ) -> Bool {
+        let normalizedIdentityKey = normalizedIdentityKey(identityKey)
+        guard !normalizedIdentityKey.isEmpty else {
+            return false
+        }
+
+        return userDefaults.bool(
+            forKey: syncedRateLimitCredentialAccessibilityMigrationKey(for: normalizedIdentityKey)
+        ) == false
+    }
+
+    static func markSyncedRateLimitCredentialAccessibilityMigrated(
+        for identityKey: String,
+        userDefaults: UserDefaults = .standard
+    ) {
+        let normalizedIdentityKey = normalizedIdentityKey(identityKey)
+        guard !normalizedIdentityKey.isEmpty else {
+            return
+        }
+
+        userDefaults.set(
+            true,
+            forKey: syncedRateLimitCredentialAccessibilityMigrationKey(for: normalizedIdentityKey)
+        )
     }
 
     static func deleteArtifactsIfUnused(
@@ -271,12 +306,19 @@ enum StoredAccountCloudSyncSupport {
             didChange = true
         }
 
+        if !survivor.isPinned && duplicate.isPinned {
+            survivor.isPinned = true
+            didChange = true
+        }
+
         if (duplicate.rateLimitsObservedAt ?? .distantPast) > (survivor.rateLimitsObservedAt ?? .distantPast) {
             survivor.rateLimitsObservedAt = duplicate.rateLimitsObservedAt
             survivor.sevenDayLimitUsedPercent = duplicate.sevenDayLimitUsedPercent
             survivor.fiveHourLimitUsedPercent = duplicate.fiveHourLimitUsedPercent
             survivor.sevenDayResetsAt = duplicate.sevenDayResetsAt
             survivor.fiveHourResetsAt = duplicate.fiveHourResetsAt
+            survivor.sevenDayDataStatusRaw = duplicate.sevenDayDataStatusRaw
+            survivor.fiveHourDataStatusRaw = duplicate.fiveHourDataStatusRaw
             survivor.rateLimitDisplayVersion = duplicate.rateLimitDisplayVersion
             didChange = true
         }
@@ -311,6 +353,10 @@ enum StoredAccountCloudSyncSupport {
         }
 
         return didChange
+    }
+
+    private static func syncedRateLimitCredentialAccessibilityMigrationKey(for identityKey: String) -> String {
+        StorageKey.syncedRateLimitCredentialAccessibilityMigrationPrefix + identityKey
     }
 
     private static func normalizedIdentityKey(_ value: String) -> String {

@@ -58,7 +58,7 @@ actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
         let query = baseQuery(forIdentityKey: identityKey)
         var item = query
         item[kSecValueData as String] = data
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
 
         let addStatus = SecItemAdd(item as CFDictionary, nil)
 
@@ -69,7 +69,7 @@ actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
         case errSecDuplicateItem:
             let attributes: [String: Any] = [
                 kSecValueData as String: data,
-                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
             ]
             let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
             guard updateStatus == errSecSuccess else {

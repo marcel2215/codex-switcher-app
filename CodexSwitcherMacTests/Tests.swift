@@ -312,6 +312,38 @@ struct Tests {
         #expect(controller.selection.count == 1)
     }
 
+    @Test func importingArchiveDoesNotPersistBrokenAccountWhenSnapshotWriteFails() async throws {
+        let container = try makeInMemoryContainer()
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-import-failure")
+        let snapshot = try CodexAuthFile.parse(contents: snapshotContents)
+        let secretStore = FakeSecretStore()
+        secretStore.setSaveError(FakeStoreError.simulatedFailure)
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: snapshotContents),
+            secretStore: secretStore
+        )
+        let archive = CodexAccountArchive(
+            name: "Broken Import",
+            iconSystemName: AccountIconOption.defaultOption.systemName,
+            identityKey: snapshot.identityKey,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier,
+            snapshotContents: snapshotContents
+        )
+        let archiveDirectoryURL = try makeTemporaryDirectory()
+        let archiveURL = archiveDirectoryURL.appendingPathComponent("broken.cxa", isDirectory: false)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        try archive.encodedData().write(to: archiveURL, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: archiveDirectoryURL) }
+
+        let didImport = await controller.importAccountArchivesForTesting(from: [archiveURL])
+
+        #expect(didImport == false)
+        #expect(try fetchAccounts(in: container.mainContext).isEmpty)
+    }
+
     @Test func refreshMarksUnsupportedCredentialStoresInline() async throws {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(
@@ -2364,10 +2396,16 @@ struct Tests {
                 name: "Account 7",
                 createdAt: .now,
                 customOrder: 7,
+                isPinned: true,
                 authFileContents: duplicateContents,
                 authModeRaw: snapshot.authMode.rawValue,
                 emailHint: snapshot.email,
-                accountIdentifier: snapshot.accountIdentifier
+                accountIdentifier: snapshot.accountIdentifier,
+                sevenDayLimitUsedPercent: 12,
+                fiveHourLimitUsedPercent: 34,
+                sevenDayDataStatusRaw: RateLimitMetricDataStatus.exact.rawValue,
+                fiveHourDataStatusRaw: RateLimitMetricDataStatus.cached.rawValue,
+                rateLimitsObservedAt: .now
             )
         )
         container.mainContext.insert(
@@ -2396,7 +2434,10 @@ struct Tests {
         #expect(reconciledAccount.name == "Work")
         #expect(reconciledAccount.lastLoginAt != nil)
         #expect(reconciledAccount.customOrder == 0)
+        #expect(reconciledAccount.isPinned)
         #expect(reconciledAccount.iconSystemName == AccountIconOption.briefcase.systemName)
+        #expect(reconciledAccount.sevenDayDataStatusRaw == RateLimitMetricDataStatus.exact.rawValue)
+        #expect(reconciledAccount.fiveHourDataStatusRaw == RateLimitMetricDataStatus.cached.rawValue)
         #expect(reconciledAccount.authFileContents == nil)
         #expect(reconciledAccount.hasLocalSnapshot == false)
         #expect(await secretStore.secret(forIdentityKey: snapshot.identityKey) == duplicateContents)
@@ -2901,11 +2942,33 @@ final class FakeSecretStore: @unchecked Sendable, AccountSnapshotStoring {
         }
     }
 
+    func setSaveError(_ error: Error?) {
+        withLock {
+            saveError = error
+        }
+    }
+
+    func setLoadError(_ error: Error?) {
+        withLock {
+            loadError = error
+        }
+    }
+
+    func setDeleteError(_ error: Error?) {
+        withLock {
+            deleteError = error
+        }
+    }
+
     private func withLock<T>(_ body: () throws -> T) rethrows -> T {
         lock.lock()
         defer { lock.unlock() }
         return try body()
     }
+}
+
+private enum FakeStoreError: Error {
+    case simulatedFailure
 }
 
 actor FakeRateLimitProvider: CodexRateLimitProviding {

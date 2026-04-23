@@ -17,6 +17,7 @@ final class IOSAccountsController {
     private let snapshotStore: AccountSnapshotStoring
     private let archiveExporter: CodexAccountArchiveFileExporter
     private let syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring
+    private let snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore
 
     var searchText = ""
     var archiveAvailabilityRefreshToken = 0
@@ -49,11 +50,13 @@ final class IOSAccountsController {
     init(
         snapshotStore: AccountSnapshotStoring = SharedKeychainSnapshotStore(),
         archiveExporter: CodexAccountArchiveFileExporter = CodexAccountArchiveFileExporter(),
-        syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore()
+        syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore(),
+        snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore()
     ) {
         self.snapshotStore = snapshotStore
         self.archiveExporter = archiveExporter
         self.syncedRateLimitCredentialStore = syncedRateLimitCredentialStore
+        self.snapshotAvailabilityStore = snapshotAvailabilityStore
     }
 
     var canEditCustomOrder: Bool {
@@ -94,7 +97,12 @@ final class IOSAccountsController {
 
     func archiveTransferItem(for account: StoredAccount) -> CodexAccountArchiveTransferItem {
         CodexAccountArchiveTransferItem(
-            request: CodexAccountArchiveExportRequest(account: account),
+            request: CodexAccountArchiveExportRequest(
+                account: account,
+                hasLocalSnapshot: snapshotAvailabilityStore.containsSnapshot(
+                    forIdentityKey: account.identityKey
+                )
+            ),
             exporter: archiveExporter
         )
     }
@@ -321,13 +329,13 @@ final class IOSAccountsController {
                                 iconSystemName: archivedAccount.resolvedIconSystemName
                             )
 
-                            modelContext.insert(account)
                             _ = try await storeImportedSnapshot(
                                 archivedAccount.snapshotContents,
                                 snapshot: snapshot,
                                 on: account,
                                 in: modelContext
                             )
+                            modelContext.insert(account)
                             allAccounts.append(account)
                             importedAccountIDs.append(account.id)
                         } catch {
@@ -427,13 +435,22 @@ final class IOSAccountsController {
             try await snapshotStore.saveSnapshot(snapshotContents, forIdentityKey: snapshot.identityKey)
         }
 
-        _ = await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
+        let didExportSyncedCredential =
+            await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
             from: snapshotContents,
             expectedIdentityKey: snapshot.identityKey,
             in: modelContext,
             syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
-            excludingAccountIDsForDelete: [account.id]
+            excludingAccountIDsForDelete: [account.id],
+            forceRewrite: StoredAccountCloudSyncSupport.shouldForceRewriteSyncedRateLimitCredential(
+                for: snapshot.identityKey
+            )
         )
+        if didExportSyncedCredential || snapshot.authMode == .apiKey {
+            StoredAccountCloudSyncSupport.markSyncedRateLimitCredentialAccessibilityMigrated(
+                for: snapshot.identityKey
+            )
+        }
 
         if previousIdentityKey != snapshot.identityKey,
            previousIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {

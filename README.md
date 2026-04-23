@@ -754,13 +754,11 @@ Families:
 Codex Switcher has several different widget surfaces, and they do not all behave the same way.
 
 ## Shared widget model
-All widget-like surfaces consume a shared `SharedCodexState` snapshot from the App Group container, with an `NSUbiquitousKeyValueStore` mirror as a fallback. This matters because:
+All widget-like surfaces consume a shared `SharedCodexState` snapshot from the App Group container. This matters because:
 
 - widgets can launch before the full app does
 - iPhone/watch widgets can appear before CloudKit has replayed the database locally
 - extensions need a sync-safe representation that does not require direct SwiftData access
-
-If the local shared-state file is temporarily unavailable or stale, widgets can fall back to the mirrored ubiquitous snapshot and prefer the freshest non-empty state by timestamp.
 
 ## macOS desktop widgets
 
@@ -1182,9 +1180,6 @@ The app publishes a portable `SharedCodexState` snapshot that includes:
 
 This is saved in:
 - `SharedCodexState.json` in the App Group container
-- mirrored data in `NSUbiquitousKeyValueStore`
-
-The ubiquitous mirror exists so widgets can recover if the App Group file is missing, stale, or temporarily unreadable.
 
 ## App Group files
 The shared container contains several purpose-specific files, including:
@@ -1235,8 +1230,7 @@ This is why a companion device may go through a sequence like:
 That staged behavior is intentional and accurately reflects which secret layers have arrived.
 
 ## 3. NSUbiquitousKeyValueStore
-Codex Switcher also uses ubiquitous key-value storage for:
-- shared widget state mirroring
+Codex Switcher uses ubiquitous key-value storage only for:
 - iPhone/watch sort preferences
 
 This gives very lightweight sync for small values that do not belong in the main database.
@@ -1253,7 +1247,6 @@ This gives very lightweight sync for small values that do not belong in the main
 - full snapshots (through iCloud Keychain)
 - minimal rate-limit credentials (through iCloud Keychain)
 - iPhone/watch sort preferences
-- mirrored shared state snapshot
 
 ### Stays local to a device
 - whether a local full snapshot is already usable on that device
