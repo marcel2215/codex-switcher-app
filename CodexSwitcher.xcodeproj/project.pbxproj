@@ -517,14 +517,14 @@
 			path = CodexSwitcherWatchApp;
 			sourceTree = "<group>";
 		};
-		1FA0356E2F8AF68400367DD6 /* CodexSwitcherWatchAppTests */ = {
+		1FA0356E2F8AF68400367DD6 /* CodexSwitcherWatchTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = CodexSwitcherWatchAppTests;
+			path = CodexSwitcherWatchTests;
 			sourceTree = "<group>";
 		};
-		1FA035782F8AF68400367DD6 /* CodexSwitcherWatchAppUITests */ = {
+		1FA035782F8AF68400367DD6 /* CodexSwitcherWatchUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = CodexSwitcherWatchAppUITests;
+			path = CodexSwitcherWatchUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -643,8 +643,8 @@
 				1F96B5B92F89BF5200044DB7 /* CodexSwitcherTests */,
 				1F96B5C32F89BF5200044DB7 /* CodexSwitcherUITests */,
 				1FA035602F8AF68300367DD6 /* CodexSwitcherWatchApp */,
-				1FA0356E2F8AF68400367DD6 /* CodexSwitcherWatchAppTests */,
-				1FA035782F8AF68400367DD6 /* CodexSwitcherWatchAppUITests */,
+				1FA0356E2F8AF68400367DD6 /* CodexSwitcherWatchTests */,
+				1FA035782F8AF68400367DD6 /* CodexSwitcherWatchUITests */,
 				1F1413362F8C7C930013386A /* CodexSwitcherWidgets */,
 				1F310E512F8DC3E2006AA106 /* CodexSwitcherWatchWidgets */,
 				1F28ABAD2F86DA4A00639A74 /* Frameworks */,
@@ -925,7 +925,7 @@
 				1FA0356D2F8AF68400367DD6 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1FA0356E2F8AF68400367DD6 /* CodexSwitcherWatchAppTests */,
+				1FA0356E2F8AF68400367DD6 /* CodexSwitcherWatchTests */,
 			);
 			name = "Codex Switcher Watch Tests";
 			packageProductDependencies = (
@@ -948,7 +948,7 @@
 				1FA035772F8AF68400367DD6 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1FA035782F8AF68400367DD6 /* CodexSwitcherWatchAppUITests */,
+				1FA035782F8AF68400367DD6 /* CodexSwitcherWatchUITests */,
 			);
 			name = "CodexSwitcher Watch UI Tests";
 			packageProductDependencies = (
