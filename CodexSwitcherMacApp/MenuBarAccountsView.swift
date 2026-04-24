@@ -74,10 +74,6 @@ struct MenuBarAccountsView: View {
                 statusCard
             }
 
-            if let banner = controller.pendingCodexRestartBanner {
-                pendingRestartCard(banner)
-            }
-
             accountSection
         }
         .padding(10)
@@ -159,25 +155,6 @@ struct MenuBarAccountsView: View {
 
                 Button(controller.linkButtonTitle) {
                     controller.beginLinkingCodexLocation()
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private func pendingRestartCard(_ banner: PendingCodexRestartBanner) -> some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Account change pending", systemImage: "arrow.triangle.2.circlepath")
-                    .font(.subheadline.weight(.semibold))
-                Text("Close and reopen Codex to use \(banner.target.displayName).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                HStack {
-                    Button("Dismiss") {
-                        controller.dismissPendingCodexRestartBanner()
-                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

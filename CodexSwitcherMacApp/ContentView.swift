@@ -98,19 +98,16 @@ struct ContentView: View {
                     .padding(.bottom, 8)
             }
 
-            if let banner = controller.pendingCodexRestartBanner {
-                pendingRestartBanner(banner)
-                    .padding(.horizontal, 16)
-                    .padding(.top, controller.shouldShowAuthStatusBanner ? 0 : 16)
-                    .padding(.bottom, 8)
-            }
-
             Group {
                 if displayedAccountListItems.isEmpty {
                     emptyAccountsView
                 } else {
                     accountList
                 }
+            }
+
+            if let banner = controller.pendingCodexRestartBanner {
+                pendingRestartStatusBar(banner)
             }
         }
         .background(
@@ -324,31 +321,23 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func pendingRestartBanner(_ banner: PendingCodexRestartBanner) -> some View {
-        GroupBox {
-            HStack(alignment: .center, spacing: 10) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .foregroundStyle(.secondary)
+    private func pendingRestartStatusBar(_ banner: PendingCodexRestartBanner) -> some View {
+        HStack {
+            Spacer(minLength: 12)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Account change pending")
-                        .font(.headline)
-                    Text("Close and reopen Codex to use \(banner.target.displayName).")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+            Text("Account change pending. Close and reopen Codex to use \(banner.target.displayName).")
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
 
-                Spacer(minLength: 8)
-
-                Button {
-                    controller.dismissPendingCodexRestartBanner()
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.plain)
-                .help("Dismiss")
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 12)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 32)
+        .background(.bar)
+        .overlay(alignment: .top) {
+            Divider()
         }
     }
 
