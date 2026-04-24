@@ -53,7 +53,7 @@ struct AccountRowView: View {
                             return .handled
                         }
                 } else {
-                    Text(account.name)
+                    accountListDisplayName
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(.primary)
                         .allowsHitTesting(false)
@@ -103,5 +103,15 @@ struct AccountRowView: View {
 
     private func commitRename() {
         onCommitRename(draftName)
+    }
+
+    private var accountListDisplayName: Text {
+        let parts = AccountsPresentationLogic.accountListDisplayNameParts(for: account)
+
+        guard let unavailableSuffix = parts.unavailableSuffix else {
+            return Text(parts.name)
+        }
+
+        return Text(parts.name) + Text(unavailableSuffix).foregroundStyle(.red)
     }
 }

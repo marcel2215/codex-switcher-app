@@ -433,7 +433,7 @@ struct ContentView: View {
                             return .handled
                         }
                 } else {
-                    Text(item.displayName)
+                    accountListDisplayName(for: item)
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(.primary)
                         .allowsHitTesting(false)
@@ -500,6 +500,15 @@ struct ContentView: View {
         }
         .frame(width: 16, height: 16)
         .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func accountListDisplayName(for item: AccountListItem) -> some View {
+        if item.isUnavailable {
+            (Text(item.displayName) + Text(" (Unavailable)").foregroundStyle(.red))
+        } else {
+            Text(item.displayName)
+        }
     }
 
     private func handlePrimaryAction(forSelectionIDs targetIDs: Set<UUID>) {
@@ -803,7 +812,7 @@ private struct AccountListItem: Identifiable, Hashable {
         id = account.id
         isNone = false
         name = account.name
-        displayName = AccountsPresentationLogic.accountListDisplayName(for: account)
+        displayName = AccountsPresentationLogic.displayName(for: account)
         iconSystemName = AccountIconOption.resolve(from: account.iconSystemName).systemName
         lastLoginAt = account.lastLoginAt
         sevenDayLimitUsedPercent = account.isUnavailable ? 0 : account.sevenDayLimitUsedPercent

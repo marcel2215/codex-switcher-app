@@ -9,6 +9,7 @@ import Foundation
 
 enum AccountsPresentationLogic {
     private nonisolated static let unavailableSuffix = " (Unavailable)"
+    typealias AccountListDisplayNameParts = (name: String, unavailableSuffix: String?)
 
     nonisolated static func normalizedSearchText(_ searchText: String) -> String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -47,6 +48,19 @@ enum AccountsPresentationLogic {
         }
 
         return "\(resolvedName)\(unavailableSuffix)"
+    }
+
+    nonisolated static func accountListDisplayNameParts(
+        for account: StoredAccount
+    ) -> AccountListDisplayNameParts {
+        let resolvedName = displayName(for: account)
+        let unavailableSuffixToDisplay: String? = if account.isUnavailable {
+            resolvedName.hasSuffix(unavailableSuffix) ? nil : unavailableSuffix
+        } else {
+            nil
+        }
+
+        return (resolvedName, unavailableSuffixToDisplay)
     }
 
     nonisolated static func normalizedSortDirection(

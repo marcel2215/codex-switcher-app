@@ -198,7 +198,7 @@ struct MenuBarAccountsView: View {
                                     .foregroundStyle(.secondary)
 
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(item.displayName)
+                                    accountListDisplayName(for: item)
                                         .font(.callout.weight(.semibold))
                                         .lineLimit(1)
 
@@ -330,7 +330,7 @@ private struct AccountListHeightPreferenceKey: PreferenceKey {
     }
 }
 
-private struct MenuBarAccountRowItem: Identifiable, Hashable {
+    private struct MenuBarAccountRowItem: Identifiable, Hashable {
     let id: UUID
     let identityKey: String?
     let displayName: String
@@ -346,7 +346,7 @@ private struct MenuBarAccountRowItem: Identifiable, Hashable {
     init(account: StoredAccount, isCurrentAccount: Bool) {
         id = account.id
         identityKey = account.identityKey
-        displayName = AccountsPresentationLogic.accountListDisplayName(for: account)
+        displayName = AccountsPresentationLogic.displayName(for: account)
         iconSystemName = AccountIconOption.resolve(from: account.iconSystemName).systemName
         lastLoginAt = account.lastLoginAt
         sevenDayLimitUsedPercent = account.isUnavailable ? 0 : account.sevenDayLimitUsedPercent
@@ -397,5 +397,13 @@ private struct MenuBarAccountRowItem: Identifiable, Hashable {
         self.fiveHourResetsAt = fiveHourResetsAt
         self.isCurrentAccount = isCurrentAccount
         self.isUnavailable = isUnavailable
+    }
+}
+
+private func accountListDisplayName(for item: MenuBarAccountRowItem) -> some View {
+    if item.isUnavailable {
+        (Text(item.displayName) + Text(" (Unavailable)").foregroundStyle(.red))
+    } else {
+        Text(item.displayName)
     }
 }

@@ -15,14 +15,14 @@ struct IOSAccountRow: View {
     @State private var isArchiveExportAvailable = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: AccountIconOption.resolve(from: account.iconSystemName).systemName)
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: 24, height: 24)
+            HStack(spacing: 12) {
+                Image(systemName: AccountIconOption.resolve(from: account.iconSystemName).systemName)
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(AccountsPresentationLogic.accountListDisplayName(for: account))
+                accountListDisplayName
                     .font(.headline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -51,6 +51,16 @@ struct IOSAccountRow: View {
         .task(id: exportAvailabilityTaskKey) {
             isArchiveExportAvailable = await exportTransferItem?.canExport() ?? false
         }
+    }
+
+    private var accountListDisplayName: Text {
+        let parts = AccountsPresentationLogic.accountListDisplayNameParts(for: account)
+
+        guard let unavailableSuffix = parts.unavailableSuffix else {
+            return Text(parts.name)
+        }
+
+        return Text(parts.name) + Text(unavailableSuffix).foregroundStyle(.red)
     }
 
     private var exportAvailabilityTaskKey: String {
