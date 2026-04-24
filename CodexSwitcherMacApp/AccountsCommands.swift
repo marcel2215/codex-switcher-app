@@ -23,6 +23,7 @@ struct AccountsCommands: Commands {
             // This is a single-window utility app, so the File > New command
             // should create a saved account entry rather than open another window.
             .keyboardShortcut("n", modifiers: [.command])
+            .disabled(!controller.canCaptureCurrentAccount)
 
             Divider()
 

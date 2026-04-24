@@ -77,6 +77,7 @@ final class AppController {
     private(set) var activeIdentityKey: String?
     private(set) var authAccessState: AuthAccessState = .unlinked
     private(set) var isSwitching = false
+    private(set) var isCapturingCurrentAccount = false
 
     @ObservationIgnored private let authFileManager: AuthFileManaging
     @ObservationIgnored private let secretStore: AccountSnapshotStoring
@@ -99,6 +100,7 @@ final class AppController {
     @ObservationIgnored private var hasStartedObservingSystemState = false
     @ObservationIgnored private var pendingLocationAction: PendingLocationAction?
     @ObservationIgnored private var initializationTask: Task<Void, Never>?
+    @ObservationIgnored private var captureTask: Task<Void, Never>?
     @ObservationIgnored private var switchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSwitchOperationID: UUID?
     @ObservationIgnored nonisolated(unsafe) private var remoteSwitchObserver: NSObjectProtocol?
@@ -172,6 +174,7 @@ final class AppController {
 
     deinit {
         initializationTask?.cancel()
+        captureTask?.cancel()
         switchTask?.cancel()
         sharedStatePublishTask?.cancel()
         rateLimitPollingTask?.cancel()
@@ -295,6 +298,45 @@ final class AppController {
 
     var shouldShowAuthStatusBanner: Bool {
         authAccessState.showsInlineStatus
+    }
+
+    var canCaptureCurrentAccount: Bool {
+        guard !isCapturingCurrentAccount, !isSwitching else {
+            return false
+        }
+
+        if case .ready = authAccessState {
+            return true
+        }
+
+        return false
+    }
+
+    var captureCurrentAccountHelpText: String {
+        if isCapturingCurrentAccount {
+            return "Adding the current account..."
+        }
+
+        if isSwitching {
+            return "Wait for the current account switch to finish."
+        }
+
+        switch authAccessState {
+        case .ready:
+            return "Capture the currently active Codex account"
+        case .unlinked:
+            return "Link the Codex folder before adding an account."
+        case .missingAuthFile:
+            return "No auth.json is available to add. Log in to Codex first."
+        case .locationUnavailable:
+            return "The linked Codex folder is missing. Relink it before adding an account."
+        case .accessDenied:
+            return "Codex Switcher needs permission to the linked Codex folder before adding an account."
+        case .corruptAuthFile:
+            return "Fix the linked auth.json before adding an account."
+        case .unsupportedCredentialStore:
+            return "File-backed auth.json storage is required before adding an account."
+        }
     }
 
     var linkedFolderPath: String? {
@@ -540,7 +582,18 @@ final class AppController {
 
     func beginLinkingCodexLocation() {
         pendingLocationAction = nil
+        prepareForInteractiveFilePresentation()
         isShowingLocationPicker = true
+    }
+
+    private func prepareForInteractiveFilePresentation() {
+        guard NSApp.activationPolicy() != .regular else {
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        _ = NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func beginAccountArchiveImport() {
@@ -598,12 +651,25 @@ final class AppController {
     }
 
     func captureCurrentAccount() {
-        Task { [weak self] in
+        guard canCaptureCurrentAccount else {
+            return
+        }
+
+        isCapturingCurrentAccount = true
+        captureTask = Task { [weak self] in
             guard let self else {
                 return
             }
 
-            await self.captureCurrentAccountNow()
+            defer {
+                self.isCapturingCurrentAccount = false
+                self.captureTask = nil
+            }
+
+            _ = await self.captureCurrentAccountNow(
+                allowsInteractiveRecovery: true,
+                managesCaptureState: false
+            )
         }
     }
 
@@ -846,6 +912,31 @@ final class AppController {
 
     @discardableResult
     func captureCurrentAccountNow(allowsInteractiveRecovery: Bool = true) async -> Bool {
+        await captureCurrentAccountNow(
+            allowsInteractiveRecovery: allowsInteractiveRecovery,
+            managesCaptureState: true
+        )
+    }
+
+    @discardableResult
+    private func captureCurrentAccountNow(
+        allowsInteractiveRecovery: Bool,
+        managesCaptureState: Bool
+    ) async -> Bool {
+        if managesCaptureState {
+            guard !isCapturingCurrentAccount else {
+                return false
+            }
+
+            isCapturingCurrentAccount = true
+        }
+
+        defer {
+            if managesCaptureState {
+                isCapturingCurrentAccount = false
+            }
+        }
+
         await waitForInitializationIfNeeded()
 
         do {
@@ -886,10 +977,9 @@ final class AppController {
             requestImmediateRateLimitRefresh(for: snapshot.identityKey)
             return true
         } catch {
-            await handleExpectedAuthOperationError(
+            await handleCaptureCurrentAccountError(
                 error,
                 title: "Couldn't Save Account",
-                retryAction: .captureCurrentAccount,
                 allowsInteractiveRecovery: allowsInteractiveRecovery
             )
             return false
@@ -2643,6 +2733,39 @@ final class AppController {
             case .invalidSelection, .unreadable, .unwritable, .verificationFailed:
                 break
             }
+        }
+
+        if error is CodexAuthFileError {
+            await refreshAuthState(showUnexpectedErrors: false)
+        }
+
+        guard allowsInteractiveRecovery else {
+            logger.error("\(title, privacy: .public): \(String(describing: error), privacy: .private)")
+            return
+        }
+
+        present(error, title: title)
+    }
+
+    private func handleCaptureCurrentAccountError(
+        _ error: Error,
+        title: String,
+        allowsInteractiveRecovery: Bool = true
+    ) async {
+        if let authError = error as? AuthFileAccessError {
+            await refreshAuthState(showUnexpectedErrors: false)
+
+            guard allowsInteractiveRecovery else {
+                logger.error("\(title, privacy: .public): \(String(describing: error), privacy: .private)")
+                return
+            }
+
+            guard !authError.isUserCancellation else {
+                return
+            }
+
+            present(error, title: title)
+            return
         }
 
         if error is CodexAuthFileError {

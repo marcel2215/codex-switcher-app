@@ -68,90 +68,105 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
             throw AccountSnapshotStoreError.invalidEncoding
         }
 
-        try upsertSnapshot(
-            data,
-            forIdentityKey: normalizedIdentityKey,
-            query: sharedLocalQuery(forIdentityKey: normalizedIdentityKey),
-            accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            logPrefix: "Shared keychain"
-        )
-
-        do {
+        // Security.framework calls can block while Keychain or iCloud Keychain
+        // state is resolving. Keep them off the caller's actor so UI controls
+        // never freeze while an account is being added or switched.
+        try await Task.detached(priority: .userInitiated) { [self, data, normalizedIdentityKey] in
             try upsertSnapshot(
                 data,
                 forIdentityKey: normalizedIdentityKey,
-                query: synchronizableQuery(forIdentityKey: normalizedIdentityKey),
-                accessible: kSecAttrAccessibleWhenUnlocked,
-                logPrefix: "Synchronizable keychain"
+                query: sharedLocalQuery(forIdentityKey: normalizedIdentityKey),
+                accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+                logPrefix: "Shared keychain"
             )
-        } catch let error as AccountSnapshotStoreError {
-            logger.error(
-                "Synchronizable keychain save failed for \(normalizedIdentityKey, privacy: .private); the snapshot will stay available only on this device until keychain sync succeeds: \(error.localizedDescription, privacy: .public)"
-            )
-        }
 
-        pruneLegacySynchronizableSharedSnapshot(forIdentityKey: normalizedIdentityKey)
+            do {
+                try upsertSnapshot(
+                    data,
+                    forIdentityKey: normalizedIdentityKey,
+                    query: synchronizableQuery(forIdentityKey: normalizedIdentityKey),
+                    accessible: kSecAttrAccessibleWhenUnlocked,
+                    logPrefix: "Synchronizable keychain"
+                )
+            } catch let error as AccountSnapshotStoreError {
+                logger.error(
+                    "Synchronizable keychain save failed for \(normalizedIdentityKey, privacy: .private); the snapshot will stay available only on this device until keychain sync succeeds: \(error.localizedDescription, privacy: .public)"
+                )
+            }
+
+            pruneLegacySynchronizableSharedSnapshot(forIdentityKey: normalizedIdentityKey)
+        }.value
+
         snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
     }
 
     func loadSnapshot(forIdentityKey identityKey: String) async throws -> String {
         let normalizedIdentityKey = try normalizedIdentityKey(identityKey)
-        if let sharedLocalContents = try loadSnapshotContentsIfPresent(
-            forIdentityKey: normalizedIdentityKey,
-            query: sharedLocalQuery(forIdentityKey: normalizedIdentityKey)
-        ) {
-            snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
-            repairCurrentSnapshotCopies(
-                using: sharedLocalContents,
-                forIdentityKey: normalizedIdentityKey,
-                ensureSharedLocalCopy: false,
-                ensureSynchronizableCopy: true
-            )
-            return sharedLocalContents
-        }
 
-        if let synchronizableContents = try loadSnapshotContentsIfPresent(
-            forIdentityKey: normalizedIdentityKey,
-            query: synchronizableQuery(forIdentityKey: normalizedIdentityKey)
-        ) {
-            snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
-            repairCurrentSnapshotCopies(
-                using: synchronizableContents,
-                forIdentityKey: normalizedIdentityKey,
-                ensureSharedLocalCopy: true,
-                ensureSynchronizableCopy: false
-            )
-            return synchronizableContents
-        }
+        do {
+            let contents = try await Task.detached(priority: .userInitiated) { [self, normalizedIdentityKey] in
+                if let sharedLocalContents = try loadSnapshotContentsIfPresent(
+                    forIdentityKey: normalizedIdentityKey,
+                    query: sharedLocalQuery(forIdentityKey: normalizedIdentityKey)
+                ) {
+                    repairCurrentSnapshotCopies(
+                        using: sharedLocalContents,
+                        forIdentityKey: normalizedIdentityKey,
+                        ensureSharedLocalCopy: false,
+                        ensureSynchronizableCopy: true
+                    )
+                    return sharedLocalContents
+                }
 
-        if let legacySynchronizableContents = try loadLegacySynchronizableSharedSnapshotIfPresent(
-            forIdentityKey: normalizedIdentityKey
-        ) {
-            snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
-            repairCurrentSnapshotCopies(
-                using: legacySynchronizableContents,
-                forIdentityKey: normalizedIdentityKey,
-                ensureSharedLocalCopy: true,
-                ensureSynchronizableCopy: true
-            )
-            return legacySynchronizableContents
-        }
+                if let synchronizableContents = try loadSnapshotContentsIfPresent(
+                    forIdentityKey: normalizedIdentityKey,
+                    query: synchronizableQuery(forIdentityKey: normalizedIdentityKey)
+                ) {
+                    repairCurrentSnapshotCopies(
+                        using: synchronizableContents,
+                        forIdentityKey: normalizedIdentityKey,
+                        ensureSharedLocalCopy: true,
+                        ensureSynchronizableCopy: false
+                    )
+                    return synchronizableContents
+                }
 
-        snapshotAvailabilityStore.setSnapshotAvailable(false, forIdentityKey: normalizedIdentityKey)
-        throw AccountSnapshotStoreError.missingSnapshot
+                if let legacySynchronizableContents = try loadLegacySynchronizableSharedSnapshotIfPresent(
+                    forIdentityKey: normalizedIdentityKey
+                ) {
+                    repairCurrentSnapshotCopies(
+                        using: legacySynchronizableContents,
+                        forIdentityKey: normalizedIdentityKey,
+                        ensureSharedLocalCopy: true,
+                        ensureSynchronizableCopy: true
+                    )
+                    return legacySynchronizableContents
+                }
+
+                throw AccountSnapshotStoreError.missingSnapshot
+            }.value
+
+            snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
+            return contents
+        } catch AccountSnapshotStoreError.missingSnapshot {
+            snapshotAvailabilityStore.setSnapshotAvailable(false, forIdentityKey: normalizedIdentityKey)
+            throw AccountSnapshotStoreError.missingSnapshot
+        }
     }
 
     func deleteSnapshot(forIdentityKey identityKey: String) async throws {
         let normalizedIdentityKey = try normalizedIdentityKey(identityKey)
-        try deleteSnapshotIfPresent(
-            matching: sharedLocalQuery(forIdentityKey: normalizedIdentityKey),
-            logPrefix: "Shared keychain"
-        )
-        try deleteSnapshotIfPresent(
-            matching: synchronizableQuery(forIdentityKey: normalizedIdentityKey),
-            logPrefix: "Synchronizable keychain"
-        )
-        try deleteLegacySynchronizableSharedSnapshotIfPresent(forIdentityKey: normalizedIdentityKey)
+        try await Task.detached(priority: .userInitiated) { [self, normalizedIdentityKey] in
+            try deleteSnapshotIfPresent(
+                matching: sharedLocalQuery(forIdentityKey: normalizedIdentityKey),
+                logPrefix: "Shared keychain"
+            )
+            try deleteSnapshotIfPresent(
+                matching: synchronizableQuery(forIdentityKey: normalizedIdentityKey),
+                logPrefix: "Synchronizable keychain"
+            )
+            try deleteLegacySynchronizableSharedSnapshotIfPresent(forIdentityKey: normalizedIdentityKey)
+        }.value
         snapshotAvailabilityStore.setSnapshotAvailable(false, forIdentityKey: normalizedIdentityKey)
     }
 
@@ -169,26 +184,31 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         toIdentityKey identityKey: String
     ) async throws -> Bool {
         let normalizedIdentityKey = try normalizedIdentityKey(identityKey)
-        let legacyQuery = legacyQuery(forLegacyAccountID: accountID)
 
         if await containsSnapshot(forIdentityKey: normalizedIdentityKey) {
-            try deleteLegacySnapshot(forLegacyAccountID: accountID)
+            try await Task.detached(priority: .userInitiated) { [self, accountID] in
+                try deleteLegacySnapshot(forLegacyAccountID: accountID)
+            }.value
             return false
         }
 
         let legacyContents: String
         do {
-            legacyContents = try decodeSnapshotContents(from: legacyQuery)
+            legacyContents = try await Task.detached(priority: .userInitiated) { [self, accountID] in
+                try decodeSnapshotContents(from: legacyQuery(forLegacyAccountID: accountID))
+            }.value
         } catch AccountSnapshotStoreError.missingSnapshot {
             return false
         }
 
         try await saveSnapshot(legacyContents, forIdentityKey: normalizedIdentityKey)
-        try deleteLegacySnapshot(forLegacyAccountID: accountID)
+        try await Task.detached(priority: .userInitiated) { [self, accountID] in
+            try deleteLegacySnapshot(forLegacyAccountID: accountID)
+        }.value
         return true
     }
 
-    private func deleteLegacySnapshot(forLegacyAccountID accountID: UUID) throws {
+    nonisolated private func deleteLegacySnapshot(forLegacyAccountID accountID: UUID) throws {
         let status = SecItemDelete(legacyQuery(forLegacyAccountID: accountID) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             logger.error("Legacy keychain delete failed with status \(status, privacy: .public)")
@@ -196,7 +216,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         }
     }
 
-    private func decodeSnapshotContents(from query: [String: Any]) throws -> String {
+    nonisolated private func decodeSnapshotContents(from query: [String: Any]) throws -> String {
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
 
@@ -221,7 +241,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         }
     }
 
-    private func loadSnapshotContentsIfPresent(
+    nonisolated private func loadSnapshotContentsIfPresent(
         forIdentityKey identityKey: String,
         query: [String: Any]
     ) throws -> String? {
@@ -238,7 +258,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
 
     /// Store a device-local app-group copy for extensions and a synchronizable
     /// copy for the main app across the user's devices.
-    private func repairCurrentSnapshotCopies(
+    nonisolated private func repairCurrentSnapshotCopies(
         using contents: String,
         forIdentityKey identityKey: String,
         ensureSharedLocalCopy: Bool,
@@ -286,7 +306,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         pruneLegacySynchronizableSharedSnapshot(forIdentityKey: identityKey)
     }
 
-    private func upsertSnapshot(
+    nonisolated private func upsertSnapshot(
         _ data: Data,
         forIdentityKey identityKey: String,
         query: [String: Any],
@@ -322,7 +342,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         }
     }
 
-    private func baseQuery(
+    nonisolated private func baseQuery(
         forIdentityKey identityKey: String,
         accessGroup: String?
     ) -> [String: Any] {
@@ -340,7 +360,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         return query
     }
 
-    private func synchronizableQuery(forIdentityKey identityKey: String) -> [String: Any] {
+    nonisolated private func synchronizableQuery(forIdentityKey identityKey: String) -> [String: Any] {
         var query = baseQuery(forIdentityKey: identityKey, accessGroup: nil)
         query[kSecAttrSynchronizable as String] = kCFBooleanTrue
         return query
@@ -349,7 +369,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
     /// The device-local copy stays in the app-group keychain so app intents,
     /// widgets, and the main app can all access the snapshot on this device
     /// without depending on iCloud Keychain state.
-    private func sharedLocalQuery(forIdentityKey identityKey: String) -> [String: Any] {
+    nonisolated private func sharedLocalQuery(forIdentityKey identityKey: String) -> [String: Any] {
         var query = baseQuery(forIdentityKey: identityKey, accessGroup: sharedAccessGroup)
         query[kSecAttrSynchronizable as String] = kCFBooleanFalse
         return query
@@ -358,7 +378,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
     /// The synchronizable copy intentionally uses the app's default access
     /// group so the primary app can pick it up on another device even when the
     /// device-local app-group copy hasn't been recreated there yet.
-    private func legacySharedSynchronizableQuery(forIdentityKey identityKey: String) -> [String: Any]? {
+    nonisolated private func legacySharedSynchronizableQuery(forIdentityKey identityKey: String) -> [String: Any]? {
         guard let sharedAccessGroup else {
             return nil
         }
@@ -368,7 +388,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         return query
     }
 
-    private func loadLegacySynchronizableSharedSnapshotIfPresent(
+    nonisolated private func loadLegacySynchronizableSharedSnapshotIfPresent(
         forIdentityKey identityKey: String
     ) throws -> String? {
         guard let legacyQuery = legacySharedSynchronizableQuery(forIdentityKey: identityKey) else {
@@ -381,7 +401,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         )
     }
 
-    private func deleteSnapshotIfPresent(
+    nonisolated private func deleteSnapshotIfPresent(
         matching query: [String: Any],
         logPrefix: String
     ) throws {
@@ -392,7 +412,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         }
     }
 
-    private func deleteLegacySynchronizableSharedSnapshotIfPresent(
+    nonisolated private func deleteLegacySynchronizableSharedSnapshotIfPresent(
         forIdentityKey identityKey: String
     ) throws {
         guard let legacyQuery = legacySharedSynchronizableQuery(forIdentityKey: identityKey) else {
@@ -405,7 +425,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         )
     }
 
-    private func pruneLegacySynchronizableSharedSnapshot(forIdentityKey identityKey: String) {
+    nonisolated private func pruneLegacySynchronizableSharedSnapshot(forIdentityKey identityKey: String) {
         do {
             try deleteLegacySynchronizableSharedSnapshotIfPresent(forIdentityKey: identityKey)
         } catch {
@@ -415,7 +435,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         }
     }
 
-    private func legacyQuery(forLegacyAccountID accountID: UUID) -> [String: Any] {
+    nonisolated private func legacyQuery(forLegacyAccountID accountID: UUID) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: CodexSharedApplicationIdentity.mainApplicationBundleIdentifier + ".accountSecrets",

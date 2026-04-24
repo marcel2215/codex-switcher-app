@@ -58,9 +58,13 @@ struct ContentView: View {
     }
 
     private var emptyAccountsDescription: String {
-        controller.searchText.isEmpty
+        if !controller.searchText.isEmpty {
+            return "Try a different search term."
+        }
+
+        return controller.canCaptureCurrentAccount
             ? "Click the plus button to add the currently used account."
-            : "Try a different search term."
+            : controller.captureCurrentAccountHelpText
     }
 
     private var isShowingIconPicker: Binding<Bool> {
@@ -102,7 +106,8 @@ struct ContentView: View {
                 Button(action: controller.captureCurrentAccount) {
                     Label("Add Account", systemImage: "plus")
                 }
-                .help("Capture the currently active Codex account")
+                .disabled(!controller.canCaptureCurrentAccount)
+                .help(controller.captureCurrentAccountHelpText)
 
                 Menu {
                     ForEach(AccountSortCriterion.allCases) { criterion in
@@ -263,6 +268,7 @@ struct ContentView: View {
                 Text(controller.authAccessState.message)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel(controller.authAccessState.message)
                     .accessibilityIdentifier("auth-status-message")
 
                 HStack(spacing: 12) {
@@ -281,6 +287,7 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("auth-status-banner")
     }
 

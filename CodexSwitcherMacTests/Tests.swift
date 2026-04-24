@@ -180,6 +180,56 @@ struct Tests {
         #expect(controller.searchText.isEmpty)
     }
 
+    @Test func addAccountAvailabilityRequiresUsableLinkedAuthFile() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-ready"))
+        let controller = makeController(authFileManager: authFileManager)
+
+        #expect(controller.canCaptureCurrentAccount == false)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+
+        #expect(controller.canCaptureCurrentAccount == true)
+
+        await authFileManager.setMissingAuthFile(true)
+        await controller.refreshAuthStateForTesting()
+
+        #expect(controller.canCaptureCurrentAccount == false)
+    }
+
+    @Test func captureMissingAuthFileShowsErrorAlert() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-missing"))
+        let controller = makeController(authFileManager: authFileManager)
+
+        await authFileManager.setMissingAuthFile(true)
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+
+        let didCapture = await controller.captureCurrentAccountNow()
+
+        #expect(didCapture == false)
+        #expect(controller.isCapturingCurrentAccount == false)
+        #expect(controller.presentedAlert?.title == "Couldn't Save Account")
+        #expect(controller.presentedAlert?.message.contains("No auth.json") == true)
+    }
+
+    @Test func captureInvalidAuthFileShowsErrorAlert() async throws {
+        let container = try makeInMemoryContainer()
+        let controller = makeController(authFileManager: FakeAuthFileManager(contents: "{}"))
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+
+        let didCapture = await controller.captureCurrentAccountNow()
+
+        #expect(didCapture == false)
+        #expect(controller.authAccessState == .corruptAuthFile(
+            linkedFolder: URL(fileURLWithPath: "/tmp/.codex", isDirectory: true)
+        ))
+        #expect(controller.presentedAlert?.title == "Couldn't Save Account")
+        #expect(controller.presentedAlert?.message.contains("supported account payload") == true)
+    }
+
     @Test func storedSnapshotsStaySyncedAndBackfillTheLocalKeychainCache() async throws {
         let container = try makeInMemoryContainer()
         let secretStore = FakeSecretStore()
@@ -362,6 +412,8 @@ struct Tests {
             linkedFolder: URL(fileURLWithPath: "/tmp/custom-codex", isDirectory: true),
             mode: .auto
         ))
+        #expect(controller.authAccessState.message.contains("configured for auto credential storage"))
+        #expect(controller.authAccessState.message.contains("only supports file-backed auth.json switching"))
         #expect(controller.activeIdentityKey == nil)
     }
 

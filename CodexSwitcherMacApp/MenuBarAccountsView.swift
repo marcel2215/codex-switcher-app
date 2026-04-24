@@ -80,6 +80,13 @@ struct MenuBarAccountsView: View {
         .onDisappear {
             controller.setMenuBarPresented(false)
         }
+        .alert(item: $controller.presentedAlert) { alert in
+            Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
     }
 
     private var header: some View {
@@ -104,8 +111,9 @@ struct MenuBarAccountsView: View {
             HStack(spacing: 8) {
                 chromeButton(
                     systemImage: "plus",
-                    helpText: "Add Account",
-                    isDisabled: controller.isSwitching,
+                    helpText: controller.captureCurrentAccountHelpText,
+                    accessibilityLabel: "Add Account",
+                    isDisabled: !controller.canCaptureCurrentAccount,
                     action: controller.captureCurrentAccount
                 )
                 chromeButton(systemImage: "rectangle.on.rectangle", helpText: "Open App", action: openMainWindow)
@@ -138,7 +146,7 @@ struct MenuBarAccountsView: View {
             ContentUnavailableView(
                 "No Accounts",
                 systemImage: "person.crop.rectangle.stack",
-                description: Text("Add the currently used account from the menu bar or the main window.")
+                description: Text(emptyAccountDescription)
             )
             .frame(maxWidth: .infinity, minHeight: accountSectionHeight)
         } else {
@@ -231,6 +239,12 @@ struct MenuBarAccountsView: View {
         Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
     }
 
+    private var emptyAccountDescription: String {
+        controller.canCaptureCurrentAccount
+            ? "Add the currently used account from the menu bar or the main window."
+            : controller.captureCurrentAccountHelpText
+    }
+
     private func openMainWindow() {
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "main")
@@ -246,6 +260,7 @@ struct MenuBarAccountsView: View {
     private func chromeButton(
         systemImage: String,
         helpText: String,
+        accessibilityLabel: String? = nil,
         isDisabled: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
@@ -256,7 +271,7 @@ struct MenuBarAccountsView: View {
         .buttonStyle(.plain)
         .disabled(isDisabled)
         .help(helpText)
-        .accessibilityLabel(helpText)
+        .accessibilityLabel(accessibilityLabel ?? helpText)
     }
 }
 

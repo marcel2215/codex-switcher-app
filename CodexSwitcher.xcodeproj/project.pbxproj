@@ -12,7 +12,7 @@
 		1F1413402F8C7C940013386A /* Codex Switcher Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1F1413332F8C7C930013386A /* Codex Switcher Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1F28ABAF2F86DA4B00639A74 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */; };
 		1F28ABB12F86DA4B00639A74 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */; };
-		1F28ABBE2F86DA4C00639A74 /* Codex Switcher Mac Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1F28ABAC2F86DA4A00639A74 /* Codex Switcher Mac Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1F28ABBE2F86DA4C00639A74 /* Codex Switcher Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1F28ABAC2F86DA4A00639A74 /* Codex Switcher Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1F310E4F2F8DC3E2006AA106 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */; };
 		1F310E502F8DC3E2006AA106 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */; };
 		1F310E5B2F8DC3E3006AA106 /* Codex Switcher Watch Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1F310E4E2F8DC3E2006AA106 /* Codex Switcher Watch Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -99,7 +99,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				1F28ABBE2F86DA4C00639A74 /* Codex Switcher Mac Widgets.appex in Embed Foundation Extensions */,
+				1F28ABBE2F86DA4C00639A74 /* Codex Switcher Widgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -141,11 +141,11 @@
 
 /* Begin PBXFileReference section */
 		1F1413332F8C7C930013386A /* Codex Switcher Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Codex Switcher Widgets.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
-		1F28ABAC2F86DA4A00639A74 /* Codex Switcher Mac Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Codex Switcher Mac Widgets.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F28ABAC2F86DA4A00639A74 /* Codex Switcher Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Codex Switcher Widgets.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		1F310E4E2F8DC3E2006AA106 /* Codex Switcher Watch Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Codex Switcher Watch Widgets.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
-		1F87C9472F8406C7007DED25 /* Codex Switcher Mac App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Codex Switcher Mac App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F87C9472F8406C7007DED25 /* Codex Switcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Codex Switcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F87C9562F8406C9007DED25 /* Codex Switcher Mac Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher Mac Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F87C9602F8406C9007DED25 /* Codex Switcher Mac UI Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Codex Switcher Mac UI Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F96B5A62F89BF5100044DB7 /* Codex Switcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Codex Switcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -615,10 +615,10 @@
 		1F87C9482F8406C7007DED25 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1F87C9472F8406C7007DED25 /* Codex Switcher Mac App.app */,
+				1F87C9472F8406C7007DED25 /* Codex Switcher.app */,
 				1F87C9562F8406C9007DED25 /* Codex Switcher Mac Tests.xctest */,
 				1F87C9602F8406C9007DED25 /* Codex Switcher Mac UI Tests.xctest */,
-				1F28ABAC2F86DA4A00639A74 /* Codex Switcher Mac Widgets.appex */,
+				1F28ABAC2F86DA4A00639A74 /* Codex Switcher Widgets.appex */,
 				1F96B5A62F89BF5100044DB7 /* Codex Switcher.app */,
 				1F96B5B62F89BF5200044DB7 /* Codex Switcher Tests.xctest */,
 				1F96B5C02F89BF5200044DB7 /* Codex Switcher UI Tests.xctest */,
@@ -677,7 +677,7 @@
 			packageProductDependencies = (
 			);
 			productName = "Codex Switcher WidgetsExtension";
-			productReference = 1F28ABAC2F86DA4A00639A74 /* Codex Switcher Mac Widgets.appex */;
+			productReference = 1F28ABAC2F86DA4A00639A74 /* Codex Switcher Widgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		1F310E4D2F8DC3E2006AA106 /* Codex Switcher Watch Widgets */ = {
@@ -727,7 +727,7 @@
 			packageProductDependencies = (
 			);
 			productName = "Codex Switcher";
-			productReference = 1F87C9472F8406C7007DED25 /* Codex Switcher Mac App.app */;
+			productReference = 1F87C9472F8406C7007DED25 /* Codex Switcher.app */;
 			productType = "com.apple.product-type.application";
 		};
 		1F87C9552F8406C9007DED25 /* Codex Switcher Mac Tests */ = {
@@ -1323,6 +1323,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CodexSwitcherMacWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
+				INFOPLIST_KEY_CFBundleName = "Codex Switcher Widgets";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1332,7 +1333,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.marcel2215.codexswitcher.widgets;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = Codex_Switcher_Mac_Widgets;
+				PRODUCT_NAME = "Codex Switcher Widgets";
 				REGISTER_APP_GROUPS = YES;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -1369,6 +1371,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CodexSwitcherMacWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
+				INFOPLIST_KEY_CFBundleName = "Codex Switcher Widgets";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1378,7 +1381,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.marcel2215.codexswitcher.widgets;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = Codex_Switcher_Mac_Widgets;
+				PRODUCT_NAME = "Codex Switcher Widgets";
 				REGISTER_APP_GROUPS = YES;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -1609,6 +1613,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CodexSwitcherMacApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
+				INFOPLIST_KEY_CFBundleName = "Codex Switcher";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSAppDataUsageDescription = "Codex Switcher needs access to its shared app data for widgets, App Intents, and the linked Codex folder you choose.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1619,7 +1624,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.marcel2215.codexswitcher;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = Codex_Switcher_Mac_App;
+				PRODUCT_NAME = "Codex Switcher";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -1661,6 +1667,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CodexSwitcherMacApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Codex Switcher";
+				INFOPLIST_KEY_CFBundleName = "Codex Switcher";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSAppDataUsageDescription = "Codex Switcher needs access to its shared app data for widgets, App Intents, and the linked Codex folder you choose.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1671,7 +1678,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.marcel2215.codexswitcher;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = Codex_Switcher_Mac_App;
+				PRODUCT_NAME = "Codex Switcher";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -1702,7 +1710,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codex Switcher Mac App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Codex Switcher Mac App";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codex Switcher.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Codex Switcher";
 			};
 			name = Debug;
 		};
@@ -1723,7 +1731,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codex Switcher Mac App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Codex Switcher Mac App";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codex Switcher.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Codex Switcher";
 			};
 			name = Release;
 		};

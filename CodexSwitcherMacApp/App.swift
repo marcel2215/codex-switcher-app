@@ -715,6 +715,13 @@ private struct SettingsView: View {
                 )
             }
         }
+        .alert(item: $controller.presentedAlert) { alert in
+            Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
         .fileImporter(
             isPresented: $isShowingLocationPicker,
             allowedContentTypes: [.folder],
