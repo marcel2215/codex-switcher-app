@@ -15,6 +15,7 @@ enum CodexSharedPreferenceKey {
     nonisolated static let sevenDayResetNotificationsEnabled = "sevenDayResetNotificationsEnabled"
     nonisolated static let autopilotEnabled = "autopilotEnabled"
     nonisolated static let showMenuBarExtra = "showMenuBarExtra"
+    nonisolated static let showNoneAccount = "showNoneAccount"
     nonisolated static let automaticallyAddAccounts = "automaticallyAddAccounts"
     nonisolated static let automaticallyRemoveAccounts = "automaticallyRemoveAccounts"
 }
@@ -27,6 +28,7 @@ enum CodexSharedPreferenceDefaults {
     nonisolated static let sevenDayResetNotificationsEnabled = false
     nonisolated static let autopilotEnabled = false
     nonisolated static let showMenuBarExtra = true
+    nonisolated static let showNoneAccount = true
     nonisolated static let automaticallyAddAccounts = false
     nonisolated static let automaticallyRemoveAccounts = false
 }
@@ -91,6 +93,13 @@ enum CodexSharedPreferences {
         boolValue(
             forKey: CodexSharedPreferenceKey.showMenuBarExtra,
             defaultValue: CodexSharedPreferenceDefaults.showMenuBarExtra
+        )
+    }
+
+    nonisolated static var showNoneAccount: Bool {
+        boolValue(
+            forKey: CodexSharedPreferenceKey.showNoneAccount,
+            defaultValue: CodexSharedPreferenceDefaults.showNoneAccount
         )
     }
 

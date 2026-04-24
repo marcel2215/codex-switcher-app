@@ -33,6 +33,10 @@ struct CodexSwitcherApp: App {
         store: CodexSharedPreferences.userDefaults
     ) private var showMenuBarExtra = CodexSharedPreferenceDefaults.showMenuBarExtra
     @AppStorage(
+        CodexSharedPreferenceKey.showNoneAccount,
+        store: CodexSharedPreferences.userDefaults
+    ) private var showNoneAccount = CodexSharedPreferenceDefaults.showNoneAccount
+    @AppStorage(
         CodexSharedPreferenceKey.automaticallyAddAccounts,
         store: CodexSharedPreferences.userDefaults
     ) private var automaticallyAddAccounts = CodexSharedPreferenceDefaults.automaticallyAddAccounts
@@ -105,6 +109,7 @@ struct CodexSwitcherApp: App {
                 fiveHourResetNotificationsEnabled: $fiveHourResetNotificationsEnabled,
                 sevenDayResetNotificationsEnabled: $sevenDayResetNotificationsEnabled,
                 autopilotEnabled: autopilotBinding,
+                showNoneAccount: showNoneAccountBinding,
                 automaticallyAddAccounts: $automaticallyAddAccounts,
                 automaticallyRemoveAccounts: $automaticallyRemoveAccounts,
                 showMenuBarExtra: showMenuBarExtraBinding,
@@ -186,6 +191,18 @@ struct CodexSwitcherApp: App {
         )
     }
 
+    private var showNoneAccountBinding: Binding<Bool> {
+        Binding(
+            get: {
+                showNoneAccount
+            },
+            set: { newValue in
+                showNoneAccount = newValue
+                CodexSharedPreferenceFeedback.postPreferencesDidChange()
+            }
+        )
+    }
+
     private var menuBarIconBinding: Binding<MenuBarIconOption> {
         Binding(
             get: {
@@ -202,6 +219,7 @@ struct CodexSwitcherApp: App {
         fiveHourResetNotificationsEnabled = CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
         sevenDayResetNotificationsEnabled = CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
         autopilotBinding.wrappedValue = CodexSharedPreferenceDefaults.autopilotEnabled
+        showNoneAccountBinding.wrappedValue = CodexSharedPreferenceDefaults.showNoneAccount
         automaticallyAddAccounts = CodexSharedPreferenceDefaults.automaticallyAddAccounts
         automaticallyRemoveAccounts = CodexSharedPreferenceDefaults.automaticallyRemoveAccounts
         showMenuBarExtraBinding.wrappedValue = CodexSharedPreferenceDefaults.showMenuBarExtra
@@ -252,6 +270,7 @@ struct CodexSwitcherApp: App {
             && fiveHourResetNotificationsEnabled == CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
             && sevenDayResetNotificationsEnabled == CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
             && autopilotEnabled == CodexSharedPreferenceDefaults.autopilotEnabled
+            && showNoneAccount == CodexSharedPreferenceDefaults.showNoneAccount
             && automaticallyAddAccounts == CodexSharedPreferenceDefaults.automaticallyAddAccounts
             && automaticallyRemoveAccounts == CodexSharedPreferenceDefaults.automaticallyRemoveAccounts
             && showMenuBarExtra == CodexSharedPreferenceDefaults.showMenuBarExtra
@@ -290,6 +309,7 @@ struct CodexSwitcherApp: App {
         fiveHourResetNotificationsEnabled = CodexSharedPreferences.fiveHourResetNotificationsEnabled
         sevenDayResetNotificationsEnabled = CodexSharedPreferences.sevenDayResetNotificationsEnabled
         autopilotEnabled = CodexSharedPreferences.autopilotEnabled
+        showNoneAccount = CodexSharedPreferences.showNoneAccount
         automaticallyAddAccounts = CodexSharedPreferences.automaticallyAddAccounts
         automaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts
         showMenuBarExtra = CodexSharedPreferences.showMenuBarExtra
@@ -553,6 +573,7 @@ private struct SettingsView: View {
     @Binding var fiveHourResetNotificationsEnabled: Bool
     @Binding var sevenDayResetNotificationsEnabled: Bool
     @Binding var autopilotEnabled: Bool
+    @Binding var showNoneAccount: Bool
     @Binding var automaticallyAddAccounts: Bool
     @Binding var automaticallyRemoveAccounts: Bool
     @Binding var showMenuBarExtra: Bool
@@ -580,6 +601,7 @@ private struct SettingsView: View {
 
             Section {
                 Toggle("Launch at Login", isOn: launchAtLoginBinding)
+                Toggle("Show \"None\" Account", isOn: showNoneAccountBinding)
                 Toggle("Automatically Add Accounts", isOn: automaticAddAccountsBinding)
                 Toggle("Automatically Remove Accounts", isOn: automaticRemoveAccountsBinding)
                 Toggle("Automatically Switch Accounts", isOn: $autopilotEnabled)
@@ -780,6 +802,18 @@ private struct SettingsView: View {
             },
             set: { newValue in
                 updateLaunchAtLogin(isEnabled: newValue)
+            }
+        )
+    }
+
+    private var showNoneAccountBinding: Binding<Bool> {
+        Binding(
+            get: {
+                showNoneAccount
+            },
+            set: { newValue in
+                showNoneAccount = newValue
+                CodexSharedPreferenceFeedback.postPreferencesDidChange()
             }
         )
     }

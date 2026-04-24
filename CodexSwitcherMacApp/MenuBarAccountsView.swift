@@ -15,6 +15,10 @@ struct MenuBarAccountsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(
+        CodexSharedPreferenceKey.showNoneAccount,
+        store: CodexSharedPreferences.userDefaults
+    ) private var showNoneAccount = CodexSharedPreferenceDefaults.showNoneAccount
     @Query private var accounts: [StoredAccount]
     @State private var measuredAccountListContentHeight: CGFloat = 0
 
@@ -28,13 +32,18 @@ struct MenuBarAccountsView: View {
     }
 
     private var displayedAccountRows: [MenuBarAccountRowItem] {
-        [MenuBarAccountRowItem.none(isCurrentAccount: controller.activeIdentityKey == nil)]
-            + displayedAccounts.map { account in
-                MenuBarAccountRowItem(
-                    account: account,
-                    isCurrentAccount: account.identityKey == controller.activeIdentityKey
-                )
-            }
+        let accountRows = displayedAccounts.map { account in
+            MenuBarAccountRowItem(
+                account: account,
+                isCurrentAccount: account.identityKey == controller.activeIdentityKey
+            )
+        }
+
+        guard showNoneAccount else {
+            return accountRows
+        }
+
+        return [MenuBarAccountRowItem.none(isCurrentAccount: controller.activeIdentityKey == nil)] + accountRows
     }
 
     private var accountListHeight: CGFloat {

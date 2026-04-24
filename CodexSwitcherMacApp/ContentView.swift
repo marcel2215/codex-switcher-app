@@ -15,6 +15,10 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.undoManager) private var undoManager
+    @AppStorage(
+        CodexSharedPreferenceKey.showNoneAccount,
+        store: CodexSharedPreferences.userDefaults
+    ) private var showNoneAccount = CodexSharedPreferenceDefaults.showNoneAccount
     @Query private var accounts: [StoredAccount]
     @FocusState private var focusedRenameAccountID: UUID?
     @State private var accountListItems: [AccountListItem] = []
@@ -29,13 +33,19 @@ struct ContentView: View {
     }
 
     private var displayedAccountListItems: [AccountListItem] {
-        let noneItem = AccountListItem.none(isCurrentAccount: controller.activeIdentityKey == nil)
-        return [noneItem] + displayedAccounts.map { account in
+        let accountItems = displayedAccounts.map { account in
             AccountListItem(
                 account: account,
                 isCurrentAccount: controller.activeIdentityKey == account.identityKey
             )
         }
+
+        guard showNoneAccount else {
+            return accountItems
+        }
+
+        let noneItem = AccountListItem.none(isCurrentAccount: controller.activeIdentityKey == nil)
+        return [noneItem] + accountItems
     }
 
     private var undoManagerTaskID: ObjectIdentifier? {
