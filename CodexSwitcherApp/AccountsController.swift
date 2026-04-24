@@ -97,6 +97,7 @@ final class IOSAccountsController {
 
     func archiveTransferItem(for account: StoredAccount) -> CodexAccountArchiveTransferItem {
         CodexAccountArchiveTransferItem(
+            id: account.id,
             request: CodexAccountArchiveExportRequest(
                 account: account,
                 hasLocalSnapshot: snapshotAvailabilityStore.containsSnapshot(
@@ -109,6 +110,15 @@ final class IOSAccountsController {
 
     func canExportArchive(for account: StoredAccount) async -> Bool {
         await archiveTransferItem(for: account).canExport()
+    }
+
+    func prepareArchiveFile(for account: StoredAccount) async throws -> PreparedCodexAccountArchiveFile {
+        let transferItem = archiveTransferItem(for: account)
+        let fileURL = try await archiveExporter.exportFile(for: transferItem.request)
+        return PreparedCodexAccountArchiveFile(
+            fileURL: fileURL,
+            suggestedFilename: transferItem.exportedArchiveFilename
+        )
     }
 
     /// Home Screen quick actions should reflect the same ordering rules as the

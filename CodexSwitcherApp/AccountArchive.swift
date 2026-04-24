@@ -424,6 +424,18 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
         CodexAccountArchive.normalizedExportFilenameStem(from: suggestedFilename)
     }
 
+    var exportContentKey: String {
+        [
+            Self.keyComponent(name),
+            Self.keyComponent(iconSystemName),
+            Self.keyComponent(identityKey),
+            Self.keyComponent(authModeRaw),
+            Self.keyComponent(emailHint),
+            Self.keyComponent(accountIdentifier),
+            Self.keyComponent(suggestedFilename),
+        ].joined(separator: "|")
+    }
+
     @MainActor
     init(account: StoredAccount, hasLocalSnapshot: Bool? = nil) {
         self.name = account.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : account.name
@@ -444,6 +456,11 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
             accountIdentifier: self.accountIdentifier,
             snapshotContents: "{}"
         ).suggestedFilename
+    }
+
+    private static func keyComponent(_ value: String?) -> String {
+        let value = value ?? ""
+        return "\(value.count):\(value)"
     }
 }
 
@@ -472,6 +489,12 @@ nonisolated struct CodexAccountArchiveBatchExportRequest: Sendable, Equatable {
     var availabilityKey: String {
         accounts
             .map { "\($0.identityKey)|\($0.hasLocalSnapshot)" }
+            .joined(separator: ",")
+    }
+
+    var exportContentKey: String {
+        accounts
+            .map(\.exportContentKey)
             .joined(separator: ",")
     }
 }
@@ -632,6 +655,22 @@ nonisolated struct CodexAccountArchiveTransferItem: Transferable, Sendable, Iden
         .suggestedFileName { $0.exportedArchiveFilename }
 
         ProxyRepresentation(exporting: \.reorderToken)
+    }
+}
+
+/// File-backed archive whose expensive export has already completed.
+/// Use this for tap-driven share sheets so presentation only hands off an
+/// existing temp file instead of reading Keychain and encoding the archive
+/// during the user's tap.
+nonisolated struct PreparedCodexAccountArchiveFile: Sendable, Identifiable, Equatable {
+    let id: URL
+    let fileURL: URL
+    let suggestedFilename: String
+
+    init(fileURL: URL, suggestedFilename: String) {
+        self.id = fileURL
+        self.fileURL = fileURL
+        self.suggestedFilename = suggestedFilename
     }
 }
 

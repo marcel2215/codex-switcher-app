@@ -209,6 +209,66 @@ struct Tests {
     }
 
     @Test
+    func archiveTransferItemKeepsStableIdentityAcrossRenders() async throws {
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-stable-share")
+        let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)
+        let snapshotStore = FakeSnapshotStore()
+        let accountID = UUID()
+        let account = StoredAccount(
+            id: accountID,
+            identityKey: snapshot.identityKey,
+            name: "Stable Share",
+            customOrder: 0,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier
+        )
+        let harness = try makeHarness(accounts: [account], snapshotStore: snapshotStore)
+        let unavailableItem = harness.controller.archiveTransferItem(for: account)
+
+        try await snapshotStore.saveSnapshot(snapshotContents, forIdentityKey: snapshot.identityKey)
+
+        let firstItem = harness.controller.archiveTransferItem(for: account)
+        let secondItem = harness.controller.archiveTransferItem(for: account)
+
+        #expect(firstItem.id == accountID)
+        #expect(secondItem.id == accountID)
+        #expect(firstItem.availabilityKey == secondItem.availabilityKey)
+        #expect(unavailableItem.availabilityKey != firstItem.availabilityKey)
+        #expect(unavailableItem.request.exportContentKey == firstItem.request.exportContentKey)
+    }
+
+    @Test
+    func preparedArchiveFileExportsFileBeforeSharing() async throws {
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-prepared-share")
+        let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)
+        let snapshotStore = FakeSnapshotStore()
+        let account = StoredAccount(
+            identityKey: snapshot.identityKey,
+            name: "Prepared Share",
+            customOrder: 0,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier
+        )
+        let harness = try makeHarness(accounts: [account], snapshotStore: snapshotStore)
+
+        try await snapshotStore.saveSnapshot(snapshotContents, forIdentityKey: snapshot.identityKey)
+
+        let preparedFile = try await harness.controller.prepareArchiveFile(for: account)
+        defer { try? FileManager.default.removeItem(at: preparedFile.fileURL.deletingLastPathComponent()) }
+
+        #expect(FileManager.default.fileExists(atPath: preparedFile.fileURL.path))
+        #expect(preparedFile.fileURL.lastPathComponent == "Prepared Share.cxa")
+        #expect(preparedFile.suggestedFilename == "Prepared Share.cxa")
+
+        let archive = try CodexAccountArchive.decode(from: Data(contentsOf: preparedFile.fileURL))
+        let archivedAccount = try #require(archive.accounts.first)
+        #expect(archivedAccount.snapshotContents == snapshotContents)
+        #expect(archivedAccount.identityKey == snapshot.identityKey)
+    }
+
+    @Test
     func importingUnchangedArchiveForExistingAccountStillSucceeds() async throws {
         let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-import")
         let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)

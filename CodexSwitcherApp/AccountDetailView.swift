@@ -19,6 +19,17 @@ struct AccountDetailView: View {
         case fiveHour
     }
 
+    private struct SharePreparationKey: Equatable {
+        let transferItemID: UUID
+        let exportContentKey: String
+        let refreshToken: Int
+    }
+
+    private struct PreparedShare: Equatable {
+        let key: SharePreparationKey
+        let file: PreparedCodexAccountArchiveFile
+    }
+
     @Environment(\.modelContext) private var modelContext
 
     let account: StoredAccount
@@ -30,6 +41,8 @@ struct AccountDetailView: View {
         .sevenDay: .relative,
         .fiveHour: .relative,
     ]
+    @State private var preparedShare: PreparedShare?
+    @State private var isPreparingShare = false
     @State private var shareAvailability: Bool?
 
     init(
@@ -113,8 +126,9 @@ struct AccountDetailView: View {
         }
         .navigationDestination(for: DetailDestination.self, destination: destinationView)
         .onDisappear(perform: persistDraftName)
-        .task(id: shareAvailabilityKey) {
-            shareAvailability = await controller.canExportArchive(for: account)
+        .task(id: sharePreparationKey) {
+            let preparationKey = sharePreparationKey
+            await prepareShareArchive(for: preparationKey, presentsErrors: false)
         }
     }
 
@@ -140,8 +154,13 @@ struct AccountDetailView: View {
         AccountIconOption.resolve(from: account.iconSystemName)
     }
 
-    private var shareAvailabilityKey: String {
-        "\(shareTransferItem.availabilityKey)|\(controller.archiveAvailabilityRefreshToken)"
+    private var sharePreparationKey: SharePreparationKey {
+        let transferItem = shareTransferItem
+        return SharePreparationKey(
+            transferItemID: transferItem.id,
+            exportContentKey: transferItem.request.exportContentKey,
+            refreshToken: controller.archiveAvailabilityRefreshToken
+        )
     }
 
     private var shareTransferItem: CodexAccountArchiveTransferItem {
@@ -202,12 +221,14 @@ struct AccountDetailView: View {
 
     @ViewBuilder
     private var shareToolbarItem: some View {
-        if shareAvailability == true {
-            ShareLink(item: shareTransferItem, preview: SharePreview(displayName)) {
+        let preparationKey = sharePreparationKey
+
+        if let preparedShare, preparedShare.key == preparationKey {
+            ShareLink(item: preparedShare.file.fileURL, preview: SharePreview(displayName)) {
                 Image(systemName: "square.and.arrow.up")
             }
             .accessibilityLabel("Share Account Archive")
-        } else if shareAvailability == nil {
+        } else if isPreparingShare || shareAvailability == nil {
             Button {
             } label: {
                 Image(systemName: "square.and.arrow.up")
@@ -217,23 +238,71 @@ struct AccountDetailView: View {
         } else {
             Button {
                 Task { @MainActor in
-                    let isExportAvailable = await controller.canExportArchive(for: account)
-                    shareAvailability = isExportAvailable
-
-                    guard !isExportAvailable else {
-                        return
-                    }
-
-                    controller.presentedError = PresentedError(
-                        title: "Couldn't Export Account",
-                        message: "That saved account isn't exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
-                    )
+                    let preparationKey = sharePreparationKey
+                    await prepareShareArchive(for: preparationKey, presentsErrors: true)
                 }
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
             .accessibilityLabel("Share Account Archive")
         }
+    }
+
+    @MainActor
+    private func prepareShareArchive(
+        for preparationKey: SharePreparationKey,
+        presentsErrors: Bool
+    ) async {
+        guard !account.isDeleted else {
+            preparedShare = nil
+            shareAvailability = false
+            isPreparingShare = false
+            return
+        }
+
+        preparedShare = nil
+        shareAvailability = nil
+        isPreparingShare = true
+
+        defer {
+            if sharePreparationKey == preparationKey {
+                isPreparingShare = false
+            }
+        }
+
+        do {
+            let preparedFile = try await controller.prepareArchiveFile(for: account)
+
+            guard sharePreparationKey == preparationKey else {
+                return
+            }
+
+            preparedShare = PreparedShare(key: preparationKey, file: preparedFile)
+            shareAvailability = true
+        } catch {
+            guard sharePreparationKey == preparationKey else {
+                return
+            }
+
+            preparedShare = nil
+            shareAvailability = false
+
+            if presentsErrors {
+                controller.presentedError = PresentedError(
+                    title: "Couldn't Export Account",
+                    message: sharePreparationErrorMessage(for: error)
+                )
+            }
+        }
+    }
+
+    private func sharePreparationErrorMessage(for error: Error) -> String {
+        if let snapshotError = error as? AccountSnapshotStoreError,
+           snapshotError == .missingSnapshot {
+            return "That saved account isn't exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
+        }
+
+        return error.localizedDescription
     }
 
     private var detailMenu: some View {

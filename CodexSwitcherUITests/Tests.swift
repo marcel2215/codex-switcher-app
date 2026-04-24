@@ -31,6 +31,17 @@ final class Tests: XCTestCase {
     }
 
     @MainActor
+    func testAccountRowOpensDetailWithoutCrashing() throws {
+        let app = launchApp(scenario: "sample-data")
+
+        XCTAssertTrue(app.staticTexts["Work"].waitForExistence(timeout: 5))
+        app.staticTexts["Work"].tap()
+
+        XCTAssertTrue(app.staticTexts["Last Login"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Rate Limits"].exists)
+    }
+
+    @MainActor
     func testSettingsShowsVersionBuildAndLinks() throws {
         let app = launchApp(scenario: "sample-data")
 
@@ -90,6 +101,7 @@ final class Tests: XCTestCase {
         XCTAssertFalse(workRow.waitForExistence(timeout: 2))
     }
 
+    @MainActor
     private func launchApp(scenario: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CODEX_SWITCHER_IOS_LAUNCH_SCENARIO"] = scenario
@@ -97,6 +109,7 @@ final class Tests: XCTestCase {
         return app
     }
 
+    @MainActor
     private func settingsViewContainsText(named name: String, in app: XCUIApplication) -> Bool {
         let target = app.staticTexts[name].firstMatch
         if target.waitForExistence(timeout: 1) {
@@ -115,6 +128,7 @@ final class Tests: XCTestCase {
         return target.exists
     }
 
+    @MainActor
     private func settingsScrollContainer(in app: XCUIApplication) -> XCUIElement {
         let collectionView = app.collectionViews.firstMatch
         if collectionView.exists {
