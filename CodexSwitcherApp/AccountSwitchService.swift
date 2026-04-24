@@ -20,6 +20,7 @@ enum CodexSharedSwitchError: LocalizedError {
     case missingBookmark
     case bookmarkRefreshRequired
     case unsupportedAuthState(SharedCodexAuthState)
+    case unsupportedCredentialStore(URL, mode: CodexCredentialStoreHint)
     case accessDenied(URL)
     case linkedFolderUnavailable(URL)
     case unreadable(URL, message: String)
@@ -57,6 +58,8 @@ enum CodexSharedSwitchError: LocalizedError {
             case .unsupportedCredentialStore:
                 return "The linked Codex folder uses an unsupported credential store."
             }
+        case let .unsupportedCredentialStore(folderURL, mode):
+            return "The linked Codex folder at \(folderURL.path) is configured for \(mode.displayName) credential storage. Codex Switcher only supports file-backed auth.json switching."
         case let .accessDenied(folderURL):
             return "Codex Switcher no longer has permission to access \(folderURL.path)."
         case let .linkedFolderUnavailable(folderURL):
@@ -196,6 +199,14 @@ struct CodexSharedAccountSwitchService: Sendable {
         let folderURL = try resolveLinkedFolderURL()
         var didWriteAuthFile = false
         try await withAuthorizedFolder(folderURL) { authorizedFolderURL in
+            let credentialStoreHint = CodexCredentialStoreHint.detect(in: authorizedFolderURL)
+            guard credentialStoreHint.isSupportedForFileSwitching else {
+                throw CodexSharedSwitchError.unsupportedCredentialStore(
+                    authorizedFolderURL,
+                    mode: credentialStoreHint
+                )
+            }
+
             let authFileURL = authorizedFolderURL.appending(path: "auth.json", directoryHint: .notDirectory)
 
             if FileManager.default.fileExists(atPath: authFileURL.path) {
@@ -414,11 +425,10 @@ struct CodexSharedAccountSwitchService: Sendable {
     private nonisolated func coordinatedWrite(_ contents: String, to authFileURL: URL) throws {
         var coordinationError: NSError?
         var writeError: Error?
-        let data = Data(contents.utf8)
 
         NSFileCoordinator().coordinate(writingItemAt: authFileURL, options: [], error: &coordinationError) { url in
             do {
-                try data.write(to: url, options: [.atomic])
+                try CodexAuthFileReplacement.replaceContents(contents, at: url)
             } catch {
                 writeError = error
             }
@@ -462,6 +472,10 @@ struct CodexSharedAccountSwitchService: Sendable {
             state.currentAccountID = nil
         case let .unsupportedAuthState(authState):
             state.authState = authState
+        case let .unsupportedCredentialStore(folderURL, _):
+            state.authState = .unsupportedCredentialStore
+            state.linkedFolderPath = folderURL.path
+            state.currentAccountID = nil
         case .accountSelectionRequired,
              .accountNotFound,
              .noBestAccountAvailable,

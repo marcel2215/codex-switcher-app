@@ -11,6 +11,8 @@ import SwiftUI
 @main
 struct MacWidgetBundle: WidgetBundle {
     var body: some Widget {
+        CurrentAccountWidget()
+        SavedAccountWidget()
         RateLimitOverviewWidget()
         QuickSwitchControl()
         OpenCodexSwitcherControl()

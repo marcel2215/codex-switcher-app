@@ -46,7 +46,12 @@ nonisolated struct CodexPendingAccountOpenRequestStore: Sendable {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys]
             let data = try encoder.encode(request)
-            try data.write(to: requestFileURL(), options: [.atomic])
+            let fileURL = try requestFileURL()
+            try FileManager.default.createDirectory(
+                at: fileURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try data.write(to: fileURL, options: [.atomic])
         }
     }
 

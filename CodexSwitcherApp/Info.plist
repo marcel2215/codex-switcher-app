@@ -6,6 +6,8 @@
 	<array>
 		<string>com.marcel2215.codexswitcher.app-refresh</string>
 	</array>
+	<key>CodexSharedKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)group.com.marcel2215.codexswitcher</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>CFBundleDocumentTypes</key>
@@ -29,7 +31,6 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
-		<string>remote-notification</string>
 	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>

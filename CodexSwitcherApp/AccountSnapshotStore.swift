@@ -48,7 +48,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
 
     nonisolated init(
         service: String = "com.marcel2215.codexswitcher.authSnapshots",
-        accessGroup: String? = CodexSharedAppGroup.identifier,
+        accessGroup: String? = CodexSharedKeychainAccessGroup.identifier,
         snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore(),
         logger: Logger = Logger(
             subsystem: CodexSharedApplicationIdentity.mainApplicationBundleIdentifier,

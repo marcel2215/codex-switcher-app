@@ -119,6 +119,7 @@ nonisolated private func mappedSwitchIntentError(from error: Error) -> Error {
          .verificationFailed,
          .unreadable,
          .unwritable,
+         .unsupportedCredentialStore,
          .unsupportedAuthState(.unlinked),
          .unsupportedAuthState(.locationUnavailable),
          .unsupportedAuthState(.accessDenied),

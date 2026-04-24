@@ -138,6 +138,10 @@ struct CodexSharedAppCommandResultStore: Sendable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let data = try encoder.encode(results)
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
         try data.write(to: fileURL, options: [.atomic])
     }
 

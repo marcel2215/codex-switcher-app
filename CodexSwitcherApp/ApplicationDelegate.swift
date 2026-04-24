@@ -23,7 +23,6 @@ final class IOSApplicationDelegate: NSObject, UIApplicationDelegate {
             )
         }
 
-        IOSBackgroundAppRefreshCoordinator.shared.scheduleNextRefresh()
         return true
     }
 

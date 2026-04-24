@@ -1014,18 +1014,36 @@ final class AppController {
             let loginAt = Date()
 
             if activeIdentityKey == targetAccount.identityKey {
-                selection = [targetAccount.id]
-                renameTargetID = nil
-                persistSuccessfulLoginMetadata(
-                    for: targetAccount,
-                    at: loginAt,
-                    in: modelContext,
-                    allowsInteractiveRecovery: allowsInteractiveRecovery,
-                    partialSuccessTitle: "Account Selected"
-                )
-                publishSharedState()
-                requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
-                return
+                if let live = try? await liveAuthSnapshot(),
+                   live.snapshot.identityKey == targetAccount.identityKey {
+                    activeIdentityKey = targetAccount.identityKey
+                    authAccessState = .ready(linkedFolder: live.read.url.deletingLastPathComponent())
+                    selection = [targetAccount.id]
+                    renameTargetID = nil
+
+                    if live.read.contents != desiredAuthContents {
+                        do {
+                            _ = try await storeSnapshot(live.snapshot, on: targetAccount)
+                        } catch {
+                            logger.error(
+                                "Couldn't refresh stored snapshot for already-active account \(targetAccount.identityKey, privacy: .public): \(String(describing: error), privacy: .private)"
+                            )
+                        }
+                    }
+
+                    persistSuccessfulLoginMetadata(
+                        for: targetAccount,
+                        at: loginAt,
+                        in: modelContext,
+                        allowsInteractiveRecovery: allowsInteractiveRecovery,
+                        partialSuccessTitle: "Account Selected"
+                    )
+                    publishSharedState()
+                    requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
+                    return
+                }
+
+                activeIdentityKey = nil
             }
 
             if let currentRead = try? await authFileManager.readAuthFile(), currentRead.contents == desiredAuthContents {
@@ -1084,6 +1102,15 @@ final class AppController {
                 allowsInteractiveRecovery: allowsInteractiveRecovery
             )
         }
+    }
+
+    private func liveAuthSnapshot() async throws -> (
+        read: AuthFileReadResult,
+        snapshot: CodexAuthSnapshot
+    ) {
+        let read = try await authFileManager.readAuthFile()
+        let snapshot = try await parseSnapshot(from: read.contents)
+        return (read, snapshot)
     }
 
     @discardableResult

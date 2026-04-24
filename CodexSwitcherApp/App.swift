@@ -23,6 +23,9 @@ struct CodexSwitcher: App {
             case let .ready(modelContainer):
                 AccountsRootView()
                     .modelContainer(modelContainer)
+                    .task {
+                        IOSBackgroundAppRefreshCoordinator.shared.scheduleNextRefresh()
+                    }
             case let .failed(message):
                 StorageUnavailableView(message: message)
             }

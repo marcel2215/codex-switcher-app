@@ -497,6 +497,42 @@ struct Tests {
         #expect(notificationManager.postedAccountNames.isEmpty)
     }
 
+    @Test func switchingCachedActiveAccountRechecksLiveAuthBeforeSkippingRewrite() async throws {
+        let container = try makeInMemoryContainer()
+        let targetContents = makeChatGPTAuthJSON(accountID: "acct-cached-target")
+        let otherContents = makeChatGPTAuthJSON(accountID: "acct-live-other")
+        let authFileManager = FakeAuthFileManager(contents: targetContents)
+        let secretStore = FakeSecretStore()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore
+        )
+
+        let targetSnapshot = try CodexAuthFile.parse(contents: targetContents)
+        let targetAccount = StoredAccount(
+            identityKey: targetSnapshot.identityKey,
+            name: "Cached Target",
+            customOrder: 0,
+            authModeRaw: targetSnapshot.authMode.rawValue,
+            emailHint: targetSnapshot.email,
+            accountIdentifier: targetSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(targetAccount)
+        try container.mainContext.save()
+        try await secretStore.saveSnapshot(targetContents, forIdentityKey: targetAccount.identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+        #expect(controller.activeIdentityKey == targetAccount.identityKey)
+
+        await authFileManager.setContents(otherContents)
+        await controller.switchToAccountNow(id: targetAccount.id)
+
+        #expect(await authFileManager.writeCallCount == 1)
+        #expect(await authFileManager.currentContents == targetContents)
+        #expect(controller.activeIdentityKey == targetAccount.identityKey)
+    }
+
     @Test func dockAccountsFollowAppSortOrderAndLimitSwitchableAccounts() async throws {
         let container = try makeInMemoryContainer()
         let currentContents = makeChatGPTAuthJSON(accountID: "acct-current")
@@ -1609,6 +1645,82 @@ struct Tests {
         )
 
         #expect(selected?.id == best.id)
+    }
+
+    @Test func sharedSwitchRefusesLiveUnsupportedCredentialStore() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let codexFolderURL = temporaryDirectory.appending(path: ".codex", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: codexFolderURL, withIntermediateDirectories: true)
+        let originalContents = makeChatGPTAuthJSON(accountID: "acct-original-shared")
+        try originalContents.write(
+            to: codexFolderURL.appending(path: "auth.json", directoryHint: .notDirectory),
+            atomically: true,
+            encoding: .utf8
+        )
+        try #"cli_auth_credentials_store = "keyring""#.write(
+            to: codexFolderURL.appending(path: "config.toml", directoryHint: .notDirectory),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let targetContents = makeChatGPTAuthJSON(accountID: "acct-shared-target")
+        let targetSnapshot = try SharedCodexAuthFile.parse(contents: targetContents)
+        let targetAccount = makeSharedAccountRecord(
+            identityKey: targetSnapshot.identityKey,
+            name: "Shared Target",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 90,
+            fiveHourLimitUsedPercent: 90
+        )
+        let stateStore = CodexSharedStateStore(baseURL: temporaryDirectory)
+        let bookmarkStore = CodexSharedBookmarkStore(baseURL: temporaryDirectory)
+        let secretStore = FakeSecretStore()
+        try stateStore.save(
+            SharedCodexState(
+                schemaVersion: SharedCodexState.currentSchemaVersion,
+                authState: .ready,
+                linkedFolderPath: codexFolderURL.path,
+                currentAccountID: nil,
+                selectedAccountID: nil,
+                selectedAccountIsLive: false,
+                accounts: [targetAccount],
+                updatedAt: .now
+            )
+        )
+        try bookmarkStore.save(
+            codexFolderURL.bookmarkData(
+                options: [],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+        )
+        try await secretStore.saveSnapshot(targetContents, forIdentityKey: targetAccount.id)
+
+        let service = CodexSharedAccountSwitchService(
+            stateStore: stateStore,
+            bookmarkStore: bookmarkStore,
+            snapshotStore: secretStore,
+            lock: CodexSharedProcessLock(baseURL: temporaryDirectory)
+        )
+
+        do {
+            _ = try await service.switchToAccount(identityKey: targetAccount.id)
+            Issue.record("Expected shared switch to reject keyring credential storage.")
+        } catch let error as CodexSharedSwitchError {
+            guard case .unsupportedCredentialStore = error else {
+                Issue.record("Expected unsupportedCredentialStore, got \(error).")
+                return
+            }
+        }
+
+        let persistedContents = try String(
+            contentsOf: codexFolderURL.appending(path: "auth.json", directoryHint: .notDirectory),
+            encoding: .utf8
+        )
+        #expect(persistedContents == originalContents)
+        #expect(try stateStore.load().authState == .unsupportedCredentialStore)
     }
 
     @Test func sharedIntentResolverReturnsCurrentSelectedAndBestAccounts() throws {

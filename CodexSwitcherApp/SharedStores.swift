@@ -82,6 +82,10 @@ struct CodexSharedBookmarkStore: Sendable {
 
     nonisolated func save(_ data: Data) throws {
         let fileURL = try bookmarkFileURL()
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
         try data.write(to: fileURL, options: [.atomic])
     }
 

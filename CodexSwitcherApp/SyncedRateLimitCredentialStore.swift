@@ -41,7 +41,7 @@ actor SyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
     private let logger: Logger
 
     init(
-        accessGroup: String = CodexAppGroup.identifier,
+        accessGroup: String = CodexSharedKeychainAccessGroup.identifier,
         logger: Logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
             category: "SyncedRateLimitCredentialStore"

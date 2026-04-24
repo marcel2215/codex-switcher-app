@@ -56,10 +56,10 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
     @Property(title: "Last Login")
     var lastLoginAt: Date?
 
-    @Property(title: "5h Limit Used")
+    @Property(title: "5h Limit Remaining")
     var fiveHourLimitUsedPercent: Int?
 
-    @Property(title: "7d Limit Used")
+    @Property(title: "7d Limit Remaining")
     var sevenDayLimitUsedPercent: Int?
 
     @Property(title: "Available On This Mac")

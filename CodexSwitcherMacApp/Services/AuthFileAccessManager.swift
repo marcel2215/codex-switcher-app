@@ -302,26 +302,7 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
 
     private func credentialStoreHint(for folderURL: URL) throws -> CodexCredentialStoreHint {
         try withFolderAuthorization(for: folderURL) { folderURL in
-            let configURL = folderURL.appending(path: "config.toml", directoryHint: .notDirectory)
-            guard let contents = try? String(contentsOf: configURL, encoding: .utf8) else {
-                return .unknown
-            }
-
-            // Codex config is TOML. We only need one scalar key here, so a
-            // lightweight regex keeps the dependency surface small.
-            let pattern = #"(?m)^\s*cli_auth_credentials_store\s*=\s*"([^"]+)""#
-            guard
-                let regex = try? NSRegularExpression(pattern: pattern),
-                let match = regex.firstMatch(
-                    in: contents,
-                    range: NSRange(contents.startIndex..., in: contents)
-                ),
-                let valueRange = Range(match.range(at: 1), in: contents)
-            else {
-                return .unknown
-            }
-
-            return CodexCredentialStoreHint(rawValue: String(contents[valueRange]).lowercased()) ?? .unknown
+            CodexCredentialStoreHint.detect(in: folderURL)
         }
     }
 
@@ -438,11 +419,10 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
     private func coordinatedWrite(_ contents: String, to authFileURL: URL) throws {
         var coordinationError: NSError?
         var writeError: Error?
-        let data = Data(contents.utf8)
 
         NSFileCoordinator().coordinate(writingItemAt: authFileURL, options: [], error: &coordinationError) { url in
             do {
-                try data.write(to: url, options: [.atomic])
+                try CodexAuthFileReplacement.replaceContents(contents, at: url, fileManager: fileManager)
             } catch {
                 writeError = error
             }

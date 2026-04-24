@@ -52,4 +52,27 @@ nonisolated enum CodexCredentialStoreHint: String, Sendable, Equatable {
             "auto"
         }
     }
+
+    nonisolated static func detect(in folderURL: URL) -> CodexCredentialStoreHint {
+        let configURL = folderURL.appending(path: "config.toml", directoryHint: .notDirectory)
+        guard let contents = try? String(contentsOf: configURL, encoding: .utf8) else {
+            return .unknown
+        }
+
+        // Codex config is TOML. We only need this top-level scalar key, so keep
+        // the parser narrow instead of introducing a full TOML dependency.
+        let pattern = #"(?m)^\s*cli_auth_credentials_store\s*=\s*"([^"]+)""#
+        guard
+            let regex = try? NSRegularExpression(pattern: pattern),
+            let match = regex.firstMatch(
+                in: contents,
+                range: NSRange(contents.startIndex..., in: contents)
+            ),
+            let valueRange = Range(match.range(at: 1), in: contents)
+        else {
+            return .unknown
+        }
+
+        return CodexCredentialStoreHint(rawValue: String(contents[valueRange]).lowercased()) ?? .unknown
+    }
 }

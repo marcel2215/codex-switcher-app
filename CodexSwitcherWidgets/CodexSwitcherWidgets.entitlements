@@ -20,5 +20,9 @@
 	<array>
 		<string>group.com.marcel2215.codexswitcher</string>
 	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)group.com.marcel2215.codexswitcher</string>
+	</array>
 </dict>
 </plist>

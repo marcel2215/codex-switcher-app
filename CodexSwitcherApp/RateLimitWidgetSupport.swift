@@ -348,7 +348,7 @@ enum WidgetRateLimitResolver {
 }
 
 enum WidgetTimelineScheduler {
-    private static let minimumReloadInterval: TimeInterval = 60
+    private static let minimumReloadInterval: TimeInterval = 5 * 60
     private static let fallbackReloadInterval: TimeInterval = 30 * 60
 
     static func reloadDate(after now: Date, nextRefresh: Date?) -> Date {
@@ -405,7 +405,6 @@ struct RateLimitOverviewProvider: AppIntentTimelineProvider {
         in context: Context
     ) async -> RateLimitOverviewEntry {
         let state = WidgetRateLimitResolver.loadState()
-        await WidgetRateLimitResolver.synchronizeResetNotifications(with: state, isPreview: context.isPreview)
         return RateLimitOverviewEntry(
             date: .now,
             accounts: WidgetRateLimitResolver.overviewAccounts(
@@ -422,7 +421,6 @@ struct RateLimitOverviewProvider: AppIntentTimelineProvider {
     ) async -> Timeline<RateLimitOverviewEntry> {
         let now = Date()
         let state = WidgetRateLimitResolver.loadState()
-        await WidgetRateLimitResolver.synchronizeResetNotifications(with: state, isPreview: context.isPreview)
         let accounts = WidgetRateLimitResolver.overviewAccounts(
             for: configuration,
             family: context.family,
@@ -609,9 +607,6 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
         in context: Context
     ) async -> RateLimitAccessoryEntry {
         let state = WidgetRateLimitResolver.loadState()
-#if !os(watchOS)
-        await WidgetRateLimitResolver.synchronizeResetNotifications(with: state, isPreview: context.isPreview)
-#endif
         return RateLimitAccessoryEntry(
             date: .now,
             account: WidgetRateLimitResolver.accessoryAccount(for: configuration, state: state),
@@ -625,9 +620,6 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
     ) async -> Timeline<RateLimitAccessoryEntry> {
         let now = Date()
         let state = WidgetRateLimitResolver.loadState()
-#if !os(watchOS)
-        await WidgetRateLimitResolver.synchronizeResetNotifications(with: state, isPreview: context.isPreview)
-#endif
         let account = WidgetRateLimitResolver.accessoryAccount(for: configuration, state: state)
         let entry = RateLimitAccessoryEntry(date: now, account: account, window: configuration.window)
 
