@@ -343,6 +343,158 @@ struct Tests {
         #expect(await authFileManager.writeCount() == 0)
     }
 
+    @Test func plusButtonReplacesUnavailableCurrentAuthAccountMatchingEmail() async throws {
+        let previousAutomaticallyAddAccounts = CodexSharedPreferences.automaticallyAddAccounts
+        let previousAutomaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts
+        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.automaticallyAddAccounts)
+        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts)
+        defer {
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyAddAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyAddAccounts
+            )
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyRemoveAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts
+            )
+        }
+
+        let container = try makeInMemoryContainer()
+        let replacementEmail = "replacement@example.com"
+        let unavailableContents = makeChatGPTAuthJSON(
+            accountID: "acct-unavailable-current-old",
+            email: replacementEmail
+        )
+        let replacementContents = makeChatGPTAuthJSON(
+            accountID: "acct-unavailable-current-new",
+            email: replacementEmail
+        )
+        let unavailableSnapshot = try CodexAuthFile.parse(contents: unavailableContents)
+        let replacementSnapshot = try CodexAuthFile.parse(contents: replacementContents)
+        let authFileManager = FakeAuthFileManager(contents: replacementContents)
+        let secretStore = FakeSecretStore()
+        let officialLogin = FakeOfficialLoginCoordinator(
+            authContents: makeChatGPTAuthJSON(accountID: "acct-should-not-login")
+        )
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore,
+            officialLoginCoordinator: officialLogin
+        )
+        let unavailableAccount = StoredAccount(
+            identityKey: unavailableSnapshot.identityKey,
+            name: "Unavailable",
+            customOrder: 0,
+            authModeRaw: unavailableSnapshot.authMode.rawValue,
+            emailHint: unavailableSnapshot.email,
+            accountIdentifier: unavailableSnapshot.accountIdentifier
+        )
+        _ = AccountAvailabilityUpdater.markUnavailable(unavailableAccount, reason: .unauthorized)
+        container.mainContext.insert(unavailableAccount)
+        try container.mainContext.save()
+        try await secretStore.saveSnapshot(unavailableContents, forIdentityKey: unavailableSnapshot.identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.captureCurrentAccount()
+
+        try await waitUntil(iterations: 200, sleepMilliseconds: 10) {
+            await MainActor.run {
+                guard let account = try? fetchAccounts(in: container.mainContext).first else {
+                    return false
+                }
+
+                return account.identityKey == replacementSnapshot.identityKey && !account.isUnavailable
+            }
+        }
+
+        let accounts = try fetchAccounts(in: container.mainContext)
+        let replacedAccount = try #require(accounts.first)
+        #expect(accounts.count == 1)
+        #expect(replacedAccount.id == unavailableAccount.id)
+        #expect(replacedAccount.emailHint == replacementEmail)
+        #expect(controller.selection == [unavailableAccount.id])
+        #expect(controller.activeIdentityKey == replacementSnapshot.identityKey)
+        #expect(await officialLogin.loginCount() == 0)
+        #expect(await secretStore.secret(forIdentityKey: unavailableSnapshot.identityKey) == nil)
+        #expect(await secretStore.secret(forIdentityKey: replacementSnapshot.identityKey) == replacementContents)
+    }
+
+    @Test func officialLoginReplacesUnavailableAccountMatchingEmail() async throws {
+        let previousAutomaticallyAddAccounts = CodexSharedPreferences.automaticallyAddAccounts
+        let previousAutomaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts
+        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.automaticallyAddAccounts)
+        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts)
+        defer {
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyAddAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyAddAccounts
+            )
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyRemoveAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts
+            )
+        }
+
+        let container = try makeInMemoryContainer()
+        let replacementEmail = "oauth-replacement@example.com"
+        let unavailableContents = makeChatGPTAuthJSON(
+            accountID: "acct-unavailable-oauth-old",
+            email: replacementEmail
+        )
+        let replacementContents = makeChatGPTAuthJSON(
+            accountID: "acct-unavailable-oauth-new",
+            email: replacementEmail
+        )
+        let unavailableSnapshot = try CodexAuthFile.parse(contents: unavailableContents)
+        let replacementSnapshot = try CodexAuthFile.parse(contents: replacementContents)
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-missing-for-oauth"))
+        await authFileManager.setMissingAuthFile(true)
+        let secretStore = FakeSecretStore()
+        let officialLogin = FakeOfficialLoginCoordinator(authContents: replacementContents)
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore,
+            officialLoginCoordinator: officialLogin
+        )
+        let unavailableAccount = StoredAccount(
+            identityKey: unavailableSnapshot.identityKey,
+            name: "Unavailable OAuth",
+            customOrder: 0,
+            authModeRaw: unavailableSnapshot.authMode.rawValue,
+            emailHint: unavailableSnapshot.email,
+            accountIdentifier: unavailableSnapshot.accountIdentifier
+        )
+        _ = AccountAvailabilityUpdater.markUnavailable(unavailableAccount, reason: .unauthorized)
+        container.mainContext.insert(unavailableAccount)
+        try container.mainContext.save()
+        try await secretStore.saveSnapshot(unavailableContents, forIdentityKey: unavailableSnapshot.identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.captureCurrentAccount()
+
+        try await waitUntil(iterations: 200, sleepMilliseconds: 10) {
+            await MainActor.run {
+                guard let account = try? fetchAccounts(in: container.mainContext).first else {
+                    return false
+                }
+
+                return account.identityKey == replacementSnapshot.identityKey && !account.isUnavailable
+            }
+        }
+
+        let accounts = try fetchAccounts(in: container.mainContext)
+        let replacedAccount = try #require(accounts.first)
+        #expect(accounts.count == 1)
+        #expect(replacedAccount.id == unavailableAccount.id)
+        #expect(replacedAccount.emailHint == replacementEmail)
+        #expect(controller.selection == [unavailableAccount.id])
+        #expect(controller.presentedAlert == nil)
+        #expect(await officialLogin.loginCount() == 1)
+        #expect(await authFileManager.writeCount() == 0)
+        #expect(await secretStore.secret(forIdentityKey: unavailableSnapshot.identityKey) == nil)
+        #expect(await secretStore.secret(forIdentityKey: replacementSnapshot.identityKey) == replacementContents)
+    }
+
     @Test func officialLoginUsesDirectOAuthWhenCodexCommandIsMissing() async throws {
         let temporaryDirectory = try makeTemporaryDirectory()
         let authContents = makeChatGPTAuthJSON(accountID: "acct-direct-oauth")
@@ -425,6 +577,144 @@ struct Tests {
 
         let account = try #require(fetchAccounts(in: container.mainContext).first)
         #expect(account.emailHint == "acct-auto-on@example.com")
+    }
+
+    @Test func automaticAccountObservationReplacesUnavailableAccountMatchingEmail() async throws {
+        let previousAutomaticallyAddAccounts = CodexSharedPreferences.automaticallyAddAccounts
+        let previousAutomaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts
+        CodexSharedPreferences.userDefaults.set(true, forKey: CodexSharedPreferenceKey.automaticallyAddAccounts)
+        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts)
+        defer {
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyAddAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyAddAccounts
+            )
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyRemoveAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts
+            )
+        }
+
+        let container = try makeInMemoryContainer()
+        let replacementEmail = "auto-replacement@example.com"
+        let unavailableContents = makeChatGPTAuthJSON(
+            accountID: "acct-unavailable-auto-old",
+            email: replacementEmail
+        )
+        let replacementContents = makeChatGPTAuthJSON(
+            accountID: "acct-unavailable-auto-new",
+            email: replacementEmail
+        )
+        let unavailableSnapshot = try CodexAuthFile.parse(contents: unavailableContents)
+        let replacementSnapshot = try CodexAuthFile.parse(contents: replacementContents)
+        let authFileManager = FakeAuthFileManager(contents: unavailableContents)
+        let secretStore = FakeSecretStore()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore
+        )
+        let unavailableAccount = StoredAccount(
+            identityKey: unavailableSnapshot.identityKey,
+            name: "Unavailable Auto",
+            customOrder: 0,
+            authModeRaw: unavailableSnapshot.authMode.rawValue,
+            emailHint: unavailableSnapshot.email,
+            accountIdentifier: unavailableSnapshot.accountIdentifier
+        )
+        _ = AccountAvailabilityUpdater.markUnavailable(unavailableAccount, reason: .unauthorized)
+        container.mainContext.insert(unavailableAccount)
+        try container.mainContext.save()
+        try await secretStore.saveSnapshot(unavailableContents, forIdentityKey: unavailableSnapshot.identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        try await waitUntil {
+            await authFileManager.hasChangeMonitor()
+        }
+
+        await authFileManager.simulateExternalChange(to: replacementContents)
+
+        try await waitUntil(iterations: 120, sleepMilliseconds: 50) {
+            await MainActor.run {
+                guard let account = try? fetchAccounts(in: container.mainContext).first else {
+                    return false
+                }
+
+                return account.identityKey == replacementSnapshot.identityKey && !account.isUnavailable
+            }
+        }
+
+        let accounts = try fetchAccounts(in: container.mainContext)
+        let replacedAccount = try #require(accounts.first)
+        #expect(accounts.count == 1)
+        #expect(replacedAccount.id == unavailableAccount.id)
+        #expect(replacedAccount.emailHint == replacementEmail)
+        #expect(await secretStore.secret(forIdentityKey: unavailableSnapshot.identityKey) == nil)
+        #expect(await secretStore.secret(forIdentityKey: replacementSnapshot.identityKey) == replacementContents)
+    }
+
+    @Test func enablingAutomaticRemoveAccountsRemovesExistingUnavailableAccounts() async throws {
+        let previousAutomaticallyAddAccounts = CodexSharedPreferences.automaticallyAddAccounts
+        let previousAutomaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts
+        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.automaticallyAddAccounts)
+        CodexSharedPreferences.userDefaults.set(true, forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts)
+        defer {
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyAddAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyAddAccounts
+            )
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyRemoveAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts
+            )
+        }
+
+        let container = try makeInMemoryContainer()
+        let unavailableContents = makeChatGPTAuthJSON(accountID: "acct-auto-remove-unavailable")
+        let availableContents = makeChatGPTAuthJSON(accountID: "acct-auto-remove-available")
+        let unavailableSnapshot = try CodexAuthFile.parse(contents: unavailableContents)
+        let availableSnapshot = try CodexAuthFile.parse(contents: availableContents)
+        let authFileManager = FakeAuthFileManager(contents: availableContents)
+        let secretStore = FakeSecretStore()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore
+        )
+        let unavailableAccount = StoredAccount(
+            identityKey: unavailableSnapshot.identityKey,
+            name: "Unavailable",
+            customOrder: 0,
+            authModeRaw: unavailableSnapshot.authMode.rawValue,
+            emailHint: unavailableSnapshot.email,
+            accountIdentifier: unavailableSnapshot.accountIdentifier
+        )
+        _ = AccountAvailabilityUpdater.markUnavailable(unavailableAccount, reason: .unauthorized)
+        let availableAccount = StoredAccount(
+            identityKey: availableSnapshot.identityKey,
+            name: "Available",
+            customOrder: 1,
+            authModeRaw: availableSnapshot.authMode.rawValue,
+            emailHint: availableSnapshot.email,
+            accountIdentifier: availableSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(unavailableAccount)
+        container.mainContext.insert(availableAccount)
+        try container.mainContext.save()
+        try await secretStore.saveSnapshot(unavailableContents, forIdentityKey: unavailableSnapshot.identityKey)
+        try await secretStore.saveSnapshot(availableContents, forIdentityKey: availableSnapshot.identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.removeUnavailableAccountsIfAutomaticRemoveEnabled()
+
+        try await waitUntil(iterations: 200, sleepMilliseconds: 10) {
+            await MainActor.run {
+                (try? fetchAccounts(in: container.mainContext).count) == 1
+            }
+        }
+
+        let remainingAccount = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(remainingAccount.id == availableAccount.id)
+        #expect(await secretStore.secret(forIdentityKey: unavailableSnapshot.identityKey) == nil)
+        #expect(await secretStore.secret(forIdentityKey: availableSnapshot.identityKey) == availableContents)
     }
 
     @Test func captureMissingAuthFileShowsErrorAlert() async throws {

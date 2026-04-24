@@ -111,7 +111,7 @@ struct CodexSwitcherApp: App {
                 autopilotEnabled: autopilotBinding,
                 showNoneAccount: showNoneAccountBinding,
                 automaticallyAddAccounts: $automaticallyAddAccounts,
-                automaticallyRemoveAccounts: $automaticallyRemoveAccounts,
+                automaticallyRemoveAccounts: automaticallyRemoveAccountsBinding,
                 showMenuBarExtra: showMenuBarExtraBinding,
                 menuBarIcon: menuBarIconBinding,
                 areAppPreferencesAtDefaults: areAppPreferencesAtDefaults,
@@ -203,6 +203,21 @@ struct CodexSwitcherApp: App {
         )
     }
 
+    private var automaticallyRemoveAccountsBinding: Binding<Bool> {
+        Binding(
+            get: {
+                automaticallyRemoveAccounts
+            },
+            set: { newValue in
+                let wasEnabled = automaticallyRemoveAccounts
+                automaticallyRemoveAccounts = newValue
+                if newValue && !wasEnabled {
+                    controller.removeUnavailableAccountsIfAutomaticRemoveEnabled()
+                }
+            }
+        )
+    }
+
     private var menuBarIconBinding: Binding<MenuBarIconOption> {
         Binding(
             get: {
@@ -281,6 +296,9 @@ struct CodexSwitcherApp: App {
 
     private func applyRuntimePreferences() {
         controller.setAutopilotEnabled(autopilotEnabled)
+        if automaticallyRemoveAccounts {
+            controller.removeUnavailableAccountsIfAutomaticRemoveEnabled()
+        }
         applicationDelegate.applyBackgroundResidency(
             menuBarEnabled: showMenuBarExtra,
             autopilotEnabled: autopilotEnabled

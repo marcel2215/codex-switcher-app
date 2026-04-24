@@ -1040,12 +1040,28 @@ final class AppController {
             let modelContext = try requireModelContext()
             let accounts = try fetchAccounts()
 
-            if let existingAccount = accounts.first(where: { $0.identityKey == snapshot.identityKey }) {
-                _ = try await storeSnapshot(snapshot, on: existingAccount)
-                _ = AccountAvailabilityUpdater.markAvailable(existingAccount)
+            if let match = accountMatch(for: snapshot, in: accounts) {
+                let recoveredUnavailableAccount = match.recoversUnavailableAccount
+                _ = try await storeSnapshot(snapshot, on: match.account)
+                _ = AccountAvailabilityUpdater.markAvailable(match.account)
+                let removedUnavailableDuplicates = await removeUnavailableReplacementDuplicates(
+                    matching: snapshot,
+                    keeping: match.account,
+                    from: accounts,
+                    in: modelContext
+                )
                 try modelContext.save()
                 requestImmediateRateLimitRefresh(for: snapshot.identityKey)
-                return false
+                guard recoveredUnavailableAccount || removedUnavailableDuplicates else {
+                    return false
+                }
+
+                selection = [match.account.id]
+                activeIdentityKey = snapshot.identityKey
+                authAccessState = .ready(linkedFolder: readResult.url.deletingLastPathComponent())
+                searchText = ""
+                publishSharedState()
+                return true
             }
 
             try await addStoredAccount(
@@ -1074,19 +1090,28 @@ final class AppController {
             let accounts = try fetchAccounts()
             let importedAt = Date()
 
-            if let existingAccount = accounts.first(where: { $0.identityKey == result.parsedAuth.identityKey }) {
-                _ = try await storeSnapshot(result.parsedAuth, on: existingAccount)
-                _ = AccountAvailabilityUpdater.markAvailable(existingAccount, checkedAt: importedAt)
-                selection = [existingAccount.id]
+            if let match = accountMatch(for: result.parsedAuth, in: accounts) {
+                let recoveredUnavailableAccount = match.recoversUnavailableAccount
+                _ = try await storeSnapshot(result.parsedAuth, on: match.account)
+                _ = AccountAvailabilityUpdater.markAvailable(match.account, checkedAt: importedAt)
+                let removedUnavailableDuplicates = await removeUnavailableReplacementDuplicates(
+                    matching: result.parsedAuth,
+                    keeping: match.account,
+                    from: accounts,
+                    in: modelContext
+                )
+                selection = [match.account.id]
                 try modelContext.save()
                 publishSharedState()
                 requestImmediateRateLimitRefresh(for: result.parsedAuth.identityKey)
-                present(
-                    UserFacingAlert(
-                        title: "Account Already Saved",
-                        message: "This account is already in Codex Switcher. Its saved auth snapshot was refreshed."
+                if !recoveredUnavailableAccount && !removedUnavailableDuplicates {
+                    present(
+                        UserFacingAlert(
+                            title: "Account Already Saved",
+                            message: "This account is already in Codex Switcher. Its saved auth snapshot was refreshed."
+                        )
                     )
-                )
+                }
                 return
             }
 
@@ -1135,11 +1160,17 @@ final class AppController {
             let accounts = try fetchAccounts()
             let captureAt = Date()
 
-            if let existingAccount = accounts.first(where: { $0.identityKey == snapshot.identityKey }) {
-                _ = try await storeSnapshot(snapshot, on: existingAccount)
-                _ = AccountAvailabilityUpdater.markAvailable(existingAccount, checkedAt: captureAt)
-                _ = StoredAccountMutations.applyLastLogin(captureAt, to: existingAccount)
-                selection = [existingAccount.id]
+            if let match = accountMatch(for: snapshot, in: accounts) {
+                _ = try await storeSnapshot(snapshot, on: match.account)
+                _ = AccountAvailabilityUpdater.markAvailable(match.account, checkedAt: captureAt)
+                _ = StoredAccountMutations.applyLastLogin(captureAt, to: match.account)
+                _ = await removeUnavailableReplacementDuplicates(
+                    matching: snapshot,
+                    keeping: match.account,
+                    from: accounts,
+                    in: modelContext
+                )
+                selection = [match.account.id]
             } else {
                 try await addStoredAccount(
                     from: snapshot,
@@ -1192,6 +1223,179 @@ final class AppController {
         _ = AccountAvailabilityUpdater.markAvailable(account, checkedAt: addedAt)
         modelContext.insert(account)
         selection = [account.id]
+    }
+
+    func removeUnavailableAccountsIfAutomaticRemoveEnabled() {
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.removeUnavailableAccountsIfNeeded()
+        }
+    }
+
+    private func removeUnavailableAccountsIfNeeded() async {
+        await waitForInitializationIfNeeded()
+
+        guard CodexSharedPreferences.automaticallyRemoveAccounts else {
+            return
+        }
+
+        do {
+            let unavailableAccountIDs = Set(
+                try fetchAccounts()
+                    .filter(\.isUnavailable)
+                    .map(\.id)
+            )
+            guard !unavailableAccountIDs.isEmpty else {
+                return
+            }
+
+            _ = await removeAccountsNow(
+                withIDs: unavailableAccountIDs,
+                allowsInteractiveRecovery: false
+            )
+        } catch {
+            logger.error("Couldn't scan unavailable accounts for automatic removal: \(String(describing: error), privacy: .private)")
+        }
+    }
+
+    private struct SnapshotAccountMatch {
+        let account: StoredAccount
+        let recoversUnavailableAccount: Bool
+    }
+
+    private func accountMatch(
+        for snapshot: CodexAuthSnapshot,
+        in accounts: [StoredAccount]
+    ) -> SnapshotAccountMatch? {
+        if let exactAccount = accounts.first(where: { $0.identityKey == snapshot.identityKey }) {
+            return SnapshotAccountMatch(
+                account: exactAccount,
+                recoversUnavailableAccount: exactAccount.isUnavailable
+            )
+        }
+
+        guard let replacement = unavailableReplacementCandidates(
+            matching: snapshot,
+            in: accounts
+        ).first else {
+            return nil
+        }
+
+        return SnapshotAccountMatch(account: replacement, recoversUnavailableAccount: true)
+    }
+
+    @discardableResult
+    private func removeUnavailableReplacementDuplicates(
+        matching snapshot: CodexAuthSnapshot,
+        keeping keptAccount: StoredAccount,
+        from accounts: [StoredAccount],
+        in modelContext: ModelContext
+    ) async -> Bool {
+        let duplicates = unavailableReplacementCandidates(matching: snapshot, in: accounts)
+            .filter { $0.id != keptAccount.id }
+        guard !duplicates.isEmpty else {
+            return false
+        }
+
+        let duplicateIDs = Set(duplicates.map(\.id))
+        let duplicateIdentityKeys = Set(duplicates.map(\.identityKey).filter { !$0.isEmpty })
+        let remainingIdentityKeys = Set(
+            accounts
+                .filter { !duplicateIDs.contains($0.id) }
+                .map(\.identityKey)
+                .filter { !$0.isEmpty }
+        )
+
+        for duplicate in duplicates {
+            if !remainingIdentityKeys.contains(duplicate.identityKey) {
+                try? await secretStore.deleteSnapshot(forIdentityKey: duplicate.identityKey)
+                try? await syncedRateLimitCredentialStore.delete(forIdentityKey: duplicate.identityKey)
+            }
+
+            modelContext.delete(duplicate)
+        }
+
+        selection.subtract(duplicateIDs)
+        if let renameTargetID, duplicateIDs.contains(renameTargetID) {
+            self.renameTargetID = nil
+        }
+
+        for identityKey in duplicateIdentityKeys {
+            rateLimitSnapshotsByIdentityKey.removeValue(forKey: identityKey)
+            visibleRateLimitIdentityCounts.removeValue(forKey: identityKey)
+            pendingForcedRateLimitRefreshes.remove(identityKey)
+            rateLimitRefreshesInFlight.remove(identityKey)
+            rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
+            rateLimitFailureBackoffDurations.removeValue(forKey: identityKey)
+        }
+
+        return true
+    }
+
+    private func unavailableReplacementCandidates(
+        matching snapshot: CodexAuthSnapshot,
+        in accounts: [StoredAccount]
+    ) -> [StoredAccount] {
+        accounts
+            .filter { account in
+                guard account.isUnavailable else {
+                    return false
+                }
+
+                return Self.unavailableAccount(account, matches: snapshot)
+            }
+            .sorted { lhs, rhs in
+                let snapshotIdentifier = Self.normalizedAccountMatchValue(snapshot.accountIdentifier)
+                let lhsIdentifierMatches = snapshotIdentifier != nil
+                    && Self.normalizedAccountMatchValue(lhs.accountIdentifier) == snapshotIdentifier
+                let rhsIdentifierMatches = snapshotIdentifier != nil
+                    && Self.normalizedAccountMatchValue(rhs.accountIdentifier) == snapshotIdentifier
+
+                if lhsIdentifierMatches != rhsIdentifierMatches {
+                    return lhsIdentifierMatches
+                }
+
+                return lhs.createdAt < rhs.createdAt
+            }
+    }
+
+    private static func unavailableAccount(
+        _ account: StoredAccount,
+        matches snapshot: CodexAuthSnapshot
+    ) -> Bool {
+        if account.identityKey == snapshot.identityKey {
+            return true
+        }
+
+        if let accountIdentifier = normalizedAccountMatchValue(account.accountIdentifier),
+           let snapshotIdentifier = normalizedAccountMatchValue(snapshot.accountIdentifier),
+           accountIdentifier == snapshotIdentifier {
+            return true
+        }
+
+        if let accountEmail = normalizedAccountMatchValue(account.emailHint),
+           let snapshotEmail = normalizedAccountMatchValue(snapshot.email),
+           accountEmail == snapshotEmail {
+            return true
+        }
+
+        return false
+    }
+
+    private nonisolated static func normalizedAccountMatchValue(_ value: String?) -> String? {
+        guard let value else {
+            return nil
+        }
+
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedValue.isEmpty else {
+            return nil
+        }
+
+        return trimmedValue.lowercased()
     }
 
     func switchToAccountNow(
@@ -1877,11 +2081,18 @@ final class AppController {
             let modelContext = try requireModelContext()
             let accounts = try fetchAccounts()
 
-            if let existingAccount = accounts.first(where: { $0.identityKey == snapshot.identityKey }) {
-                _ = try await storeSnapshot(snapshot, on: existingAccount)
-                _ = AccountAvailabilityUpdater.markAvailable(existingAccount)
+            if let match = accountMatch(for: snapshot, in: accounts) {
+                _ = try await storeSnapshot(snapshot, on: match.account)
+                _ = AccountAvailabilityUpdater.markAvailable(match.account)
+                _ = await removeUnavailableReplacementDuplicates(
+                    matching: snapshot,
+                    keeping: match.account,
+                    from: accounts,
+                    in: modelContext
+                )
                 try modelContext.save()
                 publishSharedState()
+                requestImmediateRateLimitRefresh(for: snapshot.identityKey)
                 return
             }
 
@@ -3003,7 +3214,11 @@ final class AppController {
 
                 do {
                     let snapshot = try await parseSnapshot(from: storedContents)
-                    didChange = (try await storeSnapshot(snapshot, on: account)) || didChange
+                    didChange = (try await storeSnapshot(
+                        snapshot,
+                        on: account,
+                        updatesAvailability: false
+                    )) || didChange
                 } catch {
                     logger.error("Stored snapshot reconciliation failed for account \(account.id.uuidString, privacy: .public): \(String(describing: error), privacy: .private)")
                 }
@@ -3463,12 +3678,15 @@ final class AppController {
     private func storeSnapshot(
         _ snapshot: CodexAuthSnapshot,
         rateLimitObservation: CodexRateLimitObservation? = nil,
-        on account: StoredAccount
+        on account: StoredAccount,
+        updatesAvailability: Bool = true
     ) async throws -> Bool {
         let modelContext = try requireModelContext()
         let previousIdentityKey = account.identityKey
         let metadataChanged = update(account: account, from: snapshot)
-        let availabilityChanged = AccountAvailabilityUpdater.markAvailable(account)
+        let availabilityChanged = updatesAvailability
+            ? AccountAvailabilityUpdater.markAvailable(account)
+            : false
         let rateLimitsChanged = rateLimitObservation.map {
             RateLimitAccountUpdater.apply($0, identityKey: snapshot.identityKey, to: account)
         } ?? false

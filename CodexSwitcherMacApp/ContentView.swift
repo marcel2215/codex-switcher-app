@@ -343,11 +343,9 @@ struct ContentView: View {
 
     private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
         """
-        The saved Codex auth snapshot for "\(prompt.accountName)" is no longer accepted. It may have expired, been revoked, or been invalidated by a Codex logout.
+        The saved auth for "\(prompt.accountName)" no longer works. Remove it from Codex Switcher, or keep it and sign in again to replace it.
 
-        Do not use the Log out button in the Codex app to fix this. Codex logout can revoke managed ChatGPT tokens. To use this account again, keep it here, select None to locally clear auth.json, sign in again, then press + to capture a fresh snapshot.
-
-        Would you like to remove this account from Codex Switcher or keep it?
+        Do not use Codex's Log out button; it can revoke ChatGPT tokens.
         """
     }
 
