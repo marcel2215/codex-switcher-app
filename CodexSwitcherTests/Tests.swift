@@ -243,9 +243,11 @@ struct Tests {
         let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-prepared-share")
         let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)
         let snapshotStore = FakeSnapshotStore()
+        let lastLoginAt = Date(timeIntervalSince1970: 1_700_000_000)
         let account = StoredAccount(
             identityKey: snapshot.identityKey,
             name: "Prepared Share",
+            lastLoginAt: lastLoginAt,
             customOrder: 0,
             authModeRaw: snapshot.authMode.rawValue,
             emailHint: snapshot.email,
@@ -266,6 +268,37 @@ struct Tests {
         let archivedAccount = try #require(archive.accounts.first)
         #expect(archivedAccount.snapshotContents == snapshotContents)
         #expect(archivedAccount.identityKey == snapshot.identityKey)
+        #expect(archivedAccount.lastLoginAt == lastLoginAt)
+    }
+
+    @Test
+    func importingArchiveRestoresLastLogin() async throws {
+        let snapshotContents = makeChatGPTAuthJSON(accountID: "acct-import-last-login")
+        let snapshot = try SharedCodexAuthFile.parse(contents: snapshotContents)
+        let lastLoginAt = Date(timeIntervalSince1970: 1_700_123_456)
+        let harness = try makeHarness(accounts: [])
+        let archiveURL = try makeArchiveFile(
+            archive: CodexAccountArchive(
+                name: "Imported Login",
+                iconSystemName: AccountIconOption.defaultOption.systemName,
+                identityKey: snapshot.identityKey,
+                authModeRaw: snapshot.authMode.rawValue,
+                emailHint: snapshot.email,
+                accountIdentifier: snapshot.accountIdentifier,
+                lastLoginAt: lastLoginAt,
+                snapshotContents: snapshotContents
+            )
+        )
+        defer { try? FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent()) }
+
+        let importedAccountIDs = await harness.controller.importAccountArchives(
+            from: [archiveURL],
+            in: harness.modelContext
+        )
+
+        let importedAccount = try #require(fetchAccounts(in: harness.modelContext).first)
+        #expect(importedAccountIDs == [importedAccount.id])
+        #expect(importedAccount.lastLoginAt == lastLoginAt)
     }
 
     @Test
@@ -653,6 +686,65 @@ struct Tests {
     }
 
     @Test
+    func sharedLastLoginReconciliationUpdatesSwiftData() throws {
+        let olderLastLoginAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let newerLastLoginAt = Date(timeIntervalSince1970: 1_700_086_400)
+        let account = makeAccount(
+            name: "Shared Login",
+            customOrder: 0,
+            lastLoginAt: olderLastLoginAt
+        )
+        let harness = try makeHarness(accounts: [account])
+        let stateBaseURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "CodexSwitcherSharedLastLoginTests-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        defer { try? FileManager.default.removeItem(at: stateBaseURL) }
+
+        try CodexSharedStateStore(baseURL: stateBaseURL).save(
+            SharedCodexState(
+                schemaVersion: SharedCodexState.currentSchemaVersion,
+                authState: .ready,
+                linkedFolderPath: nil,
+                currentAccountID: account.identityKey,
+                selectedAccountID: nil,
+                selectedAccountIsLive: false,
+                accounts: [
+                    SharedCodexAccountRecord(
+                        id: account.identityKey,
+                        name: account.name,
+                        iconSystemName: account.iconSystemName,
+                        emailHint: account.emailHint,
+                        accountIdentifier: account.accountIdentifier,
+                        authModeRaw: account.authModeRaw,
+                        lastLoginAt: newerLastLoginAt,
+                        sevenDayLimitUsedPercent: nil,
+                        fiveHourLimitUsedPercent: nil,
+                        sevenDayResetsAt: nil,
+                        fiveHourResetsAt: nil,
+                        sevenDayDataStatusRaw: RateLimitMetricDataStatus.missing.rawValue,
+                        fiveHourDataStatusRaw: RateLimitMetricDataStatus.missing.rawValue,
+                        rateLimitsObservedAt: nil,
+                        sortOrder: account.customOrder,
+                        isPinned: account.isPinned,
+                        hasLocalSnapshot: true
+                    )
+                ],
+                updatedAt: newerLastLoginAt
+            )
+        )
+
+        let didChange = try StoredAccountMutations.applySharedLastLoginUpdates(
+            in: harness.modelContext,
+            stateStore: CodexSharedStateStore(baseURL: stateBaseURL)
+        )
+
+        let refreshedAccount = try #require(fetchAccounts(in: harness.modelContext).first)
+        #expect(didChange)
+        #expect(refreshedAccount.lastLoginAt == newerLastLoginAt)
+    }
+
+    @Test
     func restoringCustomSortForcesAscendingDirection() throws {
         let harness = try makeHarness(accounts: [])
 
@@ -777,12 +869,14 @@ private func makeAccount(
     accountIdentifier: String? = nil,
     customOrder: Double,
     isPinned: Bool = false,
-    iconSystemName: String = AccountIconOption.defaultOption.systemName
+    iconSystemName: String = AccountIconOption.defaultOption.systemName,
+    lastLoginAt: Date? = nil
 ) -> StoredAccount {
     StoredAccount(
         identityKey: "identity-\(UUID().uuidString)",
         name: name,
         createdAt: .now,
+        lastLoginAt: lastLoginAt,
         customOrder: customOrder,
         isPinned: isPinned,
         authModeRaw: "chatgpt",

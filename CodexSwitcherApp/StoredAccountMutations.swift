@@ -10,6 +10,66 @@ import SwiftData
 
 enum StoredAccountMutations {
     @MainActor
+    @discardableResult
+    static func applyLastLogin(_ lastLoginAt: Date?, to account: StoredAccount) -> Bool {
+        guard let lastLoginAt, !account.isDeleted else {
+            return false
+        }
+
+        if let existingLastLoginAt = account.lastLoginAt,
+           existingLastLoginAt >= lastLoginAt {
+            return false
+        }
+
+        account.lastLoginAt = lastLoginAt
+        return true
+    }
+
+    @MainActor
+    @discardableResult
+    static func applySharedLastLoginUpdates(
+        in modelContext: ModelContext,
+        stateStore: CodexSharedStateStore = CodexSharedStateStore()
+    ) throws -> Bool {
+        // Extension-driven switches update the App Group snapshot first; merge
+        // the newest timestamp back into SwiftData when the app next runs.
+        var sharedLastLoginByIdentityKey: [String: Date] = [:]
+        for account in try stateStore.load().accounts {
+            guard let lastLoginAt = account.lastLoginAt else {
+                continue
+            }
+
+            let identityKey = account.id.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !identityKey.isEmpty else {
+                continue
+            }
+
+            if let existingLastLoginAt = sharedLastLoginByIdentityKey[identityKey],
+               existingLastLoginAt >= lastLoginAt {
+                continue
+            }
+
+            sharedLastLoginByIdentityKey[identityKey] = lastLoginAt
+        }
+
+        guard !sharedLastLoginByIdentityKey.isEmpty else {
+            return false
+        }
+
+        var didChange = false
+        for account in try modelContext.fetch(FetchDescriptor<StoredAccount>()) {
+            let identityKey = account.identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            didChange = applyLastLogin(sharedLastLoginByIdentityKey[identityKey], to: account) || didChange
+        }
+
+        if didChange {
+            try modelContext.save()
+        }
+
+        return didChange
+    }
+
+    @MainActor
     static func rename(
         _ account: StoredAccount,
         to proposedName: String,

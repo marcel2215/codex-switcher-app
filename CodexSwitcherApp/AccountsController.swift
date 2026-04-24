@@ -313,6 +313,10 @@ final class IOSAccountsController {
                                     archivedAccount,
                                     to: existingAccount
                                 )
+                                _ = StoredAccountMutations.applyLastLogin(
+                                    archivedAccount.lastLoginAt,
+                                    to: existingAccount
+                                )
 
                                 // Treat a byte-for-byte re-import as a successful
                                 // selection/import operation rather than surfacing a
@@ -332,6 +336,7 @@ final class IOSAccountsController {
                                 identityKey: snapshot.identityKey,
                                 name: archivedAccount.preferredStoredName
                                     ?? Self.defaultName(for: snapshot, existingAccounts: allAccounts),
+                                lastLoginAt: archivedAccount.lastLoginAt,
                                 customOrder: nextCustomOrder,
                                 authModeRaw: snapshot.authMode.rawValue,
                                 emailHint: snapshot.email,

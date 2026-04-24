@@ -261,6 +261,7 @@ struct AccountsRootView: View {
         rateLimitRefreshController.reconcileKnownIdentityKeys(accounts.map(\.identityKey))
         rateLimitRefreshController.setScenePhase(scenePhase)
         syncRegularSelectedRateLimitTracking(for: selectedAccountID)
+        applySharedLastLoginUpdatesIfNeeded()
         await performCloudSyncMaintenanceIfNeeded()
         publishWidgetSnapshot(
             allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
@@ -293,6 +294,7 @@ struct AccountsRootView: View {
             return
         }
 
+        applySharedLastLoginUpdatesIfNeeded()
         await performCloudSyncMaintenanceIfNeeded()
         publishWidgetSnapshot(
             allowEmptyStoreFallback: WidgetSnapshotPublisher.shouldAllowInitialEmptyStoreFallback
@@ -301,6 +303,14 @@ struct AccountsRootView: View {
         applyPendingQuickActionIfPossible()
         consumePendingAccountOpenRequestIfPossible()
         openNotificationSettingsIfRequested()
+    }
+
+    private func applySharedLastLoginUpdatesIfNeeded() {
+        do {
+            _ = try StoredAccountMutations.applySharedLastLoginUpdates(in: modelContext)
+        } catch {
+            Self.logger.error("Shared last-login reconciliation failed: \(String(describing: error), privacy: .private)")
+        }
     }
 
     private func openNotificationSettingsIfRequested() {

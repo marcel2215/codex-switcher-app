@@ -56,6 +56,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         let authModeRaw: String?
         let emailHint: String?
         let accountIdentifier: String?
+        let lastLoginAt: Date?
         let snapshotContents: String
 
         var id: String {
@@ -69,6 +70,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             authModeRaw: String?,
             emailHint: String?,
             accountIdentifier: String?,
+            lastLoginAt: Date? = nil,
             snapshotContents: String
         ) {
             self.name = CodexAccountArchive.normalizedOptionalString(name)
@@ -77,6 +79,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             self.authModeRaw = CodexAccountArchive.normalizedOptionalString(authModeRaw)
             self.emailHint = CodexAccountArchive.normalizedOptionalString(emailHint)
             self.accountIdentifier = CodexAccountArchive.normalizedOptionalString(accountIdentifier)
+            self.lastLoginAt = lastLoginAt
             self.snapshotContents = snapshotContents
         }
 
@@ -135,6 +138,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         authModeRaw: String?,
         emailHint: String?,
         accountIdentifier: String?,
+        lastLoginAt: Date? = nil,
         snapshotContents: String
     ) {
         self.init(
@@ -148,6 +152,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
                     authModeRaw: authModeRaw,
                     emailHint: emailHint,
                     accountIdentifier: accountIdentifier,
+                    lastLoginAt: lastLoginAt,
                     snapshotContents: snapshotContents
                 )
             ]
@@ -164,6 +169,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         case authModeRaw
         case emailHint
         case accountIdentifier
+        case lastLoginAt
         case snapshotContents
     }
 
@@ -187,6 +193,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         let authModeRaw = try container.decodeIfPresent(String.self, forKey: .authModeRaw)
         let emailHint = try container.decodeIfPresent(String.self, forKey: .emailHint)
         let accountIdentifier = try container.decodeIfPresent(String.self, forKey: .accountIdentifier)
+        let lastLoginAt = try container.decodeIfPresent(Date.self, forKey: .lastLoginAt)
         let snapshotContents = try container.decode(String.self, forKey: .snapshotContents)
         self.accounts = [
             Account(
@@ -196,6 +203,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
                 authModeRaw: authModeRaw,
                 emailHint: emailHint,
                 accountIdentifier: accountIdentifier,
+                lastLoginAt: lastLoginAt,
                 snapshotContents: snapshotContents
             )
         ]
@@ -254,6 +262,10 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
 
     var accountIdentifier: String? {
         primaryAccount?.accountIdentifier
+    }
+
+    var lastLoginAt: Date? {
+        primaryAccount?.lastLoginAt
     }
 
     var snapshotContents: String {
@@ -418,6 +430,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
     let authModeRaw: String
     let emailHint: String?
     let accountIdentifier: String?
+    let lastLoginAt: Date?
     let suggestedFilename: String
 
     var resolvedSuggestedFilename: String {
@@ -432,6 +445,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
             Self.keyComponent(authModeRaw),
             Self.keyComponent(emailHint),
             Self.keyComponent(accountIdentifier),
+            Self.keyComponent(lastLoginAt.map { String($0.timeIntervalSinceReferenceDate) }),
             Self.keyComponent(suggestedFilename),
         ].joined(separator: "|")
     }
@@ -447,6 +461,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
         self.authModeRaw = account.authModeRaw
         self.emailHint = account.emailHint
         self.accountIdentifier = account.accountIdentifier
+        self.lastLoginAt = account.lastLoginAt
         self.suggestedFilename = CodexAccountArchive(
             name: self.name ?? AccountsPresentationLogic.displayName(for: account),
             iconSystemName: self.iconSystemName,
@@ -454,6 +469,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
             authModeRaw: self.authModeRaw,
             emailHint: self.emailHint,
             accountIdentifier: self.accountIdentifier,
+            lastLoginAt: self.lastLoginAt,
             snapshotContents: "{}"
         ).suggestedFilename
     }
@@ -550,6 +566,7 @@ actor CodexAccountArchiveFileExporter {
                     authModeRaw: account.authModeRaw,
                     emailHint: account.emailHint,
                     accountIdentifier: account.accountIdentifier,
+                    lastLoginAt: account.lastLoginAt,
                     snapshotContents: snapshotContents
                 )
             )

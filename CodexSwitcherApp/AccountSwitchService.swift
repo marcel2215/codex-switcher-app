@@ -178,6 +178,8 @@ struct CodexSharedAccountSwitchService: Sendable {
         guard let account = state.account(withIdentityKey: identityKey) else {
             throw CodexSharedSwitchError.accountNotFound(identityKey)
         }
+        var outcomeAccount = account
+        let loginAt = Date()
 
         let authFileContents: String
         do {
@@ -230,18 +232,31 @@ struct CodexSharedAccountSwitchService: Sendable {
         state.authState = .ready
         state.linkedFolderPath = folderURL.path
         state.currentAccountID = identityKey
-        state.updatedAt = .now
+        state.updatedAt = loginAt
         state.accounts = state.accounts.map { existingAccount in
             var updatedAccount = existingAccount
-            if didWriteAuthFile, updatedAccount.id == identityKey {
-                updatedAccount.lastLoginAt = .now
+            if updatedAccount.id == identityKey {
+                Self.applyLastLogin(loginAt, to: &updatedAccount)
+                outcomeAccount = updatedAccount
             }
 
             return updatedAccount
         }
         try stateStore.save(state)
 
-        return didWriteAuthFile ? .switched(account) : .alreadyCurrent(account)
+        return didWriteAuthFile ? .switched(outcomeAccount) : .alreadyCurrent(outcomeAccount)
+    }
+
+    private nonisolated static func applyLastLogin(
+        _ lastLoginAt: Date,
+        to account: inout SharedCodexAccountRecord
+    ) {
+        if let existingLastLoginAt = account.lastLoginAt,
+           existingLastLoginAt >= lastLoginAt {
+            return
+        }
+
+        account.lastLoginAt = lastLoginAt
     }
 
     private nonisolated func preserveExistingSnapshotIfKnown(

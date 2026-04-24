@@ -239,6 +239,7 @@ final class AppController {
             }
 
             await self.reconcileStoredSnapshotsIfNeeded()
+            self.reconcileSharedLastLoginUpdatesIfNeeded()
             await self.refreshAuthState(showUnexpectedErrors: false)
             self.reconcileDisplayOnlyFieldsIfNeeded()
             await self.remoteDeletionCleanup?.consumeHistoryIfNeeded()
@@ -944,9 +945,11 @@ final class AppController {
             let snapshot = try await parseSnapshot(from: readResult.contents)
             let modelContext = try requireModelContext()
             let accounts = try fetchAccounts()
+            let captureAt = Date()
 
             if let existingAccount = accounts.first(where: { $0.identityKey == snapshot.identityKey }) {
                 _ = try await storeSnapshot(snapshot, on: existingAccount)
+                _ = StoredAccountMutations.applyLastLogin(captureAt, to: existingAccount)
                 selection = [existingAccount.id]
             } else {
                 guard accounts.count < 1_000 else {
@@ -957,6 +960,7 @@ final class AppController {
                 let account = StoredAccount(
                     identityKey: snapshot.identityKey,
                     name: defaultName(for: snapshot, existingAccounts: accounts),
+                    lastLoginAt: captureAt,
                     customOrder: nextCustomOrder,
                     authModeRaw: snapshot.authMode.rawValue,
                     emailHint: snapshot.email,
@@ -1007,10 +1011,19 @@ final class AppController {
             let modelContext = try requireModelContext()
             let targetAccount = try requireAccount(withID: id)
             let desiredAuthContents = try await loadStoredSnapshot(for: targetAccount)
+            let loginAt = Date()
 
             if activeIdentityKey == targetAccount.identityKey {
                 selection = [targetAccount.id]
                 renameTargetID = nil
+                persistSuccessfulLoginMetadata(
+                    for: targetAccount,
+                    at: loginAt,
+                    in: modelContext,
+                    allowsInteractiveRecovery: allowsInteractiveRecovery,
+                    partialSuccessTitle: "Account Selected"
+                )
+                publishSharedState()
                 requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
                 return
             }
@@ -1020,6 +1033,13 @@ final class AppController {
                 authAccessState = .ready(linkedFolder: currentRead.url.deletingLastPathComponent())
                 selection = [targetAccount.id]
                 renameTargetID = nil
+                persistSuccessfulLoginMetadata(
+                    for: targetAccount,
+                    at: loginAt,
+                    in: modelContext,
+                    allowsInteractiveRecovery: allowsInteractiveRecovery,
+                    partialSuccessTitle: "Account Selected"
+                )
                 publishSharedState()
                 requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
                 return
@@ -1040,23 +1060,13 @@ final class AppController {
             authAccessState = .ready(linkedFolder: verifiedRead.url.deletingLastPathComponent())
             selection = [targetAccount.id]
             renameTargetID = nil
-            targetAccount.lastLoginAt = .now
-            _ = targetAccount.normalizeLegacyLocalOnlyFields()
-
-            do {
-                try modelContext.save()
-            } catch {
-                if allowsInteractiveRecovery {
-                    present(
-                        UserFacingAlert(
-                            title: "Account Switched",
-                            message: "The Codex account changed successfully, but the local metadata update failed: \(error.localizedDescription)"
-                        )
-                    )
-                } else {
-                    logger.error("Account metadata update failed after a successful switch: \(String(describing: error), privacy: .private)")
-                }
-            }
+            persistSuccessfulLoginMetadata(
+                for: targetAccount,
+                at: loginAt,
+                in: modelContext,
+                allowsInteractiveRecovery: allowsInteractiveRecovery,
+                partialSuccessTitle: "Account Switched"
+            )
 
             publishSharedState()
             requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
@@ -1289,6 +1299,10 @@ final class AppController {
                             if let existingAccount = allAccounts.first(where: { $0.identityKey == snapshot.identityKey }) {
                                 _ = try await storeSnapshot(snapshot, on: existingAccount)
                                 _ = Self.applyImportedArchiveMetadata(archivedAccount, to: existingAccount)
+                                _ = StoredAccountMutations.applyLastLogin(
+                                    archivedAccount.lastLoginAt,
+                                    to: existingAccount
+                                )
                                 // Re-importing an unchanged archive is still a valid
                                 // success case: keep the existing account selected even
                                 // when the imported contents match the local copy.
@@ -1307,6 +1321,7 @@ final class AppController {
                                 identityKey: snapshot.identityKey,
                                 name: archivedAccount.preferredStoredName
                                     ?? defaultName(for: snapshot, existingAccounts: allAccounts),
+                                lastLoginAt: archivedAccount.lastLoginAt,
                                 customOrder: nextCustomOrder,
                                 authModeRaw: snapshot.authMode.rawValue,
                                 emailHint: snapshot.email,
@@ -2472,6 +2487,14 @@ final class AppController {
             if let switchedAccount = try fetchAccounts().first(where: { $0.identityKey == signal.identityKey }) {
                 selection = [switchedAccount.id]
                 renameTargetID = nil
+                persistSuccessfulLoginMetadata(
+                    for: switchedAccount,
+                    at: Date(),
+                    in: try requireModelContext(),
+                    allowsInteractiveRecovery: false,
+                    partialSuccessTitle: "Account Switched"
+                )
+                publishSharedState()
             }
         } catch {
             logger.error(
@@ -2482,6 +2505,35 @@ final class AppController {
         // The intent path already delivers its own confirmation. Refresh the
         // app state here without posting a second banner from the app process.
         requestImmediateRateLimitRefresh(for: signal.identityKey)
+    }
+
+    private func persistSuccessfulLoginMetadata(
+        for account: StoredAccount,
+        at lastLoginAt: Date,
+        in modelContext: ModelContext,
+        allowsInteractiveRecovery: Bool,
+        partialSuccessTitle: String
+    ) {
+        let didUpdateLastLogin = StoredAccountMutations.applyLastLogin(lastLoginAt, to: account)
+        let normalizedLegacyFields = account.normalizeLegacyLocalOnlyFields()
+        guard didUpdateLastLogin || normalizedLegacyFields else {
+            return
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            if allowsInteractiveRecovery {
+                present(
+                    UserFacingAlert(
+                        title: partialSuccessTitle,
+                        message: "The Codex account is active, but the local last-login update failed: \(error.localizedDescription)"
+                    )
+                )
+            } else {
+                logger.error("Account last-login update failed after a successful switch: \(String(describing: error), privacy: .private)")
+            }
+        }
     }
 
     private func finishLocationImport(_ result: Result<[URL], any Error>) async {
@@ -2555,6 +2607,16 @@ final class AppController {
             }
         } catch {
             present(error, title: "Couldn't Upgrade Saved Accounts")
+        }
+    }
+
+    private func reconcileSharedLastLoginUpdatesIfNeeded() {
+        do {
+            _ = try StoredAccountMutations.applySharedLastLoginUpdates(
+                in: try requireModelContext()
+            )
+        } catch {
+            logger.error("Shared last-login reconciliation failed: \(String(describing: error), privacy: .private)")
         }
     }
 
