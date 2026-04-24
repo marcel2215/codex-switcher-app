@@ -398,8 +398,13 @@ private struct AccountListHeightPreferenceKey: PreferenceKey {
 
 private func accountListDisplayName(for item: MenuBarAccountRowItem) -> some View {
     if item.isUnavailable {
-        (Text(item.displayName) + Text(" (Unavailable)").foregroundStyle(.red))
+        var attributedName = AttributedString(item.displayName)
+        var unavailableSuffix = AttributedString(" (Unavailable)")
+        unavailableSuffix.foregroundColor = .red
+        attributedName.append(unavailableSuffix)
+
+        return Text(attributedName)
     } else {
-        Text(item.displayName)
+        return Text(item.displayName)
     }
 }

@@ -53,14 +53,19 @@ struct IOSAccountRow: View {
         }
     }
 
-    private var accountListDisplayName: Text {
+    @ViewBuilder
+    private var accountListDisplayName: some View {
         let parts = AccountsPresentationLogic.accountListDisplayNameParts(for: account)
 
-        guard let unavailableSuffix = parts.unavailableSuffix else {
-            return Text(parts.name)
+        if let unavailableSuffix = parts.unavailableSuffix {
+            HStack(spacing: 0) {
+                Text(parts.name)
+                Text(unavailableSuffix)
+                    .foregroundStyle(.red)
+            }
+        } else {
+            Text(parts.name)
         }
-
-        return Text(parts.name) + Text(unavailableSuffix).foregroundStyle(.red)
     }
 
     private var exportAvailabilityTaskKey: String {

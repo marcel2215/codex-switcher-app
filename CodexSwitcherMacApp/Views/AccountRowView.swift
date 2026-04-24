@@ -112,6 +112,11 @@ struct AccountRowView: View {
             return Text(parts.name)
         }
 
-        return Text(parts.name) + Text(unavailableSuffix).foregroundStyle(.red)
+        var attributedName = AttributedString(parts.name)
+        var unavailableSuffixText = AttributedString(unavailableSuffix)
+        unavailableSuffixText.foregroundColor = .red
+        attributedName.append(unavailableSuffixText)
+
+        return Text(attributedName)
     }
 }
