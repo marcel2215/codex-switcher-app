@@ -310,6 +310,38 @@ struct Tests {
         #expect(await authFileManager.writeCount() == 0)
     }
 
+    @Test func cancellingPlusButtonOfficialLoginReenablesAdding() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-live-missing"))
+        await authFileManager.setMissingAuthFile(true)
+        let officialLogin = BlockingOfficialLoginCoordinator()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            officialLoginCoordinator: officialLogin
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.captureCurrentAccount()
+
+        try await waitUntil {
+            await MainActor.run {
+                controller.isCapturingCurrentAccount && !controller.canCaptureCurrentAccount
+            } && officialLogin.started()
+        }
+
+        controller.cancelAccountCapture()
+
+        try await waitUntil {
+            await MainActor.run {
+                !controller.isCapturingCurrentAccount && controller.canCaptureCurrentAccount
+            }
+        }
+
+        #expect(officialLogin.wasCancelled())
+        #expect(controller.presentedAlert == nil)
+        #expect(try fetchAccounts(in: container.mainContext).isEmpty)
+    }
+
     @Test func plusButtonFallsBackToOfficialLoginWhenCurrentAuthIsAlreadySaved() async throws {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-existing-live"))
@@ -3797,6 +3829,64 @@ nonisolated final class FakeOfficialLoginCoordinator: CodexOfficialLoginCoordina
         withLock {
             count
         }
+    }
+
+    private nonisolated func withLock<T>(_ body: () throws -> T) rethrows -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body()
+    }
+}
+
+nonisolated final class BlockingOfficialLoginCoordinator: CodexOfficialLoginCoordinating, @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<CodexOfficialLoginResult, Error>?
+    private var startedValue = false
+    private var cancelledValue = false
+
+    nonisolated func login() async throws -> CodexOfficialLoginResult {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                var shouldCancel = false
+                lock.lock()
+                startedValue = true
+                if cancelledValue {
+                    shouldCancel = true
+                } else {
+                    self.continuation = continuation
+                }
+                lock.unlock()
+
+                if shouldCancel {
+                    continuation.resume(throwing: CancellationError())
+                }
+            }
+        } onCancel: {
+            self.cancel()
+        }
+    }
+
+    nonisolated func started() -> Bool {
+        withLock {
+            startedValue
+        }
+    }
+
+    nonisolated func wasCancelled() -> Bool {
+        withLock {
+            cancelledValue
+        }
+    }
+
+    private nonisolated func cancel() {
+        let continuation: CheckedContinuation<CodexOfficialLoginResult, Error>?
+        lock.lock()
+        cancelledValue = true
+        continuation = self.continuation
+        self.continuation = nil
+        lock.unlock()
+
+        continuation?.resume(throwing: CancellationError())
     }
 
     private nonisolated func withLock<T>(_ body: () throws -> T) rethrows -> T {

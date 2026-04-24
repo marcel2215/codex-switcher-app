@@ -732,10 +732,20 @@ final class AppController {
         }
     }
 
+    func cancelAccountCapture() {
+        captureTask?.cancel()
+    }
+
     private func addAccountNow() async {
         await waitForInitializationIfNeeded()
+        guard !Task.isCancelled else {
+            return
+        }
 
         if await tryCaptureCurrentAuthJsonForAddFlow() {
+            return
+        }
+        guard !Task.isCancelled else {
             return
         }
 
@@ -1126,6 +1136,8 @@ final class AppController {
             publishSharedState()
             requestImmediateRateLimitRefresh(for: result.parsedAuth.identityKey)
         } catch is CancellationError {
+            return
+        } catch CodexOfficialLoginError.cancelled {
             return
         } catch {
             present(error, title: "Couldn't Add Account")

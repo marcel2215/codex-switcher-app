@@ -118,11 +118,18 @@ struct ContentView: View {
         .navigationTitle("Codex Switcher")
         .toolbar {
             ToolbarItemGroup {
-                Button(action: controller.captureCurrentAccount) {
-                    Label("Add Account", systemImage: "plus")
+                Button(action: addAccountToolbarAction) {
+                    Label(
+                        controller.isCapturingCurrentAccount ? "Cancel Adding Account" : "Add Account",
+                        systemImage: controller.isCapturingCurrentAccount ? "xmark" : "plus"
+                    )
                 }
-                .disabled(!controller.canCaptureCurrentAccount)
-                .help(controller.captureCurrentAccountHelpText)
+                .disabled(controller.isSwitching)
+                .help(
+                    controller.isCapturingCurrentAccount
+                        ? "Cancel adding the account."
+                        : controller.captureCurrentAccountHelpText
+                )
 
                 Menu {
                     ForEach(AccountSortCriterion.allCases) { criterion in
@@ -710,6 +717,14 @@ struct ContentView: View {
             singleAccountContextMenu(for: account, targetIDs: targetIDs)
         } else {
             removeAccountsButton(targetIDs: targetIDs)
+        }
+    }
+
+    private func addAccountToolbarAction() {
+        if controller.isCapturingCurrentAccount {
+            controller.cancelAccountCapture()
+        } else {
+            controller.captureCurrentAccount()
         }
     }
 

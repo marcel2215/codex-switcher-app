@@ -131,15 +131,25 @@ struct MenuBarAccountsView: View {
 
             HStack(spacing: 8) {
                 chromeButton(
-                    systemImage: "plus",
-                    helpText: controller.captureCurrentAccountHelpText,
-                    accessibilityLabel: "Add Account",
-                    isDisabled: !controller.canCaptureCurrentAccount,
-                    action: controller.captureCurrentAccount
+                    systemImage: controller.isCapturingCurrentAccount ? "xmark" : "plus",
+                    helpText: controller.isCapturingCurrentAccount
+                        ? "Cancel adding the account."
+                        : controller.captureCurrentAccountHelpText,
+                    accessibilityLabel: controller.isCapturingCurrentAccount ? "Cancel Adding Account" : "Add Account",
+                    isDisabled: controller.isSwitching,
+                    action: addAccountChromeAction
                 )
                 chromeButton(systemImage: "rectangle.on.rectangle", helpText: "Open App", action: openMainWindow)
                 chromeButton(systemImage: "rectangle.portrait.and.arrow.right", helpText: "Quit", action: quitApp)
             }
+        }
+    }
+
+    private func addAccountChromeAction() {
+        if controller.isCapturingCurrentAccount {
+            controller.cancelAccountCapture()
+        } else {
+            controller.captureCurrentAccount()
         }
     }
 

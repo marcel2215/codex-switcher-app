@@ -498,7 +498,7 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
         static let clientID = "app_EMoamEEZ73f0CkXaXp7hrann"
         static let originator = "codex_cli_rs"
         static let callbackPort: UInt16 = 1455
-        static let callbackTimeout: TimeInterval = 10 * 60
+        static let callbackTimeout: TimeInterval = 90
     }
 
     nonisolated func login(applicationSupportBaseURL: URL) async throws -> CodexOfficialLoginResult {
@@ -515,7 +515,11 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
             callbackServer.cancel()
         }
 
-        let port = try await callbackServer.start()
+        let port = try await withTaskCancellationHandler {
+            try await callbackServer.start()
+        } onCancel: {
+            callbackServer.cancel()
+        }
         let redirectURI = "http://localhost:\(port)/auth/callback"
         let authURL = try Self.makeAuthorizeURL(
             redirectURI: redirectURI,
@@ -527,7 +531,11 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
             NSWorkspace.shared.open(authURL)
         }
 
-        let code = try await callbackServer.waitForAuthorizationCode()
+        let code = try await withTaskCancellationHandler {
+            try await callbackServer.waitForAuthorizationCode()
+        } onCancel: {
+            callbackServer.cancel()
+        }
         let tokens = try await Self.exchangeCodeForTokens(
             code,
             redirectURI: redirectURI,
