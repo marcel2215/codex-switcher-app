@@ -9,7 +9,6 @@ import AppKit
 import CryptoKit
 import Foundation
 import Network
-import OSLog
 
 nonisolated struct CodexOfficialLoginResult: Sendable, Equatable {
     let authFileContents: String
@@ -128,44 +127,24 @@ nonisolated final class CodexOfficialLoginCoordinator: CodexOfficialLoginCoordin
         }
     }
 
-    private let codexExecutableURL: URL?
     private let applicationSupportBaseURL: URL
     private let directOAuthLogin: CodexDirectOAuthLoginFlowing
-    private let logger: Logger
 
     nonisolated init(
         fileManager: FileManager = .default,
-        codexExecutableURL: URL? = CodexOfficialLoginCoordinator.defaultCodexExecutableURL(),
+        codexExecutableURL: URL? = nil,
         applicationSupportBaseURL: URL? = nil,
-        directOAuthLogin: CodexDirectOAuthLoginFlowing = CodexDirectOAuthLoginFlow(),
-        logger: Logger = Logger(
-            subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
-            category: "OfficialLogin"
-        )
+        directOAuthLogin: CodexDirectOAuthLoginFlowing = CodexDirectOAuthLoginFlow()
     ) {
-        self.codexExecutableURL = codexExecutableURL
+        _ = codexExecutableURL
         self.applicationSupportBaseURL = applicationSupportBaseURL
             ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fileManager.homeDirectoryForCurrentUser.appending(path: "Library/Application Support", directoryHint: .isDirectory)
         self.directOAuthLogin = directOAuthLogin
-        self.logger = logger
     }
 
     nonisolated func login() async throws -> CodexOfficialLoginResult {
-        guard let codexExecutableURL else {
-            return try await directOAuthLogin.login(applicationSupportBaseURL: applicationSupportBaseURL)
-        }
-
-        do {
-            return try await loginWithAppServer(codexExecutableURL: codexExecutableURL)
-        } catch {
-            guard Self.shouldFallBackToDirectOAuth(after: error) else {
-                throw error
-            }
-
-            logger.debug("Codex app-server login was unavailable; falling back to direct browser OAuth.")
-            return try await directOAuthLogin.login(applicationSupportBaseURL: applicationSupportBaseURL)
-        }
+        try await directOAuthLogin.login(applicationSupportBaseURL: applicationSupportBaseURL)
     }
 
     private nonisolated func loginWithAppServer(codexExecutableURL: URL) async throws -> CodexOfficialLoginResult {

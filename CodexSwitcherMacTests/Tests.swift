@@ -527,12 +527,12 @@ struct Tests {
         #expect(await secretStore.secret(forIdentityKey: replacementSnapshot.identityKey) == replacementContents)
     }
 
-    @Test func officialLoginUsesDirectOAuthWhenCodexCommandIsMissing() async throws {
+    @Test func officialLoginUsesDirectOAuthWithoutLaunchingCodexCommand() async throws {
         let temporaryDirectory = try makeTemporaryDirectory()
         let authContents = makeChatGPTAuthJSON(accountID: "acct-direct-oauth")
         let directOAuth = FakeDirectOAuthLoginFlow(authContents: authContents)
         let coordinator = CodexOfficialLoginCoordinator(
-            codexExecutableURL: nil,
+            codexExecutableURL: URL(fileURLWithPath: "/usr/bin/false"),
             applicationSupportBaseURL: temporaryDirectory,
             directOAuthLogin: directOAuth
         )
