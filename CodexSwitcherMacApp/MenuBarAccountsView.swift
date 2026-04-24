@@ -135,7 +135,7 @@ struct MenuBarAccountsView: View {
                     helpText: controller.isCapturingCurrentAccount
                         ? "Cancel adding the account."
                         : "Add Codex account",
-                    accessibilityLabel: controller.isCapturingCurrentAccount ? "Cancel Adding Account" : "Add Account",
+                    accessibilityLabel: controller.isCapturingCurrentAccount ? "Cancel adding account" : "Add Codex account",
                     isDisabled: controller.isSwitching,
                     action: addAccountChromeAction
                 )

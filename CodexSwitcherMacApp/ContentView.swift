@@ -120,7 +120,7 @@ struct ContentView: View {
             ToolbarItemGroup {
                 Button(action: addAccountToolbarAction) {
                     Label(
-                        controller.isCapturingCurrentAccount ? "Cancel Adding Account" : "Add Account",
+                        controller.isCapturingCurrentAccount ? "Cancel adding account" : "Add Account",
                         systemImage: controller.isCapturingCurrentAccount ? "xmark" : "plus"
                     )
                 }
