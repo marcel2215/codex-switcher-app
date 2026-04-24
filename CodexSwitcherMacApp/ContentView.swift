@@ -128,7 +128,7 @@ struct ContentView: View {
                 .help(
                     controller.isCapturingCurrentAccount
                         ? "Cancel adding the account."
-                        : controller.captureCurrentAccountHelpText
+                        : "Add Codex account"
                 )
 
                 Menu {
