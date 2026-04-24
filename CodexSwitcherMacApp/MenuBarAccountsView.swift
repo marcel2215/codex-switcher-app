@@ -100,7 +100,7 @@ struct MenuBarAccountsView: View {
             Alert(
                 title: Text("Account Unavailable"),
                 message: Text(unavailableAccountMessage(for: prompt)),
-                primaryButton: .destructive(Text("Remove Account")) {
+                primaryButton: .destructive(Text("Remove")) {
                     controller.removeUnavailableAccountFromPrompt(prompt)
                 },
                 secondaryButton: .cancel(Text("Keep")) {
@@ -217,8 +217,8 @@ struct MenuBarAccountsView: View {
 
                                 Group {
                                     if item.isUnavailable {
-                                        Image(systemName: "exclamationmark.triangle.fill")
-                                            .foregroundStyle(.orange)
+                                        Image(systemName: "lock.fill")
+                                            .foregroundStyle(.red)
                                             .help("This saved Codex account is unavailable.")
                                     } else if item.isCurrentAccount {
                                         Image(systemName: "checkmark.circle.fill")
@@ -285,11 +285,7 @@ struct MenuBarAccountsView: View {
     }
 
     private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
-        """
-        The saved auth for "\(prompt.accountName)" no longer works. Remove it from Codex Switcher, or keep it and sign in again to replace it.
-
-        Do not use Codex's Log out button; it can revoke ChatGPT tokens.
-        """
+        "The saved refresh token for “\(prompt.accountName)” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex."
     }
 
     private func openMainWindow() {

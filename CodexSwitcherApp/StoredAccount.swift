@@ -157,26 +157,16 @@ final class StoredAccount {
             return nil
         }
 
-        let reasonMessage = switch unavailableReason {
-        case .unauthorized:
-            "The saved authentication is no longer accepted."
-        case .refreshTokenExpired:
-            "The saved refresh token has expired."
-        case .refreshTokenRevoked:
-            "The saved token was revoked."
-        case .refreshTokenReused:
-            "The saved token was reused and can no longer be used."
-        case .accountMismatch:
-            "The signed-in identity no longer matches this saved account."
-        case .missingCredentials:
-            "Required credentials are missing from the saved snapshot."
-        case .corruptedSnapshot:
-            "The saved auth snapshot is corrupted."
-        case nil:
-            "The saved credentials for this account are no longer valid."
-        }
+        return unavailableWarningMessage(accountName: name)
+    }
 
-        return "\(reasonMessage) Capture a new login for this account to replace it."
+    func unavailableWarningMessage(accountName: String) -> String {
+        let sanitizedName = accountName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = sanitizedName.isEmpty ? "Unknown Account" : sanitizedName
+
+        return """
+        The saved refresh token for “\(displayName)” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex.
+        """
     }
 
     /// Older synced rows may predate explicit data-status tracking. In that

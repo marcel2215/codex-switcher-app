@@ -104,10 +104,10 @@ struct AccountDetailView: View {
                 }
             }
 
-            if account.isUnavailable, let warningMessage = account.unavailableWarningMessage {
+            if account.isUnavailable {
                 Section("Warning") {
-                    Text(warningMessage)
-                        .foregroundStyle(.orange)
+                    Text(account.unavailableWarningMessage(accountName: displayName))
+                        .foregroundStyle(.red)
                 }
             }
 
