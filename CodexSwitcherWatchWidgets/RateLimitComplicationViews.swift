@@ -64,7 +64,7 @@ struct WatchRateLimitCircularComplicationView: View {
             return "\(metric.percentText) remaining"
         case .cached:
             return "\(metric.percentText) remaining, cached"
-        case .missing:
+        case .missing, .unavailable:
             return "Unavailable"
         }
     }
@@ -125,7 +125,7 @@ struct WatchRateLimitCornerComplicationView: View {
             return "\(metric.percentText) remaining"
         case .cached:
             return "\(metric.percentText) remaining, cached"
-        case .missing:
+        case .missing, .unavailable:
             return "Unavailable"
         }
     }

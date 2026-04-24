@@ -7,7 +7,6 @@
 
 import SwiftUI
 import SwiftData
-import UniformTypeIdentifiers
 import AppIntents
 import UserNotifications
 
@@ -33,6 +32,14 @@ struct CodexSwitcherApp: App {
         CodexSharedPreferenceKey.showMenuBarExtra,
         store: CodexSharedPreferences.userDefaults
     ) private var showMenuBarExtra = CodexSharedPreferenceDefaults.showMenuBarExtra
+    @AppStorage(
+        CodexSharedPreferenceKey.automaticallyAddAccounts,
+        store: CodexSharedPreferences.userDefaults
+    ) private var automaticallyAddAccounts = CodexSharedPreferenceDefaults.automaticallyAddAccounts
+    @AppStorage(
+        CodexSharedPreferenceKey.automaticallyRemoveAccounts,
+        store: CodexSharedPreferences.userDefaults
+    ) private var automaticallyRemoveAccounts = CodexSharedPreferenceDefaults.automaticallyRemoveAccounts
     @AppStorage(AppPreferenceKey.menuBarIconSystemName) private var persistedMenuBarIconSystemName = AppPreferenceDefaults.menuBarIconSystemName
     @AppStorage(AppPreferenceKey.sortCriterion) private var persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
     @AppStorage(AppPreferenceKey.sortDirection) private var persistedSortDirectionRawValue = AppPreferenceDefaults.sortDirectionRawValue
@@ -98,6 +105,8 @@ struct CodexSwitcherApp: App {
                 fiveHourResetNotificationsEnabled: $fiveHourResetNotificationsEnabled,
                 sevenDayResetNotificationsEnabled: $sevenDayResetNotificationsEnabled,
                 autopilotEnabled: autopilotBinding,
+                automaticallyAddAccounts: $automaticallyAddAccounts,
+                automaticallyRemoveAccounts: $automaticallyRemoveAccounts,
                 showMenuBarExtra: showMenuBarExtraBinding,
                 menuBarIcon: menuBarIconBinding,
                 areAppPreferencesAtDefaults: areAppPreferencesAtDefaults,
@@ -193,6 +202,8 @@ struct CodexSwitcherApp: App {
         fiveHourResetNotificationsEnabled = CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
         sevenDayResetNotificationsEnabled = CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
         autopilotBinding.wrappedValue = CodexSharedPreferenceDefaults.autopilotEnabled
+        automaticallyAddAccounts = CodexSharedPreferenceDefaults.automaticallyAddAccounts
+        automaticallyRemoveAccounts = CodexSharedPreferenceDefaults.automaticallyRemoveAccounts
         showMenuBarExtraBinding.wrappedValue = CodexSharedPreferenceDefaults.showMenuBarExtra
         menuBarIconBinding.wrappedValue = MenuBarIconOption.defaultOption
         persistedSortCriterionRawValue = AppPreferenceDefaults.sortCriterionRawValue
@@ -241,6 +252,8 @@ struct CodexSwitcherApp: App {
             && fiveHourResetNotificationsEnabled == CodexSharedPreferenceDefaults.fiveHourResetNotificationsEnabled
             && sevenDayResetNotificationsEnabled == CodexSharedPreferenceDefaults.sevenDayResetNotificationsEnabled
             && autopilotEnabled == CodexSharedPreferenceDefaults.autopilotEnabled
+            && automaticallyAddAccounts == CodexSharedPreferenceDefaults.automaticallyAddAccounts
+            && automaticallyRemoveAccounts == CodexSharedPreferenceDefaults.automaticallyRemoveAccounts
             && showMenuBarExtra == CodexSharedPreferenceDefaults.showMenuBarExtra
             && persistedMenuBarIconSystemName == AppPreferenceDefaults.menuBarIconSystemName
             && persistedSortCriterionRawValue == AppPreferenceDefaults.sortCriterionRawValue
@@ -277,6 +290,8 @@ struct CodexSwitcherApp: App {
         fiveHourResetNotificationsEnabled = CodexSharedPreferences.fiveHourResetNotificationsEnabled
         sevenDayResetNotificationsEnabled = CodexSharedPreferences.sevenDayResetNotificationsEnabled
         autopilotEnabled = CodexSharedPreferences.autopilotEnabled
+        automaticallyAddAccounts = CodexSharedPreferences.automaticallyAddAccounts
+        automaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts
         showMenuBarExtra = CodexSharedPreferences.showMenuBarExtra
         applyRuntimePreferences()
     }
@@ -538,11 +553,12 @@ private struct SettingsView: View {
     @Binding var fiveHourResetNotificationsEnabled: Bool
     @Binding var sevenDayResetNotificationsEnabled: Bool
     @Binding var autopilotEnabled: Bool
+    @Binding var automaticallyAddAccounts: Bool
+    @Binding var automaticallyRemoveAccounts: Bool
     @Binding var showMenuBarExtra: Bool
     @Binding var menuBarIcon: MenuBarIconOption
     let areAppPreferencesAtDefaults: Bool
     let onResetSettings: () -> Void
-    @State private var isShowingLocationPicker = false
     @State private var isUpdatingNotificationPreferences = false
     @State private var launchAtLoginState = CodexSharedLaunchAtLoginState.disabled
     @State private var presentedSettingsAlert: SettingsAlert?
@@ -559,14 +575,14 @@ private struct SettingsView: View {
                         .foregroundStyle(controller.linkedFolderPath == nil ? .secondary : .primary)
                 }
 
-                Button(controller.settingsLinkButtonTitle) {
-                    isShowingLocationPicker = true
-                }
+                Button(controller.settingsLinkButtonTitle, action: controller.beginLinkingCodexLocation)
             }
 
             Section {
                 Toggle("Launch at Login", isOn: launchAtLoginBinding)
                 Toggle("Automatic Switching", isOn: $autopilotEnabled)
+                Toggle("Automatically Add Accounts", isOn: automaticAddAccountsBinding)
+                Toggle("Automatically Remove Accounts", isOn: automaticRemoveAccountsBinding)
             } header: {
                 Text("General")
             } footer: {
@@ -576,6 +592,7 @@ private struct SettingsView: View {
                     }
 
                     Text("Run in the background and automatically switch to the account with the most rate limit remaining.")
+                    Text("Automatic account add watches auth.json for newly detected identities. Automatic account removal deletes saved local snapshots when a saved token is authoritatively rejected. Neither setting calls Codex logout.")
                 }
             }
 
@@ -715,22 +732,6 @@ private struct SettingsView: View {
                 )
             }
         }
-        .alert(item: $controller.presentedAlert) { alert in
-            Alert(
-                title: Text(alert.title),
-                message: Text(alert.message),
-                dismissButton: .default(Text("OK"))
-            )
-        }
-        .fileImporter(
-            isPresented: $isShowingLocationPicker,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false,
-            onCompletion: controller.handleLocationImport
-        )
-        .fileDialogCustomizationID("codex-auth-location")
-        .fileDialogDefaultDirectory(FileManager.default.homeDirectoryForCurrentUser)
-        .fileDialogBrowserOptions([.includeHiddenFiles])
     }
 
     private var isResetSettingsEnabled: Bool {
@@ -786,6 +787,30 @@ private struct SettingsView: View {
             },
             set: { newValue in
                 updateLaunchAtLogin(isEnabled: newValue)
+            }
+        )
+    }
+
+    private var automaticAddAccountsBinding: Binding<Bool> {
+        Binding(
+            get: {
+                automaticallyAddAccounts
+            },
+            set: { newValue in
+                automaticallyAddAccounts = newValue
+                CodexSharedPreferenceFeedback.postPreferencesDidChange()
+            }
+        )
+    }
+
+    private var automaticRemoveAccountsBinding: Binding<Bool> {
+        Binding(
+            get: {
+                automaticallyRemoveAccounts
+            },
+            set: { newValue in
+                automaticallyRemoveAccounts = newValue
+                CodexSharedPreferenceFeedback.postPreferencesDidChange()
             }
         )
     }

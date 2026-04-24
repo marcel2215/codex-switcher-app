@@ -8,6 +8,21 @@
 import Foundation
 import SwiftData
 
+enum StoredAccountAvailability: String, Codable, Sendable {
+    case available
+    case unavailableUnauthorized
+}
+
+enum StoredAccountUnavailableReason: String, Codable, Sendable {
+    case unauthorized
+    case refreshTokenExpired
+    case refreshTokenRevoked
+    case refreshTokenReused
+    case accountMismatch
+    case missingCredentials
+    case corruptedSnapshot
+}
+
 @Model
 final class StoredAccount {
     var id: UUID = UUID()
@@ -50,6 +65,10 @@ final class StoredAccount {
     var rateLimitsObservedAt: Date?
     var rateLimitDisplayVersion: Int?
     var iconSystemName: String = "key.fill"
+    var availabilityRaw: String = StoredAccountAvailability.available.rawValue
+    var unavailableReasonRaw: String?
+    var unavailableSince: Date?
+    var lastAvailabilityCheckAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -72,7 +91,11 @@ final class StoredAccount {
         fiveHourResetsAt: Date? = nil,
         rateLimitsObservedAt: Date? = nil,
         rateLimitDisplayVersion: Int? = 1,
-        iconSystemName: String = "key.fill"
+        iconSystemName: String = "key.fill",
+        availabilityRaw: String = StoredAccountAvailability.available.rawValue,
+        unavailableReasonRaw: String? = nil,
+        unavailableSince: Date? = nil,
+        lastAvailabilityCheckAt: Date? = nil
     ) {
         self.id = id
         self.identityKey = identityKey
@@ -97,6 +120,36 @@ final class StoredAccount {
         self.rateLimitsObservedAt = rateLimitsObservedAt
         self.rateLimitDisplayVersion = rateLimitDisplayVersion
         self.iconSystemName = iconSystemName
+        self.availabilityRaw = availabilityRaw
+        self.unavailableReasonRaw = unavailableReasonRaw
+        self.unavailableSince = unavailableSince
+        self.lastAvailabilityCheckAt = lastAvailabilityCheckAt
+    }
+
+    var availability: StoredAccountAvailability {
+        get {
+            StoredAccountAvailability(rawValue: availabilityRaw) ?? .available
+        }
+        set {
+            availabilityRaw = newValue.rawValue
+        }
+    }
+
+    var unavailableReason: StoredAccountUnavailableReason? {
+        get {
+            guard let unavailableReasonRaw else {
+                return nil
+            }
+
+            return StoredAccountUnavailableReason(rawValue: unavailableReasonRaw)
+        }
+        set {
+            unavailableReasonRaw = newValue?.rawValue
+        }
+    }
+
+    var isUnavailable: Bool {
+        availability == .unavailableUnauthorized
     }
 
     /// Older synced rows may predate explicit data-status tracking. In that

@@ -14,4 +14,5 @@ enum RateLimitMetricDataStatus: String, Codable, Sendable {
     case exact
     case cached
     case missing
+    case unavailable
 }

@@ -21,9 +21,39 @@ struct UserFacingAlert: Identifiable, Equatable {
     let message: String
 }
 
+struct UnavailableAccountRecoveryPrompt: Identifiable, Equatable {
+    let id = UUID()
+    let accountID: UUID
+    let accountName: String
+    let reason: StoredAccountUnavailableReason?
+}
+
+struct PendingCodexRestartBanner: Identifiable, Equatable {
+    enum Target: Equatable {
+        case account(name: String)
+        case none
+
+        var displayName: String {
+            switch self {
+            case let .account(name):
+                name
+            case .none:
+                "None"
+            }
+        }
+    }
+
+    let id = UUID()
+    let target: Target
+    let shownAt: Date
+    let codexProcessIDsAtSwitch: Set<pid_t>
+}
+
 @Observable
 @MainActor
 final class AppController {
+    nonisolated static let noneAccountSelectionID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+
     private nonisolated static let batterySaverRefreshPauseThreshold = 15
     private nonisolated static let currentAccountRateLimitRefreshInterval: TimeInterval = 60
     private nonisolated static let visibleAccountRateLimitRefreshInterval: TimeInterval = 5 * 60
@@ -72,6 +102,8 @@ final class AppController {
     }
     var renameTargetID: UUID?
     var presentedAlert: UserFacingAlert?
+    var unavailableAccountRecoveryPrompt: UnavailableAccountRecoveryPrompt?
+    private(set) var pendingCodexRestartBanner: PendingCodexRestartBanner?
     var isShowingLocationPicker = false
     var isShowingAccountArchiveImporter = false
     private(set) var activeIdentityKey: String?
@@ -86,6 +118,9 @@ final class AppController {
     @ObservationIgnored private let notificationManager: AccountSwitchNotifying
     @ObservationIgnored private let rateLimitProvider: CodexRateLimitProviding
     @ObservationIgnored private let sessionRateLimitReader: CodexSessionRateLimitReader
+    @ObservationIgnored private let officialLoginCoordinator: CodexOfficialLoginCoordinating
+    @ObservationIgnored private let locationPicker: CodexFolderLocationPicking
+    @ObservationIgnored private let codexDesktopAppObserver: CodexDesktopAppObserver
     @ObservationIgnored private let lowPowerModeProvider: () -> Bool
     @ObservationIgnored private let batteryChargePercentProvider: () -> Int?
     @ObservationIgnored private let terminateApplication: () -> Void
@@ -106,8 +141,11 @@ final class AppController {
     @ObservationIgnored nonisolated(unsafe) private var remoteSwitchObserver: NSObjectProtocol?
     @ObservationIgnored nonisolated(unsafe) private var sharedCommandObserver: NSObjectProtocol?
     @ObservationIgnored nonisolated(unsafe) private var pendingAccountOpenObserver: NSObjectProtocol?
+    @ObservationIgnored nonisolated(unsafe) private var workspaceLaunchObserver: NSObjectProtocol?
+    @ObservationIgnored nonisolated(unsafe) private var workspaceTerminationObserver: NSObjectProtocol?
     @ObservationIgnored private var systemStateObservationTasks: [Task<Void, Never>] = []
     @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
+    @ObservationIgnored private var observedAuthFileChangeTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitPollingTask: Task<Void, Never>?
     @ObservationIgnored private var autopilotTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitSnapshotsByIdentityKey: [String: CodexRateLimitSnapshot] = [:]
@@ -138,6 +176,9 @@ final class AppController {
         notificationManager: AccountSwitchNotifying,
         rateLimitProvider: CodexRateLimitProviding = CodexRateLimitProvider(),
         sessionRateLimitReader: CodexSessionRateLimitReader = CodexSessionRateLimitReader(),
+        officialLoginCoordinator: CodexOfficialLoginCoordinating = CodexOfficialLoginCoordinator(),
+        locationPicker: CodexFolderLocationPicking = CodexFolderLocationPicker(),
+        codexDesktopAppObserver: CodexDesktopAppObserver = CodexDesktopAppObserver(),
         startupAlert: UserFacingAlert? = nil,
         modelContainer: ModelContainer? = nil,
         bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "CodexSwitcher",
@@ -154,6 +195,9 @@ final class AppController {
         self.notificationManager = notificationManager
         self.rateLimitProvider = rateLimitProvider
         self.sessionRateLimitReader = sessionRateLimitReader
+        self.officialLoginCoordinator = officialLoginCoordinator
+        self.locationPicker = locationPicker
+        self.codexDesktopAppObserver = codexDesktopAppObserver
         self.lowPowerModeProvider = lowPowerModeProvider
         self.batteryChargePercentProvider = batteryChargePercentProvider
         self.terminateApplication = terminateApplication
@@ -179,6 +223,7 @@ final class AppController {
         sharedStatePublishTask?.cancel()
         rateLimitPollingTask?.cancel()
         autopilotTask?.cancel()
+        observedAuthFileChangeTask?.cancel()
         if let remoteSwitchObserver {
             DistributedNotificationCenter.default().removeObserver(remoteSwitchObserver)
         }
@@ -187,6 +232,12 @@ final class AppController {
         }
         if let pendingAccountOpenObserver {
             DistributedNotificationCenter.default().removeObserver(pendingAccountOpenObserver)
+        }
+        if let workspaceLaunchObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(workspaceLaunchObserver)
+        }
+        if let workspaceTerminationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(workspaceTerminationObserver)
         }
         systemStateObservationTasks.forEach { $0.cancel() }
     }
@@ -272,7 +323,8 @@ final class AppController {
             return nil
         }
 
-        return selection.first
+        let selectedID = selection.first
+        return selectedID == Self.noneAccountSelectionID ? nil : selectedID
     }
 
     var selectedAccountIconOption: AccountIconOption? {
@@ -302,15 +354,7 @@ final class AppController {
     }
 
     var canCaptureCurrentAccount: Bool {
-        guard !isCapturingCurrentAccount, !isSwitching else {
-            return false
-        }
-
-        if case .ready = authAccessState {
-            return true
-        }
-
-        return false
+        !isCapturingCurrentAccount && !isSwitching
     }
 
     var captureCurrentAccountHelpText: String {
@@ -324,19 +368,19 @@ final class AppController {
 
         switch authAccessState {
         case .ready:
-            return "Capture the currently active Codex account"
+            return "Add the current Codex auth.json account, or sign in through Codex if it is already saved."
         case .unlinked:
-            return "Link the Codex folder before adding an account."
+            return "Sign in through Codex, or link the Codex folder to capture the current auth.json first."
         case .missingAuthFile:
-            return "No auth.json is available to add. Log in to Codex first."
+            return "Sign in through Codex to add an account."
         case .locationUnavailable:
-            return "The linked Codex folder is missing. Relink it before adding an account."
+            return "Relink the Codex folder or sign in through Codex to add an account."
         case .accessDenied:
-            return "Codex Switcher needs permission to the linked Codex folder before adding an account."
+            return "Grant folder access or sign in through Codex to add an account."
         case .corruptAuthFile:
-            return "Fix the linked auth.json before adding an account."
+            return "Sign in through Codex, or fix the linked auth.json and try again."
         case .unsupportedCredentialStore:
-            return "File-backed auth.json storage is required before adding an account."
+            return "Sign in through Codex to add an isolated file-backed account snapshot."
         }
     }
 
@@ -562,6 +606,7 @@ final class AppController {
                 from: try fetchAccounts().filter { account in
                     hasLocalSnapshot(for: account)
                         && !account.identityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        && !account.isUnavailable
                 },
                 sortCriterion: sortCriterion,
                 sortDirection: sortDirection
@@ -583,8 +628,7 @@ final class AppController {
 
     func beginLinkingCodexLocation() {
         pendingLocationAction = nil
-        prepareForInteractiveFilePresentation()
-        isShowingLocationPicker = true
+        presentCodexFolderPicker()
     }
 
     private func prepareForInteractiveFilePresentation() {
@@ -595,6 +639,23 @@ final class AppController {
 
         _ = NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func presentCodexFolderPicker() {
+        prepareForInteractiveFilePresentation()
+
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            let selectedURL = await self.locationPicker.pickCodexFolder()
+            if let selectedURL {
+                await self.finishLocationImport(.success([selectedURL]))
+            } else {
+                await self.finishLocationImport(.failure(CocoaError(.userCancelled)))
+            }
+        }
     }
 
     func beginAccountArchiveImport() {
@@ -667,11 +728,18 @@ final class AppController {
                 self.captureTask = nil
             }
 
-            _ = await self.captureCurrentAccountNow(
-                allowsInteractiveRecovery: true,
-                managesCaptureState: false
-            )
+            await self.addAccountNow()
         }
+    }
+
+    private func addAccountNow() async {
+        await waitForInitializationIfNeeded()
+
+        if await tryCaptureCurrentAuthJsonForAddFlow() {
+            return
+        }
+
+        await startOfficialLoginAndImport()
     }
 
     func beginExportSelectedAccount() {
@@ -685,6 +753,11 @@ final class AppController {
     }
 
     func login(accountID: UUID) {
+        if accountID == Self.noneAccountSelectionID {
+            switchToNone()
+            return
+        }
+
         let operationID = UUID()
         activeSwitchOperationID = operationID
         switchTask?.cancel()
@@ -702,7 +775,11 @@ final class AppController {
             return
         }
 
-        login(accountID: accountID)
+        if accountID == Self.noneAccountSelectionID {
+            switchToNone()
+        } else {
+            login(accountID: accountID)
+        }
     }
 
     func beginRenamingSelectedAccount() {
@@ -710,10 +787,18 @@ final class AppController {
             return
         }
 
+        guard accountID != Self.noneAccountSelectionID else {
+            return
+        }
+
         beginRenaming(accountID: accountID)
     }
 
     func setPinned(_ isPinned: Bool, for accountID: UUID) {
+        guard accountID != Self.noneAccountSelectionID else {
+            return
+        }
+
         do {
             guard let account = try account(withID: accountID) else {
                 throw ControllerError.accountNotFound
@@ -741,6 +826,10 @@ final class AppController {
     }
 
     func beginRenaming(accountID: UUID) {
+        guard accountID != Self.noneAccountSelectionID else {
+            return
+        }
+
         selection = [accountID]
         renameTargetID = accountID
     }
@@ -780,6 +869,10 @@ final class AppController {
     }
 
     func setIcon(_ icon: AccountIconOption, for accountID: UUID) {
+        guard accountID != Self.noneAccountSelectionID else {
+            return
+        }
+
         do {
             guard let account = try account(withID: accountID) else {
                 throw ControllerError.accountNotFound
@@ -825,6 +918,23 @@ final class AppController {
 
             await self.removeAccountsNow(withIDs: ids)
         }
+    }
+
+    func presentUnavailableAccountRecoveryPrompt(for account: StoredAccount) {
+        unavailableAccountRecoveryPrompt = UnavailableAccountRecoveryPrompt(
+            accountID: account.id,
+            accountName: AccountsPresentationLogic.displayName(for: account),
+            reason: account.unavailableReason
+        )
+    }
+
+    func removeUnavailableAccountFromPrompt(_ prompt: UnavailableAccountRecoveryPrompt) {
+        unavailableAccountRecoveryPrompt = nil
+        removeAccounts(withIDs: [prompt.accountID])
+    }
+
+    func keepUnavailableAccountFromPrompt() {
+        unavailableAccountRecoveryPrompt = nil
     }
 
     func removeAllAccounts() {
@@ -919,6 +1029,84 @@ final class AppController {
         )
     }
 
+    private func tryCaptureCurrentAuthJsonForAddFlow() async -> Bool {
+        do {
+            let readResult = try await authFileManager.readAuthFile()
+            guard !readResult.contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return false
+            }
+
+            let snapshot = try await parseSnapshot(from: readResult.contents)
+            let modelContext = try requireModelContext()
+            let accounts = try fetchAccounts()
+
+            if let existingAccount = accounts.first(where: { $0.identityKey == snapshot.identityKey }) {
+                _ = try await storeSnapshot(snapshot, on: existingAccount)
+                _ = AccountAvailabilityUpdater.markAvailable(existingAccount)
+                try modelContext.save()
+                requestImmediateRateLimitRefresh(for: snapshot.identityKey)
+                return false
+            }
+
+            try await addStoredAccount(
+                from: snapshot,
+                at: Date(),
+                existingAccounts: accounts,
+                in: modelContext
+            )
+            activeIdentityKey = snapshot.identityKey
+            authAccessState = .ready(linkedFolder: readResult.url.deletingLastPathComponent())
+            searchText = ""
+            try modelContext.save()
+            publishSharedState()
+            requestImmediateRateLimitRefresh(for: snapshot.identityKey)
+            return true
+        } catch {
+            logger.debug("Plus-button current auth capture skipped: \(String(describing: error), privacy: .private)")
+            return false
+        }
+    }
+
+    private func startOfficialLoginAndImport() async {
+        do {
+            let result = try await officialLoginCoordinator.login()
+            let modelContext = try requireModelContext()
+            let accounts = try fetchAccounts()
+            let importedAt = Date()
+
+            if let existingAccount = accounts.first(where: { $0.identityKey == result.parsedAuth.identityKey }) {
+                _ = try await storeSnapshot(result.parsedAuth, on: existingAccount)
+                _ = AccountAvailabilityUpdater.markAvailable(existingAccount, checkedAt: importedAt)
+                selection = [existingAccount.id]
+                try modelContext.save()
+                publishSharedState()
+                requestImmediateRateLimitRefresh(for: result.parsedAuth.identityKey)
+                present(
+                    UserFacingAlert(
+                        title: "Account Already Saved",
+                        message: "This account is already in Codex Switcher. Its saved auth snapshot was refreshed."
+                    )
+                )
+                return
+            }
+
+            try await addStoredAccount(
+                from: result.parsedAuth,
+                at: importedAt,
+                existingAccounts: accounts,
+                in: modelContext
+            )
+            searchText = ""
+            try modelContext.save()
+            publishSharedState()
+            requestImmediateRateLimitRefresh(for: result.parsedAuth.identityKey)
+        } catch is CancellationError {
+            return
+        } catch {
+            present(error, title: "Couldn't Add Account")
+        }
+    }
+
     @discardableResult
     private func captureCurrentAccountNow(
         allowsInteractiveRecovery: Bool,
@@ -949,28 +1137,16 @@ final class AppController {
 
             if let existingAccount = accounts.first(where: { $0.identityKey == snapshot.identityKey }) {
                 _ = try await storeSnapshot(snapshot, on: existingAccount)
+                _ = AccountAvailabilityUpdater.markAvailable(existingAccount, checkedAt: captureAt)
                 _ = StoredAccountMutations.applyLastLogin(captureAt, to: existingAccount)
                 selection = [existingAccount.id]
             } else {
-                guard accounts.count < 1_000 else {
-                    throw ControllerError.accountLimitReached
-                }
-
-                let nextCustomOrder = (accounts.map(\.customOrder).max() ?? -1) + 1
-                let account = StoredAccount(
-                    identityKey: snapshot.identityKey,
-                    name: defaultName(for: snapshot, existingAccounts: accounts),
-                    lastLoginAt: captureAt,
-                    customOrder: nextCustomOrder,
-                    authModeRaw: snapshot.authMode.rawValue,
-                    emailHint: snapshot.email,
-                    accountIdentifier: snapshot.accountIdentifier
+                try await addStoredAccount(
+                    from: snapshot,
+                    at: captureAt,
+                    existingAccounts: accounts,
+                    in: modelContext
                 )
-
-                _ = try await storeSnapshot(snapshot, on: account)
-                modelContext.insert(account)
-
-                selection = [account.id]
             }
 
             try modelContext.save()
@@ -988,6 +1164,34 @@ final class AppController {
             )
             return false
         }
+    }
+
+    private func addStoredAccount(
+        from snapshot: CodexAuthSnapshot,
+        at addedAt: Date,
+        existingAccounts: [StoredAccount],
+        in modelContext: ModelContext
+    ) async throws {
+        guard existingAccounts.count < 1_000 else {
+            throw ControllerError.accountLimitReached
+        }
+
+        let nextCustomOrder = (existingAccounts.map(\.customOrder).max() ?? -1) + 1
+        let account = StoredAccount(
+            identityKey: snapshot.identityKey,
+            name: defaultName(for: snapshot, existingAccounts: existingAccounts),
+            lastLoginAt: addedAt,
+            customOrder: nextCustomOrder,
+            authModeRaw: snapshot.authMode.rawValue,
+            emailHint: snapshot.email,
+            accountIdentifier: snapshot.accountIdentifier,
+            lastAvailabilityCheckAt: addedAt
+        )
+
+        _ = try await storeSnapshot(snapshot, on: account)
+        _ = AccountAvailabilityUpdater.markAvailable(account, checkedAt: addedAt)
+        modelContext.insert(account)
+        selection = [account.id]
     }
 
     func switchToAccountNow(
@@ -1010,6 +1214,15 @@ final class AppController {
         do {
             let modelContext = try requireModelContext()
             let targetAccount = try requireAccount(withID: id)
+            guard !targetAccount.isUnavailable else {
+                if allowsInteractiveRecovery {
+                    presentUnavailableAccountRecoveryPrompt(for: targetAccount)
+                } else {
+                    throw ControllerError.accountUnavailable
+                }
+                return
+            }
+
             let desiredAuthContents = try await loadStoredSnapshot(for: targetAccount)
             let loginAt = Date()
 
@@ -1088,6 +1301,7 @@ final class AppController {
 
             publishSharedState()
             requestImmediateRateLimitRefresh(for: targetAccount.identityKey)
+            notePotentialPendingCodexRestart(for: .account(name: targetAccount.name))
             await notificationManager.postSwitchNotification(
                 for: targetAccount.name,
                 kind: notificationKind
@@ -1100,6 +1314,62 @@ final class AppController {
                 title: "Couldn't Switch Account",
                 retryAction: .switchAccount(id),
                 allowsInteractiveRecovery: allowsInteractiveRecovery
+            )
+        }
+    }
+
+    func switchToNone() {
+        let operationID = UUID()
+        activeSwitchOperationID = operationID
+        switchTask?.cancel()
+        switchTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.switchToNoneNow(operationID: operationID)
+        }
+    }
+
+    private func switchToNoneNow(operationID: UUID) async {
+        await waitForInitializationIfNeeded()
+
+        activeSwitchOperationID = operationID
+        isSwitching = true
+        defer {
+            if activeSwitchOperationID == operationID {
+                isSwitching = false
+            }
+        }
+
+        do {
+            await preserveCurrentLiveSnapshotIfKnown()
+            try Task.checkCancellation()
+            try await authFileManager.deleteAuthFile()
+
+            let linkedLocation = try? await authFileManager.linkedLocation()
+            activeIdentityKey = nil
+            selection = [Self.noneAccountSelectionID]
+            renameTargetID = nil
+
+            if let linkedLocation {
+                authAccessState = .missingAuthFile(
+                    linkedFolder: linkedLocation.folderURL,
+                    credentialStoreHint: linkedLocation.credentialStoreHint
+                )
+            } else {
+                authAccessState = .unlinked
+            }
+
+            publishSharedState()
+            notePotentialPendingCodexRestart(for: .none)
+        } catch is CancellationError {
+            return
+        } catch {
+            await handleExpectedAuthOperationError(
+                error,
+                title: "Couldn't Select None",
+                retryAction: .switchAccount(Self.noneAccountSelectionID)
             )
         }
     }
@@ -1566,9 +1836,59 @@ final class AppController {
                         return
                     }
 
-                    await self.refreshAuthState(showUnexpectedErrors: false)
+                    self.handleObservedAuthFileChange()
                 }
             }
+        }
+    }
+
+    private func handleObservedAuthFileChange() {
+        observedAuthFileChangeTask?.cancel()
+        observedAuthFileChangeTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard let self else {
+                return
+            }
+
+            await self.refreshAuthState(showUnexpectedErrors: false)
+            await self.autoAddObservedAccountIfNeeded()
+        }
+    }
+
+    private func autoAddObservedAccountIfNeeded() async {
+        guard CodexSharedPreferences.automaticallyAddAccounts else {
+            return
+        }
+
+        do {
+            let readResult = try await authFileManager.readAuthFile()
+            guard !readResult.contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return
+            }
+
+            let snapshot = try await parseSnapshot(from: readResult.contents)
+            let modelContext = try requireModelContext()
+            let accounts = try fetchAccounts()
+
+            if let existingAccount = accounts.first(where: { $0.identityKey == snapshot.identityKey }) {
+                _ = try await storeSnapshot(snapshot, on: existingAccount)
+                _ = AccountAvailabilityUpdater.markAvailable(existingAccount)
+                try modelContext.save()
+                publishSharedState()
+                return
+            }
+
+            try await addStoredAccount(
+                from: snapshot,
+                at: Date(),
+                existingAccounts: accounts,
+                in: modelContext
+            )
+            try modelContext.save()
+            publishSharedState()
+            requestImmediateRateLimitRefresh(for: snapshot.identityKey)
+        } catch {
+            logger.debug("Auto-add skipped after observed auth.json change: \(String(describing: error), privacy: .private)")
         }
     }
 
@@ -2098,6 +2418,25 @@ final class AppController {
         hasStartedObservingSystemState = true
         isApplicationActive = NSApplication.shared.isActive
         let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
+        codexDesktopAppObserver.refresh()
+        workspaceLaunchObserver = workspaceNotificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleCodexRunningAppsChanged()
+            }
+        }
+        workspaceTerminationObserver = workspaceNotificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleCodexRunningAppsChanged()
+            }
+        }
         systemStateObservationTasks = [
             Task { @MainActor [weak self] in
                 for await _ in NotificationCenter.default.notifications(
@@ -2172,6 +2511,38 @@ final class AppController {
                 }
             },
         ]
+    }
+
+    private func notePotentialPendingCodexRestart(for target: PendingCodexRestartBanner.Target) {
+        codexDesktopAppObserver.refresh()
+        let runningApps = codexDesktopAppObserver.runningApps
+        guard !runningApps.isEmpty else {
+            pendingCodexRestartBanner = nil
+            return
+        }
+
+        pendingCodexRestartBanner = PendingCodexRestartBanner(
+            target: target,
+            shownAt: .now,
+            codexProcessIDsAtSwitch: Set(runningApps.map(\.id))
+        )
+    }
+
+    private func handleCodexRunningAppsChanged() {
+        codexDesktopAppObserver.refresh()
+
+        guard let banner = pendingCodexRestartBanner else {
+            return
+        }
+
+        let currentPIDs = Set(codexDesktopAppObserver.runningApps.map(\.id))
+        if banner.codexProcessIDsAtSwitch.isDisjoint(with: currentPIDs) {
+            pendingCodexRestartBanner = nil
+        }
+    }
+
+    func dismissPendingCodexRestartBanner() {
+        pendingCodexRestartBanner = nil
     }
 
     private func scheduleAutopilotEvaluationSoon(
@@ -2482,7 +2853,7 @@ final class AppController {
 
     private func orderedAccountsForAutopilotRefresh(from accounts: [StoredAccount]) -> [StoredAccount] {
         var prioritizedAccounts = AccountsPresentationLogic.sortedAccounts(
-            from: accounts.filter { hasLocalSnapshot(for: $0) },
+            from: accounts.filter { hasLocalSnapshot(for: $0) && !$0.isUnavailable },
             sortCriterion: .rateLimit,
             sortDirection: .descending
         )
@@ -2499,7 +2870,7 @@ final class AppController {
 
     private func bestAutopilotAccountCandidate(from accounts: [StoredAccount]) -> StoredAccount? {
         AccountsPresentationLogic.sortedAccounts(
-            from: accounts.filter { hasLocalSnapshot(for: $0) },
+            from: accounts.filter { hasLocalSnapshot(for: $0) && !$0.isUnavailable },
             sortCriterion: .rateLimit,
             sortDirection: .descending
         )
@@ -2601,7 +2972,11 @@ final class AppController {
         case .captureCurrentAccount:
             await captureCurrentAccountNow()
         case let .switchAccount(accountID):
-            await switchToAccountNow(id: accountID)
+            if accountID == Self.noneAccountSelectionID {
+                switchToNone()
+            } else {
+                await switchToAccountNow(id: accountID)
+            }
         case .refresh:
             await performRefresh(showUnexpectedErrors: true)
         }
@@ -2778,7 +3153,8 @@ final class AppController {
         }
 
         let didChange = try await storeSnapshot(snapshot, on: existingAccount)
-        if didChange {
+        let availabilityChanged = AccountAvailabilityUpdater.markAvailable(existingAccount)
+        if didChange || availabilityChanged {
             try requireModelContext().save()
         }
     }
@@ -2809,7 +3185,7 @@ final class AppController {
                 }
 
                 pendingLocationAction = retryAction
-                isShowingLocationPicker = true
+                presentCodexFolderPicker()
                 return
 
             case .missingAuthFile, .unsupportedCredentialStore:
@@ -3073,6 +3449,7 @@ final class AppController {
         let modelContext = try requireModelContext()
         let previousIdentityKey = account.identityKey
         let metadataChanged = update(account: account, from: snapshot)
+        let availabilityChanged = AccountAvailabilityUpdater.markAvailable(account)
         let rateLimitsChanged = rateLimitObservation.map {
             RateLimitAccountUpdater.apply($0, identityKey: snapshot.identityKey, to: account)
         } ?? false
@@ -3101,7 +3478,7 @@ final class AppController {
             )
         }
 
-        var didChange = metadataChanged || rateLimitsChanged || needsSnapshotWrite
+        var didChange = metadataChanged || availabilityChanged || rateLimitsChanged || needsSnapshotWrite
         if account.authFileContents != nil {
             account.authFileContents = nil
             didChange = true
@@ -3325,13 +3702,49 @@ final class AppController {
             case nil:
                 rateLimitFailureBackoffUntil.removeValue(forKey: identityKey)
                 rateLimitFailureBackoffDurations.removeValue(forKey: identityKey)
+                if account.isUnavailable {
+                    _ = AccountAvailabilityUpdater.markAvailable(account)
+                    try requireModelContext().save()
+                    publishSharedState()
+                }
 
             case .some(let failure):
+                if failure.isAuthoritativeAuthInvalidation {
+                    await handleAuthoritativeUnavailableAccount(account, reason: .unauthorized)
+                    return
+                }
                 scheduleRateLimitFailureBackoff(for: identityKey, failure: failure)
             }
         } catch {
             logger.error("Rate-limit refresh failed for account \(identityKey, privacy: .private): \(String(describing: error), privacy: .private)")
         }
+    }
+
+    private func handleAuthoritativeUnavailableAccount(
+        _ account: StoredAccount,
+        reason: StoredAccountUnavailableReason
+    ) async {
+        if CodexSharedPreferences.automaticallyRemoveAccounts {
+            await removeAccountBecauseUnavailable(account, reason: reason)
+            return
+        }
+
+        do {
+            if AccountAvailabilityUpdater.markUnavailable(account, reason: reason) {
+                try requireModelContext().save()
+                publishSharedState()
+            }
+        } catch {
+            logger.error("Couldn't mark account unavailable: \(String(describing: error), privacy: .private)")
+        }
+    }
+
+    private func removeAccountBecauseUnavailable(
+        _ account: StoredAccount,
+        reason: StoredAccountUnavailableReason
+    ) async {
+        logger.info("Auto-removing unavailable account \(account.identityKey, privacy: .private) reason \(reason.rawValue, privacy: .public)")
+        _ = await removeAccountsNow(withIDs: [account.id], allowsInteractiveRecovery: false)
     }
 
     private func scheduleRateLimitFailureBackoff(
@@ -3773,7 +4186,8 @@ final class AppController {
                     rateLimitsObservedAt: account.rateLimitsObservedAt,
                     sortOrder: account.customOrder,
                     isPinned: account.isPinned,
-                    hasLocalSnapshot: hasLocalSnapshot(for: account)
+                    hasLocalSnapshot: hasLocalSnapshot(for: account),
+                    availabilityRaw: account.availability.rawValue
                 )
             }
 
@@ -4004,6 +4418,7 @@ private enum AutopilotTrigger {
 private enum ControllerError: LocalizedError {
     case missingModelContext
     case accountNotFound
+    case accountUnavailable
     case accountLimitReached
     case noSupportedAccountArchives
     case accountArchiveIdentityMismatch
@@ -4015,6 +4430,8 @@ private enum ControllerError: LocalizedError {
             "The app isn't ready to edit accounts yet."
         case .accountNotFound:
             "That account no longer exists."
+        case .accountUnavailable:
+            "That saved account is no longer available. Keep it and capture a fresh login, or remove it from Codex Switcher."
         case .accountLimitReached:
             "Codex Switcher supports up to 1000 saved accounts."
         case .noSupportedAccountArchives:

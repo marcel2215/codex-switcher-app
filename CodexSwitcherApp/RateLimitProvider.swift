@@ -25,6 +25,24 @@ nonisolated enum CodexRateLimitFetchFailure: Sendable, Equatable {
     case cancelled
 }
 
+extension CodexRateLimitFetchFailure {
+    nonisolated var isAuthoritativeAuthInvalidation: Bool {
+        switch self {
+        case .unauthorized:
+            true
+        case let .httpStatus(status):
+            status == 401 || status == 403
+        case .missingCredentials,
+             .rateLimited,
+             .invalidResponse,
+             .invalidPayload,
+             .network,
+             .cancelled:
+            false
+        }
+    }
+}
+
 nonisolated struct CodexRateLimitFetchResult: Sendable, Equatable {
     let snapshot: CodexRateLimitSnapshot?
     let remoteFailure: CodexRateLimitFetchFailure?

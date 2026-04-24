@@ -19,6 +19,7 @@ protocol AuthFileManaging: AnyObject {
     func clearLinkedLocation() async
     func readAuthFile() async throws -> AuthFileReadResult
     func writeAuthFile(_ contents: String) async throws
+    func deleteAuthFile() async throws
     func startMonitoring(_ onChange: @escaping @Sendable () -> Void) async
 }
 
@@ -170,6 +171,43 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
                 [.posixPermissions: NSNumber(value: Int16(0o600))],
                 ofItemAtPath: authFileURL.path
             )
+        }
+    }
+
+    func deleteAuthFile() async throws {
+        let location = try await requireLinkedLocation()
+        try ensureSupportedCredentialStore(for: location)
+
+        try withFolderAuthorization(for: location.folderURL) { [fileManager] folderURL in
+            guard directoryExists(at: folderURL) else {
+                throw AuthFileAccessError.locationUnavailable(folderURL)
+            }
+
+            let authFileURL = folderURL.appending(path: "auth.json", directoryHint: .notDirectory)
+            var coordinationError: NSError?
+            var deletionError: Error?
+
+            NSFileCoordinator().coordinate(
+                writingItemAt: authFileURL,
+                options: .forDeleting,
+                error: &coordinationError
+            ) { url in
+                do {
+                    if fileManager.fileExists(atPath: url.path) {
+                        try fileManager.removeItem(at: url)
+                    }
+                } catch {
+                    deletionError = error
+                }
+            }
+
+            if let coordinationError {
+                throw AuthFileAccessError.unwritable(authFileURL, message: coordinationError.localizedDescription)
+            }
+
+            if let deletionError {
+                throw AuthFileAccessError.unwritable(authFileURL, message: deletionError.localizedDescription)
+            }
         }
     }
 

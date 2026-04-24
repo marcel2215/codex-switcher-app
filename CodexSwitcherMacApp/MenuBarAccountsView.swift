@@ -8,7 +8,6 @@
 import AppKit
 import SwiftData
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct MenuBarAccountsView: View {
     @Bindable var controller: AppController
@@ -28,10 +27,20 @@ struct MenuBarAccountsView: View {
         controller.displayedAccounts(from: accounts)
     }
 
+    private var displayedAccountRows: [MenuBarAccountRowItem] {
+        [MenuBarAccountRowItem.none(isCurrentAccount: controller.activeIdentityKey == nil)]
+            + displayedAccounts.map { account in
+                MenuBarAccountRowItem(
+                    account: account,
+                    isCurrentAccount: account.identityKey == controller.activeIdentityKey
+                )
+            }
+    }
+
     private var accountListHeight: CGFloat {
         // Derive the panel height from the rendered list content so future row
         // design changes do not leave the menu clipped or padded incorrectly.
-        let rowCount = max(displayedAccounts.count, 1)
+        let rowCount = max(displayedAccountRows.count, 1)
         let totalMeasuredSpacing = CGFloat(max(rowCount - 1, 0)) * Self.accountRowSpacing
         let measuredRowHeight = if measuredAccountListContentHeight > totalMeasuredSpacing {
             (measuredAccountListContentHeight - totalMeasuredSpacing) / CGFloat(rowCount)
@@ -45,7 +54,7 @@ struct MenuBarAccountsView: View {
     }
 
     private var accountSectionHeight: CGFloat {
-        displayedAccounts.isEmpty ? 180 : accountListHeight
+        displayedAccountRows.isEmpty ? 180 : accountListHeight
     }
 
     var body: some View {
@@ -56,21 +65,16 @@ struct MenuBarAccountsView: View {
                 statusCard
             }
 
+            if let banner = controller.pendingCodexRestartBanner {
+                pendingRestartCard(banner)
+            }
+
             accountSection
         }
         .padding(10)
         // Let the row list determine the natural content height so short menus
         // don't keep a stale fixed panel size with empty space at the bottom.
         .frame(width: 360, alignment: .top)
-        .fileImporter(
-            isPresented: $controller.isShowingLocationPicker,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false,
-            onCompletion: controller.handleLocationImport
-        )
-        .fileDialogCustomizationID("codex-auth-location")
-        .fileDialogDefaultDirectory(FileManager.default.homeDirectoryForCurrentUser)
-        .fileDialogBrowserOptions([.includeHiddenFiles])
         .task {
             controller.configure(modelContext: modelContext, undoManager: nil)
         }
@@ -85,6 +89,18 @@ struct MenuBarAccountsView: View {
                 title: Text(alert.title),
                 message: Text(alert.message),
                 dismissButton: .default(Text("OK"))
+            )
+        }
+        .alert(item: $controller.unavailableAccountRecoveryPrompt) { prompt in
+            Alert(
+                title: Text("Account Unavailable"),
+                message: Text(unavailableAccountMessage(for: prompt)),
+                primaryButton: .destructive(Text("Remove Account")) {
+                    controller.removeUnavailableAccountFromPrompt(prompt)
+                },
+                secondaryButton: .cancel(Text("Keep")) {
+                    controller.keepUnavailableAccountFromPrompt()
+                }
             )
         }
     }
@@ -140,9 +156,28 @@ struct MenuBarAccountsView: View {
         }
     }
 
+    private func pendingRestartCard(_ banner: PendingCodexRestartBanner) -> some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Account change pending", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.subheadline.weight(.semibold))
+                Text("Close and reopen Codex to use \(banner.target.displayName).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Button("Dismiss") {
+                        controller.dismissPendingCodexRestartBanner()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     @ViewBuilder
     private var accountSection: some View {
-        if displayedAccounts.isEmpty {
+        if displayedAccountRows.isEmpty {
             ContentUnavailableView(
                 "No Accounts",
                 systemImage: "person.crop.rectangle.stack",
@@ -156,28 +191,27 @@ struct MenuBarAccountsView: View {
                 // instead of visible rows. Use an eager stack plus an explicit
                 // scroll height so the account list renders reliably here.
                 VStack(alignment: .leading, spacing: Self.accountRowSpacing) {
-                    ForEach(displayedAccounts) { account in
-                        let isCurrentAccount = account.identityKey == controller.activeIdentityKey
+                    ForEach(displayedAccountRows) { item in
                         Button {
-                            controller.login(accountID: account.id)
+                            controller.login(accountID: item.id)
                         } label: {
                             HStack(spacing: 8) {
-                                Image(systemName: account.iconSystemName)
+                                Image(systemName: item.iconSystemName)
                                     .font(.title3)
                                     .frame(width: 24, height: 24)
                                     .foregroundStyle(.secondary)
 
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(account.name)
+                                    Text(item.displayName)
                                         .font(.callout.weight(.semibold))
                                         .lineLimit(1)
 
                                     AccountMetadataText(
-                                        lastLoginAt: account.lastLoginAt,
-                                        sevenDayLimitUsedPercent: account.sevenDayLimitUsedPercent,
-                                        fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
-                                        sevenDayResetsAt: account.sevenDayResetsAt,
-                                        fiveHourResetsAt: account.fiveHourResetsAt,
+                                        lastLoginAt: item.lastLoginAt,
+                                        sevenDayLimitUsedPercent: item.sevenDayLimitUsedPercent,
+                                        fiveHourLimitUsedPercent: item.fiveHourLimitUsedPercent,
+                                        sevenDayResetsAt: item.sevenDayResetsAt,
+                                        fiveHourResetsAt: item.fiveHourResetsAt,
                                         font: .caption
                                     )
                                 }
@@ -185,7 +219,11 @@ struct MenuBarAccountsView: View {
                                 Spacer(minLength: 8)
 
                                 Group {
-                                    if isCurrentAccount {
+                                    if item.isUnavailable {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .foregroundStyle(.orange)
+                                            .help("This saved Codex account is unavailable.")
+                                    } else if item.isCurrentAccount {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundStyle(.accent)
                                     } else {
@@ -198,7 +236,7 @@ struct MenuBarAccountsView: View {
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
                             .background {
-                                if isCurrentAccount {
+                                if item.isCurrentAccount {
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                                         .fill(currentAccountBackground)
                                 }
@@ -208,10 +246,14 @@ struct MenuBarAccountsView: View {
                         .buttonStyle(.plain)
                         .disabled(controller.isSwitching)
                         .onAppear {
-                            controller.setRateLimitVisibility(true, for: account.identityKey)
+                            if let identityKey = item.identityKey {
+                                controller.setRateLimitVisibility(true, for: identityKey)
+                            }
                         }
                         .onDisappear {
-                            controller.setRateLimitVisibility(false, for: account.identityKey)
+                            if let identityKey = item.identityKey {
+                                controller.setRateLimitVisibility(false, for: identityKey)
+                            }
                         }
                     }
                 }
@@ -243,6 +285,16 @@ struct MenuBarAccountsView: View {
         controller.canCaptureCurrentAccount
             ? "Add the currently used account from the menu bar or the main window."
             : controller.captureCurrentAccountHelpText
+    }
+
+    private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
+        """
+        The saved Codex auth snapshot for "\(prompt.accountName)" is no longer accepted. It may have expired, been revoked, or been invalidated by a Codex logout.
+
+        Do not use the Log out button in the Codex app to fix this. Codex logout can revoke managed ChatGPT tokens. To use this account again, keep it here, select None to locally clear auth.json, sign in again, then press + to capture a fresh snapshot.
+
+        Would you like to remove this account from Codex Switcher or keep it?
+        """
     }
 
     private func openMainWindow() {
@@ -280,5 +332,76 @@ private struct AccountListHeightPreferenceKey: PreferenceKey {
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
+    }
+}
+
+private struct MenuBarAccountRowItem: Identifiable, Hashable {
+    let id: UUID
+    let identityKey: String?
+    let displayName: String
+    let iconSystemName: String
+    let lastLoginAt: Date?
+    let sevenDayLimitUsedPercent: Int?
+    let fiveHourLimitUsedPercent: Int?
+    let sevenDayResetsAt: Date?
+    let fiveHourResetsAt: Date?
+    let isCurrentAccount: Bool
+    let isUnavailable: Bool
+
+    init(account: StoredAccount, isCurrentAccount: Bool) {
+        id = account.id
+        identityKey = account.identityKey
+        let resolvedName = AccountsPresentationLogic.displayName(for: account)
+        displayName = account.isUnavailable ? "\(resolvedName) (Unavailable)" : resolvedName
+        iconSystemName = AccountIconOption.resolve(from: account.iconSystemName).systemName
+        lastLoginAt = account.lastLoginAt
+        sevenDayLimitUsedPercent = account.isUnavailable ? 0 : account.sevenDayLimitUsedPercent
+        fiveHourLimitUsedPercent = account.isUnavailable ? 0 : account.fiveHourLimitUsedPercent
+        sevenDayResetsAt = account.isUnavailable ? nil : account.sevenDayResetsAt
+        fiveHourResetsAt = account.isUnavailable ? nil : account.fiveHourResetsAt
+        self.isCurrentAccount = isCurrentAccount
+        isUnavailable = account.isUnavailable
+    }
+
+    static func none(isCurrentAccount: Bool) -> MenuBarAccountRowItem {
+        MenuBarAccountRowItem(
+            id: AppController.noneAccountSelectionID,
+            identityKey: nil,
+            displayName: "None",
+            iconSystemName: "power",
+            lastLoginAt: nil,
+            sevenDayLimitUsedPercent: 0,
+            fiveHourLimitUsedPercent: 0,
+            sevenDayResetsAt: nil,
+            fiveHourResetsAt: nil,
+            isCurrentAccount: isCurrentAccount,
+            isUnavailable: false
+        )
+    }
+
+    private init(
+        id: UUID,
+        identityKey: String?,
+        displayName: String,
+        iconSystemName: String,
+        lastLoginAt: Date?,
+        sevenDayLimitUsedPercent: Int?,
+        fiveHourLimitUsedPercent: Int?,
+        sevenDayResetsAt: Date?,
+        fiveHourResetsAt: Date?,
+        isCurrentAccount: Bool,
+        isUnavailable: Bool
+    ) {
+        self.id = id
+        self.identityKey = identityKey
+        self.displayName = displayName
+        self.iconSystemName = iconSystemName
+        self.lastLoginAt = lastLoginAt
+        self.sevenDayLimitUsedPercent = sevenDayLimitUsedPercent
+        self.fiveHourLimitUsedPercent = fiveHourLimitUsedPercent
+        self.sevenDayResetsAt = sevenDayResetsAt
+        self.fiveHourResetsAt = fiveHourResetsAt
+        self.isCurrentAccount = isCurrentAccount
+        self.isUnavailable = isUnavailable
     }
 }

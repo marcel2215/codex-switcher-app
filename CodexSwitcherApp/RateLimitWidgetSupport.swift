@@ -57,7 +57,7 @@ struct WidgetRateLimitMetric: Sendable {
         contrast: ColorSchemeContrast
     ) -> Color {
         switch status {
-        case .cached, .missing:
+        case .cached, .missing, .unavailable:
             return .gray
         case .exact:
             let components = AccountDisplayFormatter.adaptiveUsageColorComponents(
@@ -903,7 +903,7 @@ private struct RateLimitMetricBarFill: View {
                 return .white
             case .cached:
                 return .white.opacity(0.6)
-            case .missing:
+            case .missing, .unavailable:
                 return .white.opacity(0.35)
             }
         }
@@ -972,7 +972,7 @@ struct RateLimitCircularAccessoryView: View {
             return "\(metric.percentText) remaining"
         case .cached:
             return "\(metric.percentText) remaining, cached"
-        case .missing:
+        case .missing, .unavailable:
             return "Unavailable"
         }
     }
@@ -1060,6 +1060,8 @@ struct RateLimitRectangularAccessoryView: View {
             return "\(account?.displayName ?? "Missing Account") • \(window.shortLabel) • Cached"
         case .missing:
             return "Missing Account • \(window.shortLabel)"
+        case .unavailable:
+            return "\(account?.displayName ?? "Unavailable Account") • \(window.shortLabel) • Unavailable"
         }
     }
 
@@ -1069,7 +1071,7 @@ struct RateLimitRectangularAccessoryView: View {
             return "\(metric.percentText) remaining"
         case .cached:
             return "\(metric.percentText) remaining, cached"
-        case .missing:
+        case .missing, .unavailable:
             return "Unavailable"
         }
     }
@@ -1128,7 +1130,7 @@ private struct BatteryStyleAccessoryProgressBar: View {
                 return .white
             case .cached:
                 return Color(white: 0.76)
-            case .missing:
+            case .missing, .unavailable:
                 return Color(white: 0.56)
             }
         }
@@ -1140,7 +1142,7 @@ private struct BatteryStyleAccessoryProgressBar: View {
             return baseColor
         case .cached:
             return baseColor.opacity(0.72)
-        case .missing:
+        case .missing, .unavailable:
             return baseColor.opacity(0.42)
         }
     }

@@ -96,6 +96,8 @@ actor PreviewAuthFileManager: AuthFileManaging {
 
     func writeAuthFile(_ contents: String) async throws {}
 
+    func deleteAuthFile() async throws {}
+
     func startMonitoring(_ onChange: @escaping @Sendable () -> Void) async {}
 }
 
@@ -188,6 +190,8 @@ actor UITestAuthFileManager: AuthFileManaging {
     }
 
     func writeAuthFile(_ contents: String) async throws {}
+
+    func deleteAuthFile() async throws {}
 
     func startMonitoring(_ onChange: @escaping @Sendable () -> Void) async {}
 }

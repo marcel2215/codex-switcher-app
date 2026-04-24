@@ -47,6 +47,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
     var sortOrder: Double
     var isPinned: Bool
     var hasLocalSnapshot: Bool
+    var availabilityRaw: String
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -66,6 +67,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         case sortOrder
         case isPinned
         case hasLocalSnapshot
+        case availabilityRaw
         case authFileContents
     }
 
@@ -86,7 +88,8 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         rateLimitsObservedAt: Date?,
         sortOrder: Double,
         isPinned: Bool = false,
-        hasLocalSnapshot: Bool
+        hasLocalSnapshot: Bool,
+        availabilityRaw: String = StoredAccountAvailability.available.rawValue
     ) {
         self.id = id
         self.name = name
@@ -105,6 +108,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         self.sortOrder = sortOrder
         self.isPinned = isPinned
         self.hasLocalSnapshot = hasLocalSnapshot
+        self.availabilityRaw = availabilityRaw
     }
 
     init(from decoder: Decoder) throws {
@@ -129,6 +133,8 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
         hasLocalSnapshot = try container.decodeIfPresent(Bool.self, forKey: .hasLocalSnapshot)
             ?? (try container.decodeIfPresent(String.self, forKey: .authFileContents)?.isEmpty == false)
+        availabilityRaw = try container.decodeIfPresent(String.self, forKey: .availabilityRaw)
+            ?? StoredAccountAvailability.available.rawValue
     }
 
     func encode(to encoder: Encoder) throws {
@@ -150,6 +156,15 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
         try container.encode(sortOrder, forKey: .sortOrder)
         try container.encode(isPinned, forKey: .isPinned)
         try container.encode(hasLocalSnapshot, forKey: .hasLocalSnapshot)
+        try container.encode(availabilityRaw, forKey: .availabilityRaw)
+    }
+
+    nonisolated var availability: StoredAccountAvailability {
+        StoredAccountAvailability(rawValue: availabilityRaw) ?? .available
+    }
+
+    nonisolated var isUnavailable: Bool {
+        availability == .unavailableUnauthorized
     }
 
     nonisolated var sevenDayDataStatus: RateLimitMetricDataStatus {
@@ -181,7 +196,7 @@ nonisolated struct SharedCodexAccountRecord: Codable, Hashable, Identifiable, Se
 }
 
 nonisolated struct SharedCodexState: Codable, Sendable {
-    nonisolated static let currentSchemaVersion = 6
+    nonisolated static let currentSchemaVersion = 7
 
     var schemaVersion: Int
     var authState: SharedCodexAuthState

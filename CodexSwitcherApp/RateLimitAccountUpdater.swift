@@ -107,3 +107,95 @@ enum RateLimitAccountUpdater {
         )
     }
 }
+
+enum AccountAvailabilityUpdater {
+    @MainActor
+    @discardableResult
+    static func markAvailable(_ account: StoredAccount, checkedAt: Date = .now) -> Bool {
+        var didChange = account.normalizeLegacyLocalOnlyFields()
+
+        if account.availability != .available {
+            account.availability = .available
+            didChange = true
+        }
+
+        if account.unavailableReason != nil {
+            account.unavailableReason = nil
+            didChange = true
+        }
+
+        if account.unavailableSince != nil {
+            account.unavailableSince = nil
+            didChange = true
+        }
+
+        if account.lastAvailabilityCheckAt != checkedAt {
+            account.lastAvailabilityCheckAt = checkedAt
+            didChange = true
+        }
+
+        return didChange
+    }
+
+    @MainActor
+    @discardableResult
+    static func markUnavailable(
+        _ account: StoredAccount,
+        reason: StoredAccountUnavailableReason,
+        checkedAt: Date = .now
+    ) -> Bool {
+        var didChange = account.normalizeLegacyLocalOnlyFields()
+
+        if account.availability != .unavailableUnauthorized {
+            account.availability = .unavailableUnauthorized
+            didChange = true
+        }
+
+        if account.unavailableReason != reason {
+            account.unavailableReason = reason
+            didChange = true
+        }
+
+        if account.unavailableSince == nil {
+            account.unavailableSince = checkedAt
+            didChange = true
+        }
+
+        if account.lastAvailabilityCheckAt != checkedAt {
+            account.lastAvailabilityCheckAt = checkedAt
+            didChange = true
+        }
+
+        if account.fiveHourLimitUsedPercent != 0 {
+            account.fiveHourLimitUsedPercent = 0
+            didChange = true
+        }
+
+        if account.sevenDayLimitUsedPercent != 0 {
+            account.sevenDayLimitUsedPercent = 0
+            didChange = true
+        }
+
+        if account.fiveHourDataStatus != .unavailable {
+            account.fiveHourDataStatus = .unavailable
+            didChange = true
+        }
+
+        if account.sevenDayDataStatus != .unavailable {
+            account.sevenDayDataStatus = .unavailable
+            didChange = true
+        }
+
+        if account.fiveHourResetsAt != nil {
+            account.fiveHourResetsAt = nil
+            didChange = true
+        }
+
+        if account.sevenDayResetsAt != nil {
+            account.sevenDayResetsAt = nil
+            didChange = true
+        }
+
+        return didChange
+    }
+}

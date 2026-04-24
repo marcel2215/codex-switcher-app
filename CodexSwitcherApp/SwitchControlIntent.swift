@@ -131,6 +131,7 @@ nonisolated private func mappedSwitchIntentError(from error: Error) -> Error {
 
     case .accountSelectionRequired,
          .accountNotFound,
+         .accountUnavailable,
          .noBestAccountAvailable,
          .missingStoredSnapshot,
          .invalidStoredSnapshot,

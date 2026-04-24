@@ -14,6 +14,7 @@ import Darwin
 enum CodexSharedSwitchError: LocalizedError {
     case accountSelectionRequired
     case accountNotFound(String)
+    case accountUnavailable(String)
     case noBestAccountAvailable
     case missingStoredSnapshot(String)
     case invalidStoredSnapshot(String)
@@ -33,6 +34,8 @@ enum CodexSharedSwitchError: LocalizedError {
             return "Select an account first."
         case let .accountNotFound(identityKey):
             return "The saved account (\(identityKey)) is no longer available."
+        case let .accountUnavailable(accountName):
+            return "The saved account \(accountName) is no longer available. Open Codex Switcher to remove it or capture a fresh login."
         case .noBestAccountAvailable:
             return "No saved account currently has both 5h and 7d rate limits available for ranking."
         case let .missingStoredSnapshot(accountName):
@@ -180,6 +183,9 @@ struct CodexSharedAccountSwitchService: Sendable {
 
         guard let account = state.account(withIdentityKey: identityKey) else {
             throw CodexSharedSwitchError.accountNotFound(identityKey)
+        }
+        guard !account.isUnavailable else {
+            throw CodexSharedSwitchError.accountUnavailable(account.name)
         }
         var outcomeAccount = account
         let loginAt = Date()
@@ -478,6 +484,7 @@ struct CodexSharedAccountSwitchService: Sendable {
             state.currentAccountID = nil
         case .accountSelectionRequired,
              .accountNotFound,
+             .accountUnavailable,
              .noBestAccountAvailable,
              .missingStoredSnapshot,
              .invalidStoredSnapshot,
@@ -495,7 +502,7 @@ struct CodexSharedAccountSwitchService: Sendable {
         in accounts: [SharedCodexAccountRecord]
     ) -> SharedCodexAccountRecord? {
         accounts
-            .filter { $0.hasLocalSnapshot }
+            .filter { $0.hasLocalSnapshot && !$0.isUnavailable }
             .sorted { lhs, rhs in
                 if areEquivalentForRateLimitSort(lhs, rhs) {
                     return lhs.sortOrder < rhs.sortOrder

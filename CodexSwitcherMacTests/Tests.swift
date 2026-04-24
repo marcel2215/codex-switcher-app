@@ -180,12 +180,12 @@ struct Tests {
         #expect(controller.searchText.isEmpty)
     }
 
-    @Test func addAccountAvailabilityRequiresUsableLinkedAuthFile() async throws {
+    @Test func addAccountButtonStaysAvailableForOfficialLoginFallback() async throws {
         let container = try makeInMemoryContainer()
         let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-ready"))
         let controller = makeController(authFileManager: authFileManager)
 
-        #expect(controller.canCaptureCurrentAccount == false)
+        #expect(controller.canCaptureCurrentAccount == true)
 
         controller.configure(modelContext: container.mainContext, undoManager: nil)
         await controller.refreshAuthStateForTesting()
@@ -195,7 +195,197 @@ struct Tests {
         await authFileManager.setMissingAuthFile(true)
         await controller.refreshAuthStateForTesting()
 
-        #expect(controller.canCaptureCurrentAccount == false)
+        #expect(controller.canCaptureCurrentAccount == true)
+    }
+
+    @Test func unavailableUpdaterSetsAvailabilityAndZeroRateLimits() throws {
+        let account = makeStoredAccount(name: "Work", customOrder: 0, accountID: "acct-unavailable")
+        let checkedAt = Date(timeIntervalSince1970: 1_234)
+        let resetAt = Date(timeIntervalSince1970: 2_000)
+        account.sevenDayLimitUsedPercent = 75
+        account.fiveHourLimitUsedPercent = 40
+        account.sevenDayDataStatus = .exact
+        account.fiveHourDataStatus = .cached
+        account.sevenDayResetsAt = resetAt
+        account.fiveHourResetsAt = resetAt
+
+        let didChange = AccountAvailabilityUpdater.markUnavailable(
+            account,
+            reason: .unauthorized,
+            checkedAt: checkedAt
+        )
+
+        #expect(didChange)
+        #expect(account.isUnavailable)
+        #expect(account.unavailableReason == .unauthorized)
+        #expect(account.unavailableSince == checkedAt)
+        #expect(account.lastAvailabilityCheckAt == checkedAt)
+        #expect(account.sevenDayLimitUsedPercent == 0)
+        #expect(account.fiveHourLimitUsedPercent == 0)
+        #expect(account.sevenDayDataStatus == .unavailable)
+        #expect(account.fiveHourDataStatus == .unavailable)
+        #expect(account.sevenDayResetsAt == nil)
+        #expect(account.fiveHourResetsAt == nil)
+
+        let availableChanged = AccountAvailabilityUpdater.markAvailable(account, checkedAt: checkedAt.addingTimeInterval(1))
+        #expect(availableChanged)
+        #expect(account.availability == .available)
+        #expect(account.unavailableReason == nil)
+        #expect(account.unavailableSince == nil)
+        #expect(account.sevenDayLimitUsedPercent == 0)
+        #expect(account.fiveHourLimitUsedPercent == 0)
+    }
+
+    @Test func unavailableAccountSelectionDoesNotWriteAuthFileAndPromptsRecovery() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-unavailable-switch"))
+        let controller = makeController(authFileManager: authFileManager)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.captureCurrentAccountNow()
+
+        let account = try #require(fetchAccounts(in: container.mainContext).first)
+        _ = AccountAvailabilityUpdater.markUnavailable(account, reason: .unauthorized)
+        try container.mainContext.save()
+
+        controller.login(accountID: account.id)
+        try await waitUntil {
+            await MainActor.run {
+                controller.unavailableAccountRecoveryPrompt != nil
+            }
+        }
+
+        #expect(controller.unavailableAccountRecoveryPrompt?.accountID == account.id)
+        #expect(await authFileManager.writeCount() == 0)
+    }
+
+    @Test func selectingNoneDeletesAuthFileWithoutWritingLogoutSnapshot() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-none"))
+        let controller = makeController(authFileManager: authFileManager)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.captureCurrentAccountNow()
+
+        controller.login(accountID: AppController.noneAccountSelectionID)
+        try await waitUntil {
+            await authFileManager.deleteCount() == 1
+        }
+
+        #expect(controller.activeIdentityKey == nil)
+        #expect(controller.selection == [AppController.noneAccountSelectionID])
+        #expect(await authFileManager.writeCount() == 0)
+        #expect(await authFileManager.isAuthFileMissing())
+    }
+
+    @Test func plusButtonFallsBackToOfficialLoginWhenCurrentAuthIsMissing() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-live-missing"))
+        await authFileManager.setMissingAuthFile(true)
+        let officialLogin = FakeOfficialLoginCoordinator(
+            authContents: makeChatGPTAuthJSON(accountID: "acct-official-login")
+        )
+        let controller = makeController(
+            authFileManager: authFileManager,
+            officialLoginCoordinator: officialLogin
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.captureCurrentAccount()
+
+        try await waitUntil {
+            await MainActor.run {
+                (try? fetchAccounts(in: container.mainContext).count) == 1
+            }
+        }
+
+        let account = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(account.emailHint == "acct-official-login@example.com")
+        #expect(await officialLogin.loginCount() == 1)
+        #expect(await authFileManager.writeCount() == 0)
+    }
+
+    @Test func plusButtonFallsBackToOfficialLoginWhenCurrentAuthIsAlreadySaved() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-existing-live"))
+        let officialLogin = FakeOfficialLoginCoordinator(
+            authContents: makeChatGPTAuthJSON(accountID: "acct-official-new")
+        )
+        let controller = makeController(
+            authFileManager: authFileManager,
+            officialLoginCoordinator: officialLogin
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.captureCurrentAccountNow()
+        controller.selection = []
+
+        controller.captureCurrentAccount()
+
+        try await waitUntil {
+            await MainActor.run {
+                (try? fetchAccounts(in: container.mainContext).count) == 2
+            }
+        }
+
+        let accounts = try fetchAccounts(in: container.mainContext)
+        let existingAccount = try #require(accounts.first { $0.emailHint == "acct-existing-live@example.com" })
+        let newAccount = try #require(accounts.first { $0.emailHint == "acct-official-new@example.com" })
+
+        #expect(await officialLogin.loginCount() == 1)
+        #expect(controller.selection == [newAccount.id])
+        #expect(controller.selection != [existingAccount.id])
+        #expect(await authFileManager.writeCount() == 0)
+    }
+
+    @Test func officialLoginUsesDirectOAuthWhenCodexCommandIsMissing() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let authContents = makeChatGPTAuthJSON(accountID: "acct-direct-oauth")
+        let directOAuth = FakeDirectOAuthLoginFlow(authContents: authContents)
+        let coordinator = CodexOfficialLoginCoordinator(
+            codexExecutableURL: nil,
+            applicationSupportBaseURL: temporaryDirectory,
+            directOAuthLogin: directOAuth
+        )
+
+        let result = try await coordinator.login()
+
+        #expect(result.authFileContents == authContents)
+        #expect(result.parsedAuth.email == "acct-direct-oauth@example.com")
+        #expect(await directOAuth.loginCount() == 1)
+    }
+
+    @Test func automaticAccountObservationAddsOnlyWhenPreferenceIsEnabled() async throws {
+        let previous = CodexSharedPreferences.automaticallyAddAccounts
+        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.automaticallyAddAccounts)
+        defer {
+            CodexSharedPreferences.userDefaults.set(previous, forKey: CodexSharedPreferenceKey.automaticallyAddAccounts)
+        }
+
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-initial-auto"))
+        let controller = makeController(authFileManager: authFileManager)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        try await waitUntil {
+            await authFileManager.hasChangeMonitor()
+        }
+
+        await authFileManager.simulateExternalChange(to: makeChatGPTAuthJSON(accountID: "acct-auto-off"))
+        try await Task.sleep(for: .milliseconds(450))
+        #expect(try fetchAccounts(in: container.mainContext).isEmpty)
+
+        CodexSharedPreferences.userDefaults.set(true, forKey: CodexSharedPreferenceKey.automaticallyAddAccounts)
+        await authFileManager.simulateExternalChange(to: makeChatGPTAuthJSON(accountID: "acct-auto-on"))
+
+        try await waitUntil(iterations: 40, sleepMilliseconds: 50) {
+            await MainActor.run {
+                (try? fetchAccounts(in: container.mainContext).count) == 1
+            }
+        }
+
+        let account = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(account.emailHint == "acct-auto-on@example.com")
     }
 
     @Test func captureMissingAuthFileShowsErrorAlert() async throws {
@@ -2616,6 +2806,8 @@ private func makeController(
     syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore = FakeSyncedRateLimitCredentialStore(),
     notificationManager: FakeNotificationManager = FakeNotificationManager(),
     rateLimitProvider: CodexRateLimitProviding = FakeRateLimitProvider(),
+    officialLoginCoordinator: CodexOfficialLoginCoordinating = FakeOfficialLoginCoordinator(),
+    locationPicker: CodexFolderLocationPicking = FakeCodexFolderLocationPicker(),
     lowPowerModeProvider: @escaping () -> Bool = { false },
     batteryChargePercentProvider: @escaping () -> Int? = { nil },
     terminateApplication: @escaping () -> Void = {},
@@ -2636,6 +2828,8 @@ private func makeController(
         syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
         notificationManager: notificationManager,
         rateLimitProvider: rateLimitProvider,
+        officialLoginCoordinator: officialLoginCoordinator,
+        locationPicker: locationPicker,
         lowPowerModeProvider: lowPowerModeProvider,
         batteryChargePercentProvider: batteryChargePercentProvider,
         terminateApplication: terminateApplication,
@@ -2896,6 +3090,7 @@ private final class MockURLProtocol: URLProtocol, @unchecked Sendable {
 actor FakeAuthFileManager: AuthFileManaging {
     private(set) var currentContents: String
     private(set) var writeCallCount = 0
+    private(set) var deleteCallCount = 0
     private var linkedLocationValue: AuthLinkedLocation?
     private var readError: Error?
     private var writeError: Error?
@@ -2976,6 +3171,16 @@ actor FakeAuthFileManager: AuthFileManaging {
         isMissingAuthFile = false
     }
 
+    func deleteAuthFile() async throws {
+        guard linkedLocationValue != nil else {
+            throw AuthFileAccessError.accessRequired
+        }
+
+        deleteCallCount += 1
+        currentContents = ""
+        isMissingAuthFile = true
+    }
+
     func startMonitoring(_ onChange: @escaping @Sendable () -> Void) async {
         self.onChange = onChange
     }
@@ -2993,6 +3198,22 @@ actor FakeAuthFileManager: AuthFileManaging {
         currentContents = contents
         isMissingAuthFile = false
         onChange?()
+    }
+
+    func writeCount() -> Int {
+        writeCallCount
+    }
+
+    func deleteCount() -> Int {
+        deleteCallCount
+    }
+
+    func isAuthFileMissing() -> Bool {
+        isMissingAuthFile
+    }
+
+    func hasChangeMonitor() -> Bool {
+        onChange != nil
     }
 }
 
@@ -3166,6 +3387,103 @@ actor FakeRateLimitProvider: CodexRateLimitProviding {
     }
 }
 
+nonisolated final class FakeOfficialLoginCoordinator: CodexOfficialLoginCoordinating, @unchecked Sendable {
+    private let lock = NSLock()
+    private let result: Result<CodexOfficialLoginResult, Error>
+    private var count = 0
+
+    nonisolated init(
+        authContents: String = makeChatGPTAuthJSON(accountID: "acct-official-default"),
+        error: Error? = nil
+    ) {
+        if let error {
+            self.result = .failure(error)
+        } else {
+            let snapshot = try! CodexAuthFile.parse(contents: authContents)
+            self.result = .success(
+                CodexOfficialLoginResult(
+                    authFileContents: authContents,
+                    parsedAuth: snapshot,
+                    sourceHomeURL: URL(fileURLWithPath: "/tmp/codex-switcher-login", isDirectory: true)
+                )
+            )
+        }
+    }
+
+    nonisolated func login() async throws -> CodexOfficialLoginResult {
+        let result = withLock {
+            count += 1
+            return self.result
+        }
+        return try result.get()
+    }
+
+    nonisolated func loginCount() async -> Int {
+        withLock {
+            count
+        }
+    }
+
+    private nonisolated func withLock<T>(_ body: () throws -> T) rethrows -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body()
+    }
+}
+
+nonisolated final class FakeDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing, @unchecked Sendable {
+    private let lock = NSLock()
+    private let authContents: String
+    private var count = 0
+
+    nonisolated init(authContents: String) {
+        self.authContents = authContents
+    }
+
+    nonisolated func login(applicationSupportBaseURL: URL) async throws -> CodexOfficialLoginResult {
+        let snapshot = try CodexAuthFile.parse(contents: authContents)
+        withLock {
+            count += 1
+        }
+
+        return CodexOfficialLoginResult(
+            authFileContents: authContents,
+            parsedAuth: snapshot,
+            sourceHomeURL: applicationSupportBaseURL.appending(path: "Codex Switcher/LoginHomes/test", directoryHint: .isDirectory)
+        )
+    }
+
+    nonisolated func loginCount() async -> Int {
+        withLock {
+            count
+        }
+    }
+
+    private nonisolated func withLock<T>(_ body: () throws -> T) rethrows -> T {
+        lock.lock()
+        defer {
+            lock.unlock()
+        }
+
+        return try body()
+    }
+}
+
+@MainActor
+final class FakeCodexFolderLocationPicker: CodexFolderLocationPicking {
+    private let selectedURL: URL?
+    private(set) var pickCount = 0
+
+    init(selectedURL: URL? = nil) {
+        self.selectedURL = selectedURL
+    }
+
+    func pickCodexFolder() async -> URL? {
+        pickCount += 1
+        return selectedURL
+    }
+}
+
 final class FakeSyncedRateLimitCredentialStore: @unchecked Sendable, SyncedRateLimitCredentialStoring {
     private let lock = NSLock()
     private var credentialsByIdentityKey: [String: SyncedRateLimitCredential] = [:]
@@ -3319,6 +3637,14 @@ final class ReentrantQueueingAuthFileManager: AuthFileManaging {
         }
 
         currentContents = contents
+    }
+
+    func deleteAuthFile() async throws {
+        guard linkedLocationValue != nil else {
+            throw AuthFileAccessError.accessRequired
+        }
+
+        currentContents = ""
     }
 
     func startMonitoring(_ onChange: @escaping @Sendable () -> Void) async {

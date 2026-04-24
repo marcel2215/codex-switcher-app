@@ -29,7 +29,8 @@ struct ContentView: View {
     }
 
     private var displayedAccountListItems: [AccountListItem] {
-        displayedAccounts.map { account in
+        let noneItem = AccountListItem.none(isCurrentAccount: controller.activeIdentityKey == nil)
+        return [noneItem] + displayedAccounts.map { account in
             AccountListItem(
                 account: account,
                 isCurrentAccount: controller.activeIdentityKey == account.identityKey
@@ -87,8 +88,15 @@ struct ContentView: View {
                     .padding(.bottom, 8)
             }
 
+            if let banner = controller.pendingCodexRestartBanner {
+                pendingRestartBanner(banner)
+                    .padding(.horizontal, 16)
+                    .padding(.top, controller.shouldShowAuthStatusBanner ? 0 : 16)
+                    .padding(.bottom, 8)
+            }
+
             Group {
-                if displayedAccounts.isEmpty {
+                if displayedAccountListItems.isEmpty {
                     emptyAccountsView
                 } else {
                     accountList
@@ -142,12 +150,6 @@ struct ContentView: View {
             }
         }
         .searchable(text: $controller.searchText)
-        .fileImporter(
-            isPresented: $controller.isShowingLocationPicker,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false,
-            onCompletion: controller.handleLocationImport
-        )
         .fileImporter(
             isPresented: $controller.isShowingAccountArchiveImporter,
             allowedContentTypes: UTType.openableCodexAccountArchiveTypes,
@@ -256,6 +258,18 @@ struct ContentView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+        .alert(item: $controller.unavailableAccountRecoveryPrompt) { prompt in
+            Alert(
+                title: Text("Account Unavailable"),
+                message: Text(unavailableAccountMessage(for: prompt)),
+                primaryButton: .destructive(Text("Remove Account")) {
+                    controller.removeUnavailableAccountFromPrompt(prompt)
+                },
+                secondaryButton: .cancel(Text("Keep")) {
+                    controller.keepUnavailableAccountFromPrompt()
+                }
+            )
+        }
     }
 
     private var authStatusBanner: some View {
@@ -298,6 +312,44 @@ struct ContentView: View {
             description: Text(emptyAccountsDescription)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func pendingRestartBanner(_ banner: PendingCodexRestartBanner) -> some View {
+        GroupBox {
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Account change pending")
+                        .font(.headline)
+                    Text("Close and reopen Codex to use \(banner.target.displayName).")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                Button {
+                    controller.dismissPendingCodexRestartBanner()
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.plain)
+                .help("Dismiss")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
+        """
+        The saved Codex auth snapshot for "\(prompt.accountName)" is no longer accepted. It may have expired, been revoked, or been invalidated by a Codex logout.
+
+        Do not use the Log out button in the Codex app to fix this. Codex logout can revoke managed ChatGPT tokens. To use this account again, keep it here, select None to locally clear auth.json, sign in again, then press + to capture a fresh snapshot.
+
+        Would you like to remove this account from Codex Switcher or keep it?
+        """
     }
 
     @ViewBuilder
@@ -345,7 +397,7 @@ struct ContentView: View {
     private func accountListRow(for item: AccountListItem, draftName: Binding<String>) -> some View {
         HStack(alignment: .center, spacing: 8) {
             if controller.canEditCustomOrder {
-                reorderHandle(for: item.id)
+                reorderHandle(for: item.id, isEnabled: !item.isNone)
             }
 
             Image(systemName: item.iconSystemName)
@@ -355,7 +407,7 @@ struct ContentView: View {
                 .allowsHitTesting(false)
 
             VStack(alignment: .leading, spacing: 2) {
-                if controller.renameTargetID == item.id {
+                if !item.isNone, controller.renameTargetID == item.id {
                     TextField("", text: draftName)
                         .textFieldStyle(.plain)
                         .focused($focusedRenameAccountID, equals: item.id)
@@ -377,7 +429,7 @@ struct ContentView: View {
                             return .handled
                         }
                 } else {
-                    Text(item.name)
+                    Text(item.displayName)
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(.primary)
                         .allowsHitTesting(false)
@@ -396,13 +448,7 @@ struct ContentView: View {
 
             Spacer(minLength: 0)
 
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(controller.selection.contains(item.id) ? Color.white : Color.accentColor)
-                .frame(width: 16, height: 16)
-                .opacity(item.isCurrentAccount ? 1 : 0)
-                .help(item.isCurrentAccount ? "Currently active in Codex" : "")
-                .accessibilityHidden(!item.isCurrentAccount)
-                .allowsHitTesting(false)
+            trailingStatusIcon(for: item)
         }
         .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -413,17 +459,42 @@ struct ContentView: View {
 
     private func accountListEntry(for item: AccountListItem, draftName: Binding<String>) -> some View {
         accountListRow(for: item, draftName: draftName)
-            .moveDisabled(controller.canEditCustomOrder && !isReorderInteractionArmed)
+            .moveDisabled(item.isNone || (controller.canEditCustomOrder && !isReorderInteractionArmed))
             .onAppear {
-                handleRateLimitVisibility(true, for: item.id)
+                if !item.isNone {
+                    handleRateLimitVisibility(true, for: item.id)
+                }
             }
             .onDisappear {
                 clearReorderHandleInteractionIfNeeded(for: item.id)
-                handleRateLimitVisibility(false, for: item.id)
+                if !item.isNone {
+                    handleRateLimitVisibility(false, for: item.id)
+                }
             }
             .itemProvider {
                 accountListDragItemProvider(forDraggedRowID: item.id)
             }
+    }
+
+    private func trailingStatusIcon(for item: AccountListItem) -> some View {
+        Group {
+            if item.isUnavailable {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help("This saved Codex account is unavailable.")
+                    .accessibilityLabel("Unavailable")
+            } else if item.isCurrentAccount {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(controller.selection.contains(item.id) ? Color.white : Color.accentColor)
+                    .help(item.isNone ? "Codex is locally logged out" : "Currently active in Codex")
+                    .accessibilityLabel("Current")
+            } else {
+                Color.clear
+                    .accessibilityHidden(true)
+            }
+        }
+        .frame(width: 16, height: 16)
+        .allowsHitTesting(false)
     }
 
     private func handlePrimaryAction(forSelectionIDs targetIDs: Set<UUID>) {
@@ -455,16 +526,21 @@ struct ContentView: View {
         controller.setRateLimitVisibility(isVisible, for: identityKey)
     }
 
-    private func reorderHandle(for rowID: UUID) -> some View {
+    private func reorderHandle(for rowID: UUID, isEnabled: Bool = true) -> some View {
         Image(systemName: "line.3.horizontal")
             .font(.callout.weight(.semibold))
-            .foregroundStyle(isReorderHandleHovered(for: rowID) ? .primary : .tertiary)
+            .foregroundStyle(isEnabled && isReorderHandleHovered(for: rowID) ? .primary : .tertiary)
             .frame(width: 18, alignment: .center)
             .padding(.trailing, 2)
             .contentShape(Rectangle())
-            .help("Drag to reorder")
+            .help(isEnabled ? "Drag to reorder" : "This row cannot be reordered")
             .accessibilityHidden(true)
+            .allowsHitTesting(isEnabled)
             .onHover { hovering in
+                guard isEnabled else {
+                    return
+                }
+
                 guard !isPrimaryMouseButtonPressed else {
                     return
                 }
@@ -594,24 +670,25 @@ struct ContentView: View {
             return
         }
 
-        let visibleIDs = displayedAccountListItems.map(\.id)
+        let visibleIDs = displayedAccountListItems.filter { !$0.isNone }.map(\.id)
+        let reorderedAccountIDs = reorderedIDs.filter { $0 != AppController.noneAccountSelectionID }
         guard
-            reorderedIDs.count == visibleIDs.count,
-            Set(reorderedIDs) == Set(visibleIDs)
+            reorderedAccountIDs.count == visibleIDs.count,
+            Set(reorderedAccountIDs) == Set(visibleIDs)
         else {
             return
         }
 
-        guard reorderedIDs != visibleIDs else {
-            if pendingCustomOrderIDs == reorderedIDs {
+        guard reorderedAccountIDs != visibleIDs else {
+            if pendingCustomOrderIDs == reorderedAccountIDs {
                 pendingCustomOrderIDs = nil
             }
             return
         }
 
-        pendingCustomOrderIDs = reorderedIDs
+        pendingCustomOrderIDs = [AppController.noneAccountSelectionID] + reorderedAccountIDs
         clearReorderHandleInteraction()
-        controller.persistCustomOrder(for: reorderedIDs, visibleAccounts: displayedAccounts)
+        controller.persistCustomOrder(for: reorderedAccountIDs, visibleAccounts: displayedAccounts)
     }
 
     @ViewBuilder
@@ -628,6 +705,8 @@ struct ContentView: View {
             } label: {
                 menuActionLabel(title: "Import Archive", systemImage: "square.and.arrow.down")
             }
+        } else if targetIDs.contains(AppController.noneAccountSelectionID) {
+            EmptyView()
         } else if targetIDs.count == 1,
                   let accountID = targetIDs.first,
                   let account = accounts.first(where: { $0.id == accountID }) {
@@ -695,7 +774,9 @@ struct ContentView: View {
 
 private struct AccountListItem: Identifiable, Hashable {
     let id: UUID
+    let isNone: Bool
     var name: String
+    let displayName: String
     let iconSystemName: String
     let lastLoginAt: Date?
     let sevenDayLimitUsedPercent: Int?
@@ -703,17 +784,67 @@ private struct AccountListItem: Identifiable, Hashable {
     let sevenDayResetsAt: Date?
     let fiveHourResetsAt: Date?
     let isCurrentAccount: Bool
+    let isUnavailable: Bool
 
     init(account: StoredAccount, isCurrentAccount: Bool) {
         id = account.id
+        isNone = false
         name = account.name
+        let resolvedName = AccountsPresentationLogic.displayName(for: account)
+        displayName = account.isUnavailable ? "\(resolvedName) (Unavailable)" : resolvedName
         iconSystemName = AccountIconOption.resolve(from: account.iconSystemName).systemName
         lastLoginAt = account.lastLoginAt
-        sevenDayLimitUsedPercent = account.sevenDayLimitUsedPercent
-        fiveHourLimitUsedPercent = account.fiveHourLimitUsedPercent
-        sevenDayResetsAt = account.sevenDayResetsAt
-        fiveHourResetsAt = account.fiveHourResetsAt
+        sevenDayLimitUsedPercent = account.isUnavailable ? 0 : account.sevenDayLimitUsedPercent
+        fiveHourLimitUsedPercent = account.isUnavailable ? 0 : account.fiveHourLimitUsedPercent
+        sevenDayResetsAt = account.isUnavailable ? nil : account.sevenDayResetsAt
+        fiveHourResetsAt = account.isUnavailable ? nil : account.fiveHourResetsAt
         self.isCurrentAccount = isCurrentAccount
+        isUnavailable = account.isUnavailable
+    }
+
+    static func none(isCurrentAccount: Bool) -> AccountListItem {
+        AccountListItem(
+            id: AppController.noneAccountSelectionID,
+            isNone: true,
+            name: "None",
+            displayName: "None",
+            iconSystemName: "power",
+            lastLoginAt: nil,
+            sevenDayLimitUsedPercent: 0,
+            fiveHourLimitUsedPercent: 0,
+            sevenDayResetsAt: nil,
+            fiveHourResetsAt: nil,
+            isCurrentAccount: isCurrentAccount,
+            isUnavailable: false
+        )
+    }
+
+    private init(
+        id: UUID,
+        isNone: Bool,
+        name: String,
+        displayName: String,
+        iconSystemName: String,
+        lastLoginAt: Date?,
+        sevenDayLimitUsedPercent: Int?,
+        fiveHourLimitUsedPercent: Int?,
+        sevenDayResetsAt: Date?,
+        fiveHourResetsAt: Date?,
+        isCurrentAccount: Bool,
+        isUnavailable: Bool
+    ) {
+        self.id = id
+        self.isNone = isNone
+        self.name = name
+        self.displayName = displayName
+        self.iconSystemName = iconSystemName
+        self.lastLoginAt = lastLoginAt
+        self.sevenDayLimitUsedPercent = sevenDayLimitUsedPercent
+        self.fiveHourLimitUsedPercent = fiveHourLimitUsedPercent
+        self.sevenDayResetsAt = sevenDayResetsAt
+        self.fiveHourResetsAt = fiveHourResetsAt
+        self.isCurrentAccount = isCurrentAccount
+        self.isUnavailable = isUnavailable
     }
 }
 

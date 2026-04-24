@@ -276,6 +276,10 @@ enum AccountsPresentationLogic {
     private nonisolated static func normalizedRateLimitSortValues(
         for account: StoredAccount
     ) -> (isComplete: Bool, values: [Int]) {
+        if account.isUnavailable {
+            return (true, [0, 0])
+        }
+
         guard let fiveHourRemainingPercent = account.fiveHourLimitUsedPercent,
               let sevenDayRemainingPercent = account.sevenDayLimitUsedPercent else {
             return (false, [0, 0])
