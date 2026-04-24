@@ -533,7 +533,7 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
             redirectURI: redirectURI,
             pkce: pkce
         )
-        let authFileContents = try Self.makeAuthFileContents(from: tokens)
+        let authFileContents = try Self.makeAuthFileContents(from: tokens, refreshedAt: Date())
         let snapshot = try CodexAuthFile.parse(contents: authFileContents)
         return CodexOfficialLoginResult(
             authFileContents: authFileContents,
@@ -647,7 +647,10 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
         }
     }
 
-    private nonisolated static func makeAuthFileContents(from tokens: OAuthTokens) throws -> String {
+    private nonisolated static func makeAuthFileContents(
+        from tokens: OAuthTokens,
+        refreshedAt: Date
+    ) throws -> String {
         var tokenPayload: [String: Any] = [
             "id_token": tokens.idToken,
             "access_token": tokens.accessToken,
@@ -659,7 +662,9 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
         }
 
         let payload: [String: Any] = [
+            "OPENAI_API_KEY": NSNull(),
             "auth_mode": "chatgpt",
+            "last_refresh": CodexAuthSnapshotNormalizer.iso8601Timestamp(from: refreshedAt),
             "tokens": tokenPayload,
         ]
         let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
@@ -756,6 +761,26 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
         return accountID
     }
 }
+
+#if DEBUG
+extension CodexDirectOAuthLoginFlow {
+    nonisolated static func makeAuthFileContentsForTesting(
+        idToken: String,
+        accessToken: String,
+        refreshToken: String,
+        refreshedAt: Date
+    ) throws -> String {
+        try makeAuthFileContents(
+            from: OAuthTokens(
+                idToken: idToken,
+                accessToken: accessToken,
+                refreshToken: refreshToken
+            ),
+            refreshedAt: refreshedAt
+        )
+    }
+}
+#endif
 
 private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
     private let expectedState: String

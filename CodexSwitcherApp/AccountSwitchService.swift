@@ -190,11 +190,21 @@ struct CodexSharedAccountSwitchService: Sendable {
         var outcomeAccount = account
         let loginAt = Date()
 
-        let authFileContents: String
+        let loadedAuthFileContents: String
         do {
-            authFileContents = try await snapshotStore.loadSnapshot(forIdentityKey: identityKey)
+            loadedAuthFileContents = try await snapshotStore.loadSnapshot(forIdentityKey: identityKey)
         } catch AccountSnapshotStoreError.missingSnapshot {
             throw CodexSharedSwitchError.missingStoredSnapshot(account.name)
+        }
+        let authFileContents: String
+        do {
+            authFileContents = try CodexAuthSnapshotNormalizer
+                .normalizedForCodexRuntime(loadedAuthFileContents)
+        } catch {
+            throw CodexSharedSwitchError.invalidStoredSnapshot(account.name)
+        }
+        if authFileContents != loadedAuthFileContents {
+            try await snapshotStore.saveSnapshot(authFileContents, forIdentityKey: identityKey)
         }
 
         let storedSnapshot = try parseStoredSnapshot(contents: authFileContents, accountName: account.name)

@@ -1234,7 +1234,14 @@ final class AppController {
                     selection = [targetAccount.id]
                     renameTargetID = nil
 
-                    if live.read.contents != desiredAuthContents {
+                    let normalizedLiveContents = try? CodexAuthSnapshotNormalizer
+                        .normalizedForCodexRuntime(live.read.contents)
+                    if let normalizedLiveContents,
+                       normalizedLiveContents != live.read.contents {
+                        try await authFileManager.writeAuthFile(normalizedLiveContents)
+                        let normalizedLiveSnapshot = try await parseSnapshot(from: normalizedLiveContents)
+                        _ = try await storeSnapshot(normalizedLiveSnapshot, on: targetAccount)
+                    } else if live.read.contents != desiredAuthContents {
                         do {
                             _ = try await storeSnapshot(live.snapshot, on: targetAccount)
                         } catch {
@@ -3166,7 +3173,19 @@ final class AppController {
             publishSharedState()
         }
 
-        return try await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
+        let contents = try await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
+        let normalizedContents = try CodexAuthSnapshotNormalizer.normalizedForCodexRuntime(contents)
+
+        if normalizedContents != contents {
+            try await secretStore.saveSnapshot(normalizedContents, forIdentityKey: account.identityKey)
+            _ = await exportSyncedRateLimitCredentialIfNeeded(
+                from: normalizedContents,
+                expectedIdentityKey: account.identityKey,
+                excludingAccountIDsForDelete: [account.id]
+            )
+        }
+
+        return normalizedContents
     }
 
     private func handleExpectedAuthOperationError(
@@ -3453,15 +3472,17 @@ final class AppController {
         let rateLimitsChanged = rateLimitObservation.map {
             RateLimitAccountUpdater.apply($0, identityKey: snapshot.identityKey, to: account)
         } ?? false
+        let normalizedContents = try CodexAuthSnapshotNormalizer
+            .normalizedForCodexRuntime(snapshot.rawContents)
         let existingContents = try? await secretStore.loadSnapshot(forIdentityKey: account.identityKey)
-        let needsSnapshotWrite = existingContents != snapshot.rawContents
+        let needsSnapshotWrite = existingContents != normalizedContents
 
         if needsSnapshotWrite {
-            try await secretStore.saveSnapshot(snapshot.rawContents, forIdentityKey: account.identityKey)
+            try await secretStore.saveSnapshot(normalizedContents, forIdentityKey: account.identityKey)
         }
 
         _ = await exportSyncedRateLimitCredentialIfNeeded(
-            from: snapshot.rawContents,
+            from: normalizedContents,
             expectedIdentityKey: snapshot.identityKey,
             excludingAccountIDsForDelete: [account.id]
         )

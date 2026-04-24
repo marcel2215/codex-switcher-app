@@ -269,7 +269,12 @@ struct Tests {
 
         controller.login(accountID: AppController.noneAccountSelectionID)
         try await waitUntil {
-            await authFileManager.deleteCount() == 1
+            let didDelete = await authFileManager.deleteCount() == 1
+            let didSelectNone = await MainActor.run {
+                controller.activeIdentityKey == nil
+                    && controller.selection == [AppController.noneAccountSelectionID]
+            }
+            return didDelete && didSelectNone
         }
 
         #expect(controller.activeIdentityKey == nil)
@@ -353,6 +358,40 @@ struct Tests {
         #expect(result.authFileContents == authContents)
         #expect(result.parsedAuth.email == "acct-direct-oauth@example.com")
         #expect(await directOAuth.loginCount() == 1)
+    }
+
+    @Test func directOAuthAuthFileIncludesCodexRuntimeMetadata() throws {
+        let authClaims: [String: Any] = [
+            "chatgpt_account_id": "acct-direct-runtime",
+            "chatgpt_user_id": "user-direct-runtime",
+        ]
+        let idToken = makeJWT([
+            "email": "direct-runtime@example.com",
+            "https://api.openai.com/auth": authClaims,
+        ])
+        let accessToken = makeJWT([
+            "https://api.openai.com/auth": authClaims,
+        ])
+        let refreshedAt = Date(timeIntervalSince1970: 0)
+
+        let contents = try CodexDirectOAuthLoginFlow.makeAuthFileContentsForTesting(
+            idToken: idToken,
+            accessToken: accessToken,
+            refreshToken: "refresh-direct-runtime",
+            refreshedAt: refreshedAt
+        )
+        let payload = try #require(
+            JSONSerialization.jsonObject(with: Data(contents.utf8)) as? [String: Any]
+        )
+        let tokens = try #require(payload["tokens"] as? [String: Any])
+
+        #expect(payload["auth_mode"] as? String == "chatgpt")
+        #expect(payload["OPENAI_API_KEY"] is NSNull)
+        #expect(payload["last_refresh"] as? String == CodexAuthSnapshotNormalizer.iso8601Timestamp(from: refreshedAt))
+        #expect(tokens["account_id"] as? String == "acct-direct-runtime")
+
+        let snapshot = try CodexAuthFile.parse(contents: contents)
+        #expect(snapshot.email == "direct-runtime@example.com")
     }
 
     @Test func automaticAccountObservationAddsOnlyWhenPreferenceIsEnabled() async throws {
@@ -651,6 +690,43 @@ struct Tests {
         #expect(refreshedAccount.lastLoginAt != nil)
         #expect(controller.selection == [account.id])
         #expect(notificationManager.postedAccountNames == ["Account 1"])
+    }
+
+    @Test func switchingLegacyOAuthSnapshotRepairsCodexRuntimeMetadata() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-original"))
+        let secretStore = FakeSecretStore()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore
+        )
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+
+        let legacyContents = makeChatGPTAuthJSON(
+            accountID: "acct-legacy-oauth",
+            includeRuntimeMetadata: false
+        )
+        let normalizedContents = try CodexAuthSnapshotNormalizer
+            .normalizedForCodexRuntime(legacyContents)
+        let targetSnapshot = try CodexAuthFile.parse(contents: legacyContents)
+        let account = StoredAccount(
+            identityKey: targetSnapshot.identityKey,
+            name: "Legacy OAuth",
+            customOrder: 0,
+            authModeRaw: targetSnapshot.authMode.rawValue,
+            emailHint: targetSnapshot.email,
+            accountIdentifier: targetSnapshot.accountIdentifier
+        )
+        container.mainContext.insert(account)
+        try container.mainContext.save()
+        try await secretStore.saveSnapshot(legacyContents, forIdentityKey: account.identityKey)
+
+        await controller.switchToAccountNow(id: account.id)
+
+        #expect(await authFileManager.currentContents == normalizedContents)
+        #expect(await secretStore.secret(forIdentityKey: account.identityKey) == normalizedContents)
+        #expect((try JSONSerialization.jsonObject(with: Data(normalizedContents.utf8)) as? [String: Any])?["OPENAI_API_KEY"] is NSNull)
     }
 
     @Test func switchingToTheAlreadyActiveAccountSkipsRewriteAndNotification() async throws {
@@ -2916,7 +2992,8 @@ private func makeChatGPTAuthJSON(
     userID: String? = nil,
     subject: String? = nil,
     email: String? = nil,
-    workspaceID: String? = nil
+    workspaceID: String? = nil,
+    includeRuntimeMetadata: Bool = true
 ) -> String {
     var authClaims: [String: Any] = [
         "chatgpt_account_id": accountID,
@@ -2944,17 +3021,25 @@ private func makeChatGPTAuthJSON(
     let idToken = makeJWT(idTokenPayload)
     let accessToken = makeJWT(accessTokenPayload)
 
-    return """
-    {
-      "auth_mode": "chatgpt",
-      "tokens": {
-        "account_id": "\(accountID)",
-        "id_token": "\(idToken)",
-        "access_token": "\(accessToken)",
-        "refresh_token": "refresh-\(accountID)"
-      }
+    var payload: [String: Any] = [
+        "auth_mode": "chatgpt",
+        "tokens": [
+            "account_id": accountID,
+            "id_token": idToken,
+            "access_token": accessToken,
+            "refresh_token": "refresh-\(accountID)",
+        ],
+    ]
+
+    if includeRuntimeMetadata {
+        payload["OPENAI_API_KEY"] = NSNull()
+        payload["last_refresh"] = CodexAuthSnapshotNormalizer.iso8601Timestamp(
+            from: Date(timeIntervalSince1970: 0)
+        )
     }
-    """
+
+    let data = try! JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+    return String(data: data, encoding: .utf8)!
 }
 
 @MainActor
