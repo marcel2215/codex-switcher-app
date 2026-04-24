@@ -17,8 +17,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1F1413322F8C7C930013386A"
-               BuildableName = "Codex Switcher Widgets.appex"
-               BlueprintName = "Codex Switcher Widgets"
+               BuildableName = "CodexSwitcherWidgets.appex"
+               BlueprintName = "CodexSwitcherWidgets"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -31,8 +31,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1F96B5A52F89BF5100044DB7"
-               BuildableName = "Codex Switcher.app"
-               BlueprintName = "Codex Switcher"
+               BuildableName = "CodexSwitcher.app"
+               BlueprintName = "CodexSwitcher"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -63,8 +63,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1F96B5A52F89BF5100044DB7"
-            BuildableName = "Codex Switcher.app"
-            BlueprintName = "Codex Switcher"
+            BuildableName = "CodexSwitcher.app"
+            BlueprintName = "CodexSwitcher"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -99,8 +99,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1F96B5A52F89BF5100044DB7"
-            BuildableName = "Codex Switcher.app"
-            BlueprintName = "Codex Switcher"
+            BuildableName = "CodexSwitcher.app"
+            BlueprintName = "CodexSwitcher"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

@@ -17,7 +17,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1F87C9462F8406C7007DED25"
                BuildableName = "Codex Switcher.app"
-               BlueprintName = "Codex Switcher Mac App"
+               BlueprintName = "CodexSwitcherMacApp"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -36,8 +36,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1F87C9552F8406C9007DED25"
-               BuildableName = "Codex Switcher Mac Tests.xctest"
-               BlueprintName = "Codex Switcher Mac Tests"
+               BuildableName = "CodexSwitcherMacTests.xctest"
+               BlueprintName = "CodexSwitcherMacTests"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -47,8 +47,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1F87C95F2F8406C9007DED25"
-               BuildableName = "Codex Switcher Mac UI Tests.xctest"
-               BlueprintName = "Codex Switcher Mac UI Tests"
+               BuildableName = "CodexSwitcherMacUITests.xctest"
+               BlueprintName = "CodexSwitcherMacUITests"
                ReferencedContainer = "container:CodexSwitcher.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -71,7 +71,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1F87C9462F8406C7007DED25"
             BuildableName = "Codex Switcher.app"
-            BlueprintName = "Codex Switcher Mac App"
+            BlueprintName = "CodexSwitcherMacApp"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -88,7 +88,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1F87C9462F8406C7007DED25"
             BuildableName = "Codex Switcher.app"
-            BlueprintName = "Codex Switcher Mac App"
+            BlueprintName = "CodexSwitcherMacApp"
             ReferencedContainer = "container:CodexSwitcher.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
