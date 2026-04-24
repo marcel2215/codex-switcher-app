@@ -602,11 +602,16 @@ private struct SettingsView: View {
             Section {
                 Toggle("Launch at Login", isOn: launchAtLoginBinding)
                 Toggle("Show \"None\" Account", isOn: showNoneAccountBinding)
+            } header: {
+                Text("General")
+            }
+
+            Section {
                 Toggle("Automatically Add Accounts", isOn: automaticAddAccountsBinding)
                 Toggle("Automatically Remove Accounts", isOn: automaticRemoveAccountsBinding)
                 Toggle("Automatically Switch Accounts", isOn: $autopilotEnabled)
             } header: {
-                Text("General")
+                Text("Autopilot")
             } footer: {
                 Text("Run in the background and automatically switch to the account with the most rate limit remaining.")
             }

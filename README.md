@@ -496,7 +496,6 @@ This is the single most important configuration point on macOS. Without it, swit
 ## General
 - **Launch at Login** — registers the app with `SMAppService.mainApp`
 - **Show "None" Account** — shows the local logout row in macOS account lists
-- **Automatically Switch Accounts** — enables background Autopilot
 
 When launch-at-login requires user approval, the settings UI tells you to finish the approval in:
 
@@ -504,7 +503,12 @@ When launch-at-login requires user approval, the settings UI tells you to finish
 System Settings > General > Login Items
 ```
 
-The footer also explains the purpose of Automatically Switch Accounts: keep the app in the background and move to the account with the most remaining headroom.
+## Autopilot
+- **Automatically Add Accounts** — watches auth.json for newly detected identities
+- **Automatically Remove Accounts** — removes saved local snapshots when a saved token is authoritatively rejected
+- **Automatically Switch Accounts** — enables background Autopilot
+
+The footer explains the purpose of Automatically Switch Accounts: keep the app in the background and move to the account with the most remaining headroom.
 
 ## Menu Bar
 - **Show in Menu Bar**
@@ -564,6 +568,8 @@ The app requests authorization only when needed, and it re-registers for the `.p
 Reset Settings restores the app's own stored preferences, including:
 - notification toggles
 - Show "None" Account
+- Automatically Add Accounts toggle
+- Automatically Remove Accounts toggle
 - Automatically Switch Accounts toggle
 - menu bar visibility
 - menu bar icon
