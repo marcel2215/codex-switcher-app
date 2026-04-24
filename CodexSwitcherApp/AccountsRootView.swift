@@ -758,7 +758,7 @@ struct AccountsRootView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(AccountsPresentationLogic.displayName(for: account))
+        .accessibilityLabel(AccountsPresentationLogic.accountListDisplayName(for: account))
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .accessibilityHint("Double tap to toggle selection")
     }

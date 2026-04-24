@@ -8,6 +8,8 @@
 import Foundation
 
 enum AccountsPresentationLogic {
+    private nonisolated static let unavailableSuffix = " (Unavailable)"
+
     nonisolated static func normalizedSearchText(_ searchText: String) -> String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -32,6 +34,19 @@ enum AccountsPresentationLogic {
             ?? normalizedDisplayText(accountIdentifier)
             ?? normalizedDisplayText(identityKey)
             ?? "Unnamed Account"
+    }
+
+    nonisolated static func accountListDisplayName(for account: StoredAccount) -> String {
+        let resolvedName = displayName(for: account)
+        guard account.isUnavailable else {
+            return resolvedName
+        }
+
+        guard !resolvedName.hasSuffix(unavailableSuffix) else {
+            return resolvedName
+        }
+
+        return "\(resolvedName)\(unavailableSuffix)"
     }
 
     nonisolated static func normalizedSortDirection(

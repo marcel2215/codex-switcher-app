@@ -445,6 +445,7 @@ struct ContentView: View {
                     fiveHourLimitUsedPercent: item.fiveHourLimitUsedPercent,
                     sevenDayResetsAt: item.sevenDayResetsAt,
                     fiveHourResetsAt: item.fiveHourResetsAt,
+                    isUnavailable: item.isUnavailable,
                     font: .subheadline
                 )
                 .allowsHitTesting(false)
@@ -802,8 +803,7 @@ private struct AccountListItem: Identifiable, Hashable {
         id = account.id
         isNone = false
         name = account.name
-        let resolvedName = AccountsPresentationLogic.displayName(for: account)
-        displayName = account.isUnavailable ? "\(resolvedName) (Unavailable)" : resolvedName
+        displayName = AccountsPresentationLogic.accountListDisplayName(for: account)
         iconSystemName = AccountIconOption.resolve(from: account.iconSystemName).systemName
         lastLoginAt = account.lastLoginAt
         sevenDayLimitUsedPercent = account.isUnavailable ? 0 : account.sevenDayLimitUsedPercent

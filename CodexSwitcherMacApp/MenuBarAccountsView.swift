@@ -208,6 +208,7 @@ struct MenuBarAccountsView: View {
                                         fiveHourLimitUsedPercent: item.fiveHourLimitUsedPercent,
                                         sevenDayResetsAt: item.sevenDayResetsAt,
                                         fiveHourResetsAt: item.fiveHourResetsAt,
+                                        isUnavailable: item.isUnavailable,
                                         font: .caption
                                     )
                                 }
@@ -345,8 +346,7 @@ private struct MenuBarAccountRowItem: Identifiable, Hashable {
     init(account: StoredAccount, isCurrentAccount: Bool) {
         id = account.id
         identityKey = account.identityKey
-        let resolvedName = AccountsPresentationLogic.displayName(for: account)
-        displayName = account.isUnavailable ? "\(resolvedName) (Unavailable)" : resolvedName
+        displayName = AccountsPresentationLogic.accountListDisplayName(for: account)
         iconSystemName = AccountIconOption.resolve(from: account.iconSystemName).systemName
         lastLoginAt = account.lastLoginAt
         sevenDayLimitUsedPercent = account.isUnavailable ? 0 : account.sevenDayLimitUsedPercent

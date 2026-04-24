@@ -22,7 +22,7 @@ struct IOSAccountRow: View {
                 .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(AccountsPresentationLogic.displayName(for: account))
+                Text(AccountsPresentationLogic.accountListDisplayName(for: account))
                     .font(.headline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -45,7 +45,7 @@ struct IOSAccountRow: View {
         .padding(.vertical, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(AccountsPresentationLogic.displayName(for: account)), \(AccountDisplayFormatter.accessibilityUsageListDescription(sevenDayRemainingPercent: account.sevenDayLimitUsedPercent, fiveHourRemainingPercent: account.fiveHourLimitUsedPercent))"
+            "\(AccountsPresentationLogic.accountListDisplayName(for: account)), \(AccountDisplayFormatter.accessibilityUsageListDescription(sevenDayRemainingPercent: account.sevenDayLimitUsedPercent, fiveHourRemainingPercent: account.fiveHourLimitUsedPercent))"
         )
         .modifier(AccountArchiveDragModifier(transferItem: exportTransferItem, isAvailable: isArchiveExportAvailable))
         .task(id: exportAvailabilityTaskKey) {

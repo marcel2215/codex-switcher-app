@@ -63,6 +63,22 @@ struct Tests {
     }
 
     @Test
+    func accountListDisplayNameAddsUnavailableSuffix() {
+        let account = makeAccount(name: "Work", customOrder: 0)
+
+        _ = AccountAvailabilityUpdater.markUnavailable(account, reason: .unauthorized)
+
+        #expect(AccountsPresentationLogic.displayName(for: account) == "Work")
+        #expect(AccountsPresentationLogic.accountListDisplayName(for: account) == "Work (Unavailable)")
+    }
+
+    @Test
+    func unavailablePercentDescriptionsOverrideStoredZero() {
+        #expect(AccountDisplayFormatter.detailedPercentDescription(0, isUnavailable: true) == "Unavailable")
+        #expect(AccountDisplayFormatter.compactPercentDescription(0, isUnavailable: true) == "?")
+    }
+
+    @Test
     func iconChangePersists() throws {
         let account = makeAccount(name: "Work", customOrder: 0)
         let harness = try makeHarness(accounts: [account])

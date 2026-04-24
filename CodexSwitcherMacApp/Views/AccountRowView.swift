@@ -65,6 +65,7 @@ struct AccountRowView: View {
                     fiveHourLimitUsedPercent: account.fiveHourLimitUsedPercent,
                     sevenDayResetsAt: account.sevenDayResetsAt,
                     fiveHourResetsAt: account.fiveHourResetsAt,
+                    isUnavailable: account.isUnavailable,
                     font: .subheadline
                 )
                 .allowsHitTesting(false)

@@ -13,6 +13,7 @@ struct AccountMetadataText: View {
     let fiveHourLimitUsedPercent: Int?
     let sevenDayResetsAt: Date?
     let fiveHourResetsAt: Date?
+    let isUnavailable: Bool
     let font: Font
 
     init(
@@ -21,6 +22,7 @@ struct AccountMetadataText: View {
         fiveHourLimitUsedPercent: Int?,
         sevenDayResetsAt: Date? = nil,
         fiveHourResetsAt: Date? = nil,
+        isUnavailable: Bool = false,
         font: Font = .subheadline
     ) {
         self.lastLoginAt = lastLoginAt
@@ -28,6 +30,7 @@ struct AccountMetadataText: View {
         self.fiveHourLimitUsedPercent = fiveHourLimitUsedPercent
         self.sevenDayResetsAt = sevenDayResetsAt
         self.fiveHourResetsAt = fiveHourResetsAt
+        self.isUnavailable = isUnavailable
         self.font = font
     }
 
@@ -49,10 +52,18 @@ struct AccountMetadataText: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             AccountDisplayFormatter.accessibilityUsageListDescription(
-                sevenDayRemainingPercent: sevenDayLimitUsedPercent,
-                fiveHourRemainingPercent: fiveHourLimitUsedPercent
+                sevenDayRemainingPercent: sevenDayDisplayLimitPercent,
+                fiveHourRemainingPercent: fiveHourDisplayLimitPercent
             )
         )
+    }
+
+    private var sevenDayDisplayLimitPercent: Int? {
+        isUnavailable ? nil : sevenDayLimitUsedPercent
+    }
+
+    private var fiveHourDisplayLimitPercent: Int? {
+        isUnavailable ? nil : fiveHourLimitUsedPercent
     }
 
     static func makeAttributedDescription(
@@ -61,22 +72,25 @@ struct AccountMetadataText: View {
         fiveHourLimitUsedPercent: Int?,
         sevenDayResetsAt: Date? = nil,
         fiveHourResetsAt: Date? = nil,
+        isUnavailable: Bool = false,
         relativeTo now: Date = .now
     ) -> AttributedString {
         var result = lastLoginFragment(lastLoginAt)
+        let displayedSevenDayLimitUsedPercent = isUnavailable ? nil : sevenDayLimitUsedPercent
+        let displayedFiveHourLimitUsedPercent = isUnavailable ? nil : fiveHourLimitUsedPercent
 
         result.append(AttributedString(" • "))
         result.append(
             limitFragment(
                 label: progressLabel(fallbackTitle: "7d", resetAt: sevenDayResetsAt, relativeTo: now),
-                value: sevenDayLimitUsedPercent
+                value: displayedSevenDayLimitUsedPercent
             )
         )
         result.append(AttributedString(" • "))
         result.append(
             limitFragment(
                 label: progressLabel(fallbackTitle: "5h", resetAt: fiveHourResetsAt, relativeTo: now),
-                value: fiveHourLimitUsedPercent
+                value: displayedFiveHourLimitUsedPercent
             )
         )
 
@@ -127,6 +141,8 @@ struct AccountMetadataText: View {
         resetAt: Date?,
         remainingPercent: Int?
     ) -> some View {
+        let displayedRemainingPercent = isUnavailable ? nil : remainingPercent
+
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
                 RateLimitResetText(
@@ -139,13 +155,16 @@ struct AccountMetadataText: View {
 
                 Spacer(minLength: 0)
 
-                Text(AccountDisplayFormatter.compactPercentDescription(remainingPercent))
+                Text(AccountDisplayFormatter.compactPercentDescription(
+                    remainingPercent,
+                    isUnavailable: isUnavailable
+                ))
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.primary)
             }
 
             RateLimitLinearProgressBar(
-                remainingPercent: remainingPercent,
+                remainingPercent: displayedRemainingPercent,
                 height: 2,
                 trackOpacity: 0.25
             )

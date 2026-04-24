@@ -95,12 +95,28 @@ enum AccountDisplayFormatter {
         return "\(clampedPercent)%"
     }
 
+    static func compactPercentDescription(_ value: Int?, isUnavailable: Bool) -> String {
+        guard !isUnavailable else {
+            return "?"
+        }
+
+        return compactPercentDescription(value)
+    }
+
     static func detailedPercentDescription(_ value: Int?) -> String {
         guard let clampedPercent = clampedPercentValue(value) else {
             return "Unavailable"
         }
 
         return "\(clampedPercent)%"
+    }
+
+    static func detailedPercentDescription(_ value: Int?, isUnavailable: Bool) -> String {
+        guard !isUnavailable else {
+            return "Unavailable"
+        }
+
+        return detailedPercentDescription(value)
     }
 
     /// Produces a compact reset countdown for detail views.

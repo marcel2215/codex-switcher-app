@@ -88,7 +88,7 @@ struct AccountDetailView: View {
 
             Section("Rate Limits") {
                 LabeledContent("5-Hour Remaining") {
-                    usageValueText(account.fiveHourLimitUsedPercent)
+                    usageValueText(account.fiveHourLimitUsedPercent, isUnavailable: account.isUnavailable)
                 }
 
                 LabeledContent("5-Hour Reset") {
@@ -96,7 +96,7 @@ struct AccountDetailView: View {
                 }
 
                 LabeledContent("7-Day Remaining") {
-                    usageValueText(account.sevenDayLimitUsedPercent)
+                    usageValueText(account.sevenDayLimitUsedPercent, isUnavailable: account.isUnavailable)
                 }
 
                 LabeledContent("7-Day Reset") {
@@ -167,17 +167,19 @@ struct AccountDetailView: View {
         controller.archiveTransferItem(for: account)
     }
 
-    private func usageValueText(_ value: Int?) -> some View {
-        let description = AccountDisplayFormatter.detailedPercentDescription(value)
+    private func usageValueText(_ value: Int?, isUnavailable: Bool) -> some View {
+        let description = AccountDisplayFormatter.detailedPercentDescription(
+            value,
+            isUnavailable: isUnavailable
+        )
 
         return Text(description)
             .foregroundStyle(.secondary)
     }
 
+    @ViewBuilder
     private func resetValueButton(_ value: Date?, row: ResetRow) -> some View {
-        Button {
-            toggleResetDisplayMode(for: row)
-        } label: {
+        if value == nil {
             RateLimitResetText(
                 resetAt: value,
                 fallbackText: "Unavailable",
@@ -185,10 +187,22 @@ struct AccountDetailView: View {
             )
             .monospacedDigit()
             .foregroundStyle(.secondary)
+            .accessibilityHint("Reset time unavailable")
+        } else {
+            Button {
+                toggleResetDisplayMode(for: row)
+            } label: {
+                RateLimitResetText(
+                    resetAt: value,
+                    fallbackText: "Unavailable",
+                    displayMode: resetDisplayModes[row] ?? .relative
+                )
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Double tap to switch between relative and absolute time")
         }
-        .buttonStyle(.plain)
-        .disabled(value == nil)
-        .accessibilityHint(value == nil ? "Reset time unavailable" : "Double tap to switch between relative and absolute time")
     }
 
     private func toggleResetDisplayMode(for row: ResetRow) {

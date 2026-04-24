@@ -18,7 +18,7 @@ struct WatchAccountRow: View {
                 .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(AccountsPresentationLogic.displayName(for: account))
+                Text(AccountsPresentationLogic.accountListDisplayName(for: account))
                     .font(.headline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -39,7 +39,7 @@ struct WatchAccountRow: View {
         .padding(.vertical, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(AccountsPresentationLogic.displayName(for: account)), \(AccountDisplayFormatter.accessibilityUsageListDescription(sevenDayRemainingPercent: account.sevenDayLimitUsedPercent, fiveHourRemainingPercent: account.fiveHourLimitUsedPercent))"
+            "\(AccountsPresentationLogic.accountListDisplayName(for: account)), \(AccountDisplayFormatter.accessibilityUsageListDescription(sevenDayRemainingPercent: account.sevenDayLimitUsedPercent, fiveHourRemainingPercent: account.fiveHourLimitUsedPercent))"
         )
     }
 }

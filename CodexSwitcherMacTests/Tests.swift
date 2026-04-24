@@ -2869,6 +2869,15 @@ struct Tests {
                 relativeTo: now
             ) == "Last login: never • 5h: ? • 7d: ?"
         )
+
+        let unavailableDescription = AccountMetadataText.makeAttributedDescription(
+            lastLoginAt: nil,
+            sevenDayLimitUsedPercent: 0,
+            fiveHourLimitUsedPercent: 0,
+            isUnavailable: true,
+            relativeTo: now
+        )
+        #expect(String(unavailableDescription.characters) == "Last login: never • 7d: ? • 5h: ?")
     }
 
     @Test func resetCountdownDescriptionUsesCompactExamples() {

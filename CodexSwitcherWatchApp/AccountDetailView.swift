@@ -166,10 +166,9 @@ struct WatchAccountDetailView: View {
             .foregroundStyle(.secondary)
     }
 
+    @ViewBuilder
     private func resetValueButton(_ value: Date?, row: ResetRow) -> some View {
-        Button {
-            toggleResetDisplayMode(for: row)
-        } label: {
+        if value == nil {
             RateLimitResetText(
                 resetAt: value,
                 fallbackText: "Unavailable",
@@ -177,10 +176,22 @@ struct WatchAccountDetailView: View {
             )
             .monospacedDigit()
             .foregroundStyle(.secondary)
+            .accessibilityHint("Reset time unavailable")
+        } else {
+            Button {
+                toggleResetDisplayMode(for: row)
+            } label: {
+                RateLimitResetText(
+                    resetAt: value,
+                    fallbackText: "Unavailable",
+                    displayMode: resetDisplayModes[row] ?? .relative
+                )
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Double tap to switch between relative and absolute time")
         }
-        .buttonStyle(.plain)
-        .disabled(value == nil)
-        .accessibilityHint(value == nil ? "Reset time unavailable" : "Double tap to switch between relative and absolute time")
     }
 
     private func toggleResetDisplayMode(for row: ResetRow) {
