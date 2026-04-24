@@ -152,6 +152,33 @@ final class StoredAccount {
         availability == .unavailableUnauthorized
     }
 
+    var unavailableWarningMessage: String? {
+        guard isUnavailable else {
+            return nil
+        }
+
+        let reasonMessage = switch unavailableReason {
+        case .unauthorized:
+            "The saved authentication is no longer accepted."
+        case .refreshTokenExpired:
+            "The saved refresh token has expired."
+        case .refreshTokenRevoked:
+            "The saved token was revoked."
+        case .refreshTokenReused:
+            "The saved token was reused and can no longer be used."
+        case .accountMismatch:
+            "The signed-in identity no longer matches this saved account."
+        case .missingCredentials:
+            "Required credentials are missing from the saved snapshot."
+        case .corruptedSnapshot:
+            "The saved auth snapshot is corrupted."
+        case nil:
+            "The saved credentials for this account are no longer valid."
+        }
+
+        return "\(reasonMessage) Capture a new login for this account to replace it."
+    }
+
     /// Older synced rows may predate explicit data-status tracking. In that
     /// case, preserve the existing value as exact instead of regressing to a
     /// fake "unknown" state just because the additive field was missing.

@@ -114,6 +114,13 @@ struct WatchAccountDetailView: View {
                 .opacity(isLuminanceReduced ? 0.72 : 1)
             }
 
+            if account.isUnavailable, let warningMessage = account.unavailableWarningMessage {
+                Section("Warning") {
+                    Text(warningMessage)
+                        .foregroundStyle(.orange)
+                }
+            }
+
             Section {
                 Button("Remove Account", role: .destructive) {
                     showingRemoveConfirmation = true

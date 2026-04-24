@@ -104,6 +104,13 @@ struct AccountDetailView: View {
                 }
             }
 
+            if account.isUnavailable, let warningMessage = account.unavailableWarningMessage {
+                Section("Warning") {
+                    Text(warningMessage)
+                        .foregroundStyle(.orange)
+                }
+            }
+
             Section {
                 Button(role: .destructive, action: onRemove) {
                     Label("Remove Account", systemImage: "trash")
