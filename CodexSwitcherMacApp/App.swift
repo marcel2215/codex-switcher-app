@@ -580,20 +580,13 @@ private struct SettingsView: View {
 
             Section {
                 Toggle("Launch at Login", isOn: launchAtLoginBinding)
-                Toggle("Automatic Switching", isOn: $autopilotEnabled)
                 Toggle("Automatically Add Accounts", isOn: automaticAddAccountsBinding)
                 Toggle("Automatically Remove Accounts", isOn: automaticRemoveAccountsBinding)
+                Toggle("Automatically Switch Accounts", isOn: $autopilotEnabled)
             } header: {
                 Text("General")
             } footer: {
-                VStack(alignment: .leading, spacing: 4) {
-                    if launchAtLoginState.requiresApproval {
-                        Text("Requires approval in System Settings > General > Login Items.")
-                    }
-
-                    Text("Run in the background and automatically switch to the account with the most rate limit remaining.")
-                    Text("Automatic account add watches auth.json for newly detected identities. Automatic account removal deletes saved local snapshots when a saved token is authoritatively rejected. Neither setting calls Codex logout.")
-                }
+                Text("Run in the background and automatically switch to the account with the most rate limit remaining.")
             }
 
             Section("Menu Bar") {

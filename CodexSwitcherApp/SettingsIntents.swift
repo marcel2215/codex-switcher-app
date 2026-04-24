@@ -162,13 +162,13 @@ struct SetLaunchAtLoginIntent: AppIntent {
 #endif
 
 struct SetAutomaticSwitchAccountIntent: AppIntent {
-    static let title: LocalizedStringResource = "Set Automatically Switch Account"
+    static let title: LocalizedStringResource = "Set Automatically Switch Accounts"
     static let description = IntentDescription("Turns Codex Switcher's automatic account switching on or off.")
     static let supportedModes: IntentModes = .background
 
     @Parameter(
         title: "State",
-        requestValueDialog: IntentDialog("Turn Automatically Switch Account on or off?")
+        requestValueDialog: IntentDialog("Turn the Automatically Switch Accounts setting on or off?")
     )
     var state: CodexIntentToggleState
 
@@ -184,8 +184,8 @@ struct SetAutomaticSwitchAccountIntent: AppIntent {
                 value: state,
                 dialog: IntentDialog(
                     isEnabled
-                        ? "Automatically Switch Account is already on."
-                        : "Automatically Switch Account is already off."
+                        ? "The Automatically Switch Accounts setting is already on."
+                        : "The Automatically Switch Accounts setting is already off."
                 )
             )
         }
@@ -194,8 +194,8 @@ struct SetAutomaticSwitchAccountIntent: AppIntent {
             value: state,
             dialog: IntentDialog(
                 isEnabled
-                    ? "Automatically Switch Account is on."
-                    : "Automatically Switch Account is off."
+                    ? "The Automatically Switch Accounts setting is on."
+                    : "The Automatically Switch Accounts setting is off."
             )
         )
     }

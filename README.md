@@ -35,7 +35,7 @@ The iPhone and Apple Watch apps are companions and make the most sense once you 
 5. Repeat that capture flow for every account you want in your library.
 6. Rename accounts, choose icons, pin favorites, and set your preferred sort order.
 7. Enable **iCloud** and **iCloud Keychain** if you want account metadata, rate-limit credentials, and exportability to propagate to iPhone/Apple Watch.
-8. Optionally enable **Automatic Switching**, widgets, menu bar access, App Shortcuts, and reset notifications.
+8. Optionally enable **Automatically Switch Accounts**, widgets, menu bar access, App Shortcuts, and reset notifications.
 
 ---
 
@@ -62,7 +62,7 @@ From there, the app adds quality-of-life features that make a multi-account setu
 - portable `.cxa` archive import/export
 - iCloud-backed metadata sync
 - iCloud Keychain-backed secret propagation
-- automatic switching to the account with the most remaining headroom
+- the **Automatically Switch Accounts** setting for moving to the account with the most remaining headroom
 
 Codex Switcher is not a replacement for Codex. It is a **native account-management layer around Codex's auth state**.
 
@@ -141,7 +141,7 @@ This is the only platform that can:
 - hold the security-scoped bookmark to that folder
 - actually change which account Codex is using
 
-It is also the richest surface, with the main window, menu bar extra, desktop widgets, controls, launch-at-login behavior, Dock menu integration, and automatic switching.
+It is also the richest surface, with the main window, menu bar extra, desktop widgets, controls, launch-at-login behavior, Dock menu integration, and the Automatically Switch Accounts setting.
 
 ### iPhone
 iPhone is a **synced companion**. It receives account metadata through CloudKit, receives secrets through iCloud Keychain when available, refreshes rate limits using the minimal synced credential payload, supports widgets and lock screen accessories, and can import/export account archives.
@@ -465,7 +465,7 @@ The menu bar account list:
 When **Show in Menu Bar** is enabled, the primary quit command becomes **Hide to Menu Bar** rather than full termination.  
 An explicit **Quit Codex Switcher** action is still available.
 
-When the menu bar extra is disabled but automatic switching is enabled, the app restores a normal foreground presentation so the app remains reachable while background Autopilot continues to run.
+When the menu bar extra is disabled but the Automatically Switch Accounts setting is enabled, the app restores a normal foreground presentation so the app remains reachable while background Autopilot continues to run.
 
 ---
 
@@ -495,7 +495,7 @@ This is the single most important configuration point on macOS. Without it, swit
 
 ## General
 - **Launch at Login** — registers the app with `SMAppService.mainApp`
-- **Automatic Switching** — enables background Autopilot
+- **Automatically Switch Accounts** — enables background Autopilot
 
 When launch-at-login requires user approval, the settings UI tells you to finish the approval in:
 
@@ -503,7 +503,7 @@ When launch-at-login requires user approval, the settings UI tells you to finish
 System Settings > General > Login Items
 ```
 
-The footer also explains the purpose of Automatic Switching: keep the app in the background and move to the account with the most remaining headroom.
+The footer also explains the purpose of Automatically Switch Accounts: keep the app in the background and move to the account with the most remaining headroom.
 
 ## Menu Bar
 - **Show in Menu Bar**
@@ -562,7 +562,7 @@ The app requests authorization only when needed, and it re-registers for the `.p
 
 Reset Settings restores the app's own stored preferences, including:
 - notification toggles
-- automatic switching toggle
+- Automatically Switch Accounts toggle
 - menu bar visibility
 - menu bar icon
 - local sort preferences
@@ -972,7 +972,7 @@ For widgets and automation, "best" means "best current operational headroom," no
 
 ---
 
-## Automatic Switching ("Autopilot")
+## Automatically Switch Accounts ("Autopilot")
 
 Autopilot is a macOS-only feature.
 
@@ -1379,7 +1379,7 @@ There are also intent-driven settings toggles:
 - Set Launch at Login
 
 ### Cross-platform / shared
-- Set Automatically Switch Account
+- Set Automatically Switch Accounts
 
 ## Why some intents are app-owned
 Some mutation intents deliberately run through the main macOS app rather than trying to mutate state directly from an extension context. That is because the main app owns:
@@ -1549,7 +1549,7 @@ For a utility app that touches secrets, sync, widgets, and background behavior, 
 - An account can appear on iPhone/watch before its full snapshot becomes locally exportable.
 - Widget/configured control switching requires a local snapshot on the current machine.
 - iPhone/watch companion apps do not link desktop filesystem paths.
-- Automatic Switching is paused by sleep and battery-saving conditions for unattended timers.
+- The Automatically Switch Accounts setting is paused by sleep and battery-saving conditions for unattended timers.
 - Notification permissions are required before notification toggles can actually produce banners.
 - Archive files are portable and sensitive; compression does not make them safe to share casually.
 
@@ -1594,7 +1594,7 @@ The watch sees the account record but not yet the synced minimal credential or f
 ## Widgets show “No Synced Accounts”
 Open the main app so CloudKit and the shared-state snapshot can refresh.
 
-## Automatic Switching is not doing anything
+## Automatically Switch Accounts is not doing anything
 Check:
 - the linked folder is valid
 - the credential store is file-backed
@@ -1647,7 +1647,7 @@ Use Codex Switcher if you want:
 - fast switching between saved Codex accounts on macOS
 - a synced account library on iPhone and Apple Watch
 - visibility into remaining 5h / 7d headroom
-- background automatic switching to the best available account
+- background automatic account switching to the best available account
 - widgets and complications for at-a-glance status
 - Shortcuts / App Intents / control-widget automation
 - secure separation between synced metadata and secret auth material
