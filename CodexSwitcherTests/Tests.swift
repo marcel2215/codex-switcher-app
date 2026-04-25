@@ -866,7 +866,10 @@ private func makeHarness(
         modelContext: modelContext,
         controller: IOSAccountsController(
             snapshotStore: snapshotStore,
-            archiveExporter: CodexAccountArchiveFileExporter(snapshotStore: snapshotStore),
+            archiveExporter: CodexAccountArchiveFileExporter(
+                snapshotStore: snapshotStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
+            ),
             syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
             snapshotAvailabilityStore: snapshotAvailabilityStore
         )

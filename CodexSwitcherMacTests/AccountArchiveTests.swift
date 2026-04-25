@@ -211,6 +211,42 @@ struct CodexAccountArchiveTests {
     }
 
     @MainActor
+    @Test func exportRequestCapturesCachedRateLimits() {
+        let observedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let fiveHourReset = Date(timeIntervalSince1970: 1_800_001_000)
+        let sevenDayReset = Date(timeIntervalSince1970: 1_800_010_000)
+        let account = StoredAccount(
+            identityKey: "chatgpt:abc123",
+            name: "Team Sandbox",
+            createdAt: .now,
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: CodexAuthMode.chatgpt.rawValue,
+            emailHint: "work@example.com",
+            accountIdentifier: "workspace-123",
+            sevenDayLimitUsedPercent: 64,
+            fiveHourLimitUsedPercent: 42,
+            sevenDayDataStatusRaw: RateLimitMetricDataStatus.cached.rawValue,
+            fiveHourDataStatusRaw: RateLimitMetricDataStatus.exact.rawValue,
+            sevenDayResetsAt: sevenDayReset,
+            fiveHourResetsAt: fiveHourReset,
+            rateLimitsObservedAt: observedAt,
+            rateLimitDisplayVersion: RateLimitAccountUpdater.currentDisplayVersion,
+            iconSystemName: "briefcase.fill"
+        )
+
+        let request = CodexAccountArchiveExportRequest(account: account)
+
+        #expect(request.rateLimits?.sevenDayRemainingPercent == 64)
+        #expect(request.rateLimits?.fiveHourRemainingPercent == 42)
+        #expect(request.rateLimits?.sevenDayDataStatusRaw == RateLimitMetricDataStatus.cached.rawValue)
+        #expect(request.rateLimits?.fiveHourDataStatusRaw == RateLimitMetricDataStatus.exact.rawValue)
+        #expect(request.rateLimits?.sevenDayResetsAt == sevenDayReset)
+        #expect(request.rateLimits?.fiveHourResetsAt == fiveHourReset)
+        #expect(request.rateLimits?.observedAt == observedAt)
+    }
+
+    @MainActor
     @Test func batchExportRequestUsesPluralFilenameForMultipleAccounts() {
         let firstAccount = StoredAccount(
             identityKey: "chatgpt:first",
@@ -260,7 +296,10 @@ struct CodexAccountArchiveTests {
         )
         let transferItem = CodexAccountArchiveTransferItem(
             request: CodexAccountArchiveExportRequest(account: account),
-            exporter: CodexAccountArchiveFileExporter(snapshotStore: FakeArchiveSnapshotStore())
+            exporter: CodexAccountArchiveFileExporter(
+                snapshotStore: FakeArchiveSnapshotStore(),
+                syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore()
+            )
         )
 
         #expect(transferItem.exportedArchiveFilename == "Team Sandbox.cxa")
@@ -282,7 +321,10 @@ struct CodexAccountArchiveTests {
         )
         let transferItem = CodexAccountArchiveTransferItem(
             request: CodexAccountArchiveExportRequest(account: account),
-            exporter: CodexAccountArchiveFileExporter(snapshotStore: FakeArchiveSnapshotStore())
+            exporter: CodexAccountArchiveFileExporter(
+                snapshotStore: FakeArchiveSnapshotStore(),
+                syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore()
+            )
         )
 
         #expect(transferItem.macOSItemProvider(includeReorderToken: true).suggestedName == "Team Sandbox")
@@ -330,7 +372,10 @@ struct CodexAccountArchiveTests {
         )
         let request = CodexAccountArchiveExportRequest(account: account)
 
-        let exporter = CodexAccountArchiveFileExporter(snapshotStore: snapshotStore)
+        let exporter = CodexAccountArchiveFileExporter(
+            snapshotStore: snapshotStore,
+            syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore()
+        )
         let fileURL = try await exporter.exportFile(for: request)
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
 
@@ -380,11 +425,57 @@ struct CodexAccountArchiveTests {
             ]
         )
 
-        let exporter = CodexAccountArchiveFileExporter(snapshotStore: snapshotStore)
+        let exporter = CodexAccountArchiveFileExporter(
+            snapshotStore: snapshotStore,
+            syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore()
+        )
         let archive = try CodexAccountArchive.decode(from: try await exporter.exportData(for: request))
 
         #expect(archive.accounts.count == 2)
         #expect(archive.accounts.map(\.identityKey) == ["chatgpt:first", "chatgpt:second"])
+    }
+
+    @MainActor
+    @Test func exporterIncludesSyncedRateLimitCredentialWhenAvailable() async throws {
+        let snapshotStore = FakeArchiveSnapshotStore()
+        let credentialStore = FakeSyncedRateLimitCredentialStore()
+        let identityKey = "chatgpt:abc123"
+        try await snapshotStore.saveSnapshot(
+            #"{"tokens":{"access_token":"snapshot-token"}}"#,
+            forIdentityKey: identityKey
+        )
+        let syncedCredential = try SyncedRateLimitCredential(
+            credentials: CodexRateLimitCredentials(
+                identityKey: identityKey,
+                authMode: .chatgpt,
+                accountID: "workspace-123",
+                accessToken: "live-token",
+                idToken: nil
+            ),
+            exportedAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+        try await credentialStore.save(syncedCredential)
+        let account = StoredAccount(
+            identityKey: identityKey,
+            name: "Work Account",
+            createdAt: .now,
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: CodexAuthMode.chatgpt.rawValue,
+            emailHint: "work@example.com",
+            accountIdentifier: "workspace-123",
+            iconSystemName: "briefcase.fill"
+        )
+        let request = CodexAccountArchiveExportRequest(account: account)
+
+        let exporter = CodexAccountArchiveFileExporter(
+            snapshotStore: snapshotStore,
+            syncedRateLimitCredentialStore: credentialStore
+        )
+        let archive = try CodexAccountArchive.decode(from: try await exporter.exportData(for: request))
+
+        #expect(archive.primaryAccount?.rateLimitCredential == syncedCredential)
+        #expect(archive.primaryAccount?.rateLimitCredential?.accessToken == "live-token")
     }
 }
 
@@ -431,5 +522,29 @@ private final class FakeArchiveSnapshotStore: @unchecked Sendable, AccountSnapsh
         lock.lock()
         defer { lock.unlock() }
         return try body()
+    }
+}
+
+private actor FakeSyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
+    private var credentials: [String: SyncedRateLimitCredential] = [:]
+
+    func save(_ credential: SyncedRateLimitCredential) async throws {
+        credentials[credential.identityKey] = credential
+    }
+
+    func load(forIdentityKey identityKey: String) async throws -> SyncedRateLimitCredential {
+        guard let credential = credentials[identityKey] else {
+            throw SyncedRateLimitCredentialStoreError.missingCredential
+        }
+
+        return credential
+    }
+
+    func delete(forIdentityKey identityKey: String) async throws {
+        credentials.removeValue(forKey: identityKey)
+    }
+
+    func containsCredential(forIdentityKey identityKey: String) async -> Bool {
+        credentials[identityKey] != nil
     }
 }

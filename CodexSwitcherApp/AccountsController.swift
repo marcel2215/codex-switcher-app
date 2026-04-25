@@ -49,7 +49,9 @@ final class IOSAccountsController {
 
     init(
         snapshotStore: AccountSnapshotStoring = SharedKeychainSnapshotStore(),
-        archiveExporter: CodexAccountArchiveFileExporter = CodexAccountArchiveFileExporter(),
+        archiveExporter: CodexAccountArchiveFileExporter = CodexAccountArchiveFileExporter(
+            syncedRateLimitCredentialStore: SyncedRateLimitCredentialStore()
+        ),
         syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore(),
         snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore()
     ) {
@@ -306,11 +308,17 @@ final class IOSAccountsController {
                                 _ = try await storeImportedSnapshot(
                                     archivedAccount.snapshotContents,
                                     snapshot: snapshot,
+                                    importedRateLimitCredential: archivedAccount.rateLimitCredential,
                                     on: existingAccount,
                                     in: modelContext
                                 )
                                 _ = Self.applyImportedArchiveMetadata(
                                     archivedAccount,
+                                    to: existingAccount
+                                )
+                                _ = Self.applyImportedRateLimits(
+                                    archivedAccount.rateLimits,
+                                    identityKey: snapshot.identityKey,
                                     to: existingAccount
                                 )
                                 _ = StoredAccountMutations.applyLastLogin(
@@ -347,8 +355,14 @@ final class IOSAccountsController {
                             _ = try await storeImportedSnapshot(
                                 archivedAccount.snapshotContents,
                                 snapshot: snapshot,
+                                importedRateLimitCredential: archivedAccount.rateLimitCredential,
                                 on: account,
                                 in: modelContext
+                            )
+                            _ = Self.applyImportedRateLimits(
+                                archivedAccount.rateLimits,
+                                identityKey: snapshot.identityKey,
+                                to: account
                             )
                             modelContext.insert(account)
                             allAccounts.append(account)
@@ -423,6 +437,7 @@ final class IOSAccountsController {
     private func storeImportedSnapshot(
         _ snapshotContents: String,
         snapshot: SharedCodexAuthSnapshot,
+        importedRateLimitCredential: SyncedRateLimitCredential? = nil,
         on account: StoredAccount,
         in modelContext: ModelContext
     ) async throws -> Bool {
@@ -450,18 +465,27 @@ final class IOSAccountsController {
             try await snapshotStore.saveSnapshot(snapshotContents, forIdentityKey: snapshot.identityKey)
         }
 
-        let didExportSyncedCredential =
-            await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
-            from: snapshotContents,
-            expectedIdentityKey: snapshot.identityKey,
-            in: modelContext,
-            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
-            excludingAccountIDsForDelete: [account.id],
-            forceRewrite: StoredAccountCloudSyncSupport.shouldForceRewriteSyncedRateLimitCredential(
-                for: snapshot.identityKey
-            )
+        let didSaveImportedCredential = await saveImportedRateLimitCredentialIfUsable(
+            importedRateLimitCredential,
+            expectedIdentityKey: snapshot.identityKey
         )
-        if didExportSyncedCredential || snapshot.authMode == .apiKey {
+        let didExportSyncedCredential: Bool
+        if didSaveImportedCredential {
+            didExportSyncedCredential = false
+        } else {
+            didExportSyncedCredential =
+                await StoredAccountCloudSyncSupport.exportSyncedRateLimitCredentialIfNeeded(
+                from: snapshotContents,
+                expectedIdentityKey: snapshot.identityKey,
+                in: modelContext,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                excludingAccountIDsForDelete: [account.id],
+                forceRewrite: StoredAccountCloudSyncSupport.shouldForceRewriteSyncedRateLimitCredential(
+                    for: snapshot.identityKey
+                )
+            )
+        }
+        if didSaveImportedCredential || didExportSyncedCredential || snapshot.authMode == .apiKey {
             StoredAccountCloudSyncSupport.markSyncedRateLimitCredentialAccessibilityMigrated(
                 for: snapshot.identityKey
             )
@@ -479,6 +503,36 @@ final class IOSAccountsController {
         }
 
         return didChange
+    }
+
+    private func saveImportedRateLimitCredentialIfUsable(
+        _ credential: SyncedRateLimitCredential?,
+        expectedIdentityKey: String
+    ) async -> Bool {
+        guard let credential else {
+            return false
+        }
+
+        let normalizedExpectedIdentityKey = expectedIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedExpectedIdentityKey.isEmpty,
+              credential.identityKey == normalizedExpectedIdentityKey,
+              credential.rateLimitCredentials.authMode != .apiKey,
+              credential.rateLimitCredentials.accessToken?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            return false
+        }
+
+        do {
+            if let existingCredential = try? await syncedRateLimitCredentialStore.load(
+                forIdentityKey: normalizedExpectedIdentityKey
+            ), existingCredential.exportedAt >= credential.exportedAt {
+                return true
+            }
+
+            try await syncedRateLimitCredentialStore.save(credential)
+            return true
+        } catch {
+            return false
+        }
     }
 
     private static func parseImportedSnapshot(from snapshotContents: String) throws -> SharedCodexAuthSnapshot {
@@ -502,6 +556,42 @@ final class IOSAccountsController {
         if account.iconSystemName == AccountIconOption.defaultOption.systemName,
            importedIconSystemName != AccountIconOption.defaultOption.systemName {
             account.iconSystemName = importedIconSystemName
+            didChange = true
+        }
+
+        return didChange
+    }
+
+    @discardableResult
+    private static func applyImportedRateLimits(
+        _ rateLimits: CodexAccountArchive.Account.RateLimits?,
+        identityKey: String,
+        to account: StoredAccount
+    ) -> Bool {
+        guard let snapshot = rateLimits?.snapshot(identityKey: identityKey) else {
+            return false
+        }
+        guard snapshot.observedAt >= (account.rateLimitsObservedAt ?? .distantPast) else {
+            return false
+        }
+
+        var didChange = RateLimitAccountUpdater.apply(snapshot, to: account)
+
+        if let sevenDayDataStatusRaw = rateLimits?.sevenDayDataStatusRaw,
+           account.sevenDayDataStatusRaw != sevenDayDataStatusRaw {
+            account.sevenDayDataStatusRaw = sevenDayDataStatusRaw
+            didChange = true
+        }
+
+        if let fiveHourDataStatusRaw = rateLimits?.fiveHourDataStatusRaw,
+           account.fiveHourDataStatusRaw != fiveHourDataStatusRaw {
+            account.fiveHourDataStatusRaw = fiveHourDataStatusRaw
+            didChange = true
+        }
+
+        if let displayVersion = rateLimits?.displayVersion,
+           account.rateLimitDisplayVersion != displayVersion {
+            account.rateLimitDisplayVersion = displayVersion
             didChange = true
         }
 

@@ -47,9 +47,106 @@ nonisolated enum CodexAccountArchiveError: LocalizedError, Equatable {
 }
 
 /// A portable account export that preserves the auth snapshot plus the
-/// user-visible metadata needed to recreate a recognizable account entry.
+/// user-visible metadata and narrow rate-limit refresh state needed to recreate
+/// a recognizable account entry.
 nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
     nonisolated struct Account: Codable, Sendable, Equatable, Identifiable {
+        nonisolated struct RateLimits: Codable, Sendable, Equatable {
+            let sevenDayRemainingPercent: Int?
+            let fiveHourRemainingPercent: Int?
+            let sevenDayDataStatusRaw: String?
+            let fiveHourDataStatusRaw: String?
+            let sevenDayResetsAt: Date?
+            let fiveHourResetsAt: Date?
+            let observedAt: Date?
+            let displayVersion: Int?
+
+            @MainActor
+            init?(account: StoredAccount) {
+                self.init(
+                    sevenDayRemainingPercent: account.sevenDayLimitUsedPercent,
+                    fiveHourRemainingPercent: account.fiveHourLimitUsedPercent,
+                    sevenDayDataStatusRaw: account.sevenDayDataStatusRaw,
+                    fiveHourDataStatusRaw: account.fiveHourDataStatusRaw,
+                    sevenDayResetsAt: account.sevenDayResetsAt,
+                    fiveHourResetsAt: account.fiveHourResetsAt,
+                    observedAt: account.rateLimitsObservedAt,
+                    displayVersion: account.rateLimitDisplayVersion
+                )
+
+                if isEmpty {
+                    return nil
+                }
+            }
+
+            init(
+                sevenDayRemainingPercent: Int?,
+                fiveHourRemainingPercent: Int?,
+                sevenDayDataStatusRaw: String? = nil,
+                fiveHourDataStatusRaw: String? = nil,
+                sevenDayResetsAt: Date? = nil,
+                fiveHourResetsAt: Date? = nil,
+                observedAt: Date? = nil,
+                displayVersion: Int? = nil
+            ) {
+                self.sevenDayRemainingPercent = sevenDayRemainingPercent
+                self.fiveHourRemainingPercent = fiveHourRemainingPercent
+                self.sevenDayDataStatusRaw = CodexAccountArchive.normalizedOptionalString(sevenDayDataStatusRaw)
+                self.fiveHourDataStatusRaw = CodexAccountArchive.normalizedOptionalString(fiveHourDataStatusRaw)
+                self.sevenDayResetsAt = sevenDayResetsAt
+                self.fiveHourResetsAt = fiveHourResetsAt
+                self.observedAt = observedAt
+                self.displayVersion = displayVersion
+            }
+
+            var isEmpty: Bool {
+                sevenDayRemainingPercent == nil
+                    && fiveHourRemainingPercent == nil
+                    && sevenDayDataStatusRaw != RateLimitMetricDataStatus.unavailable.rawValue
+                    && fiveHourDataStatusRaw != RateLimitMetricDataStatus.unavailable.rawValue
+                    && sevenDayResetsAt == nil
+                    && fiveHourResetsAt == nil
+                    && observedAt == nil
+            }
+
+            var exportContentKey: String {
+                [
+                    Self.keyComponent(sevenDayRemainingPercent.map(String.init)),
+                    Self.keyComponent(fiveHourRemainingPercent.map(String.init)),
+                    Self.keyComponent(sevenDayDataStatusRaw),
+                    Self.keyComponent(fiveHourDataStatusRaw),
+                    Self.keyComponent(sevenDayResetsAt.map { String($0.timeIntervalSinceReferenceDate) }),
+                    Self.keyComponent(fiveHourResetsAt.map { String($0.timeIntervalSinceReferenceDate) }),
+                    Self.keyComponent(observedAt.map { String($0.timeIntervalSinceReferenceDate) }),
+                    Self.keyComponent(displayVersion.map(String.init)),
+                ].joined(separator: "|")
+            }
+
+            func snapshot(identityKey: String) -> CodexRateLimitSnapshot? {
+                let normalizedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !normalizedIdentityKey.isEmpty, !isEmpty else {
+                    return nil
+                }
+
+                let resolvedObservedAt = observedAt ?? .distantPast
+                return CodexRateLimitSnapshot(
+                    identityKey: normalizedIdentityKey,
+                    observedAt: resolvedObservedAt,
+                    fetchedAt: resolvedObservedAt,
+                    source: .remoteUsageAPI,
+                    sevenDayRemainingPercent: sevenDayRemainingPercent,
+                    fiveHourRemainingPercent: fiveHourRemainingPercent,
+                    sevenDayResetsAt: sevenDayResetsAt,
+                    fiveHourResetsAt: fiveHourResetsAt
+                )
+            }
+
+            private static func keyComponent(_ value: String?) -> String {
+                let value = value ?? ""
+                return "\(value.count):\(value)"
+            }
+        }
+
         let name: String?
         let iconSystemName: String?
         let identityKey: String?
@@ -57,6 +154,8 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         let emailHint: String?
         let accountIdentifier: String?
         let lastLoginAt: Date?
+        let rateLimits: RateLimits?
+        let rateLimitCredential: SyncedRateLimitCredential?
         let snapshotContents: String
 
         var id: String {
@@ -71,6 +170,8 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             emailHint: String?,
             accountIdentifier: String?,
             lastLoginAt: Date? = nil,
+            rateLimits: RateLimits? = nil,
+            rateLimitCredential: SyncedRateLimitCredential? = nil,
             snapshotContents: String
         ) {
             self.name = CodexAccountArchive.normalizedOptionalString(name)
@@ -80,6 +181,8 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             self.emailHint = CodexAccountArchive.normalizedOptionalString(emailHint)
             self.accountIdentifier = CodexAccountArchive.normalizedOptionalString(accountIdentifier)
             self.lastLoginAt = lastLoginAt
+            self.rateLimits = rateLimits?.isEmpty == true ? nil : rateLimits
+            self.rateLimitCredential = rateLimitCredential
             self.snapshotContents = snapshotContents
         }
 
@@ -119,6 +222,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
     let exportedAt: Date
     let accounts: [Account]
 
+    nonisolated
     init(
         version: Int = currentVersion,
         exportedAt: Date = Date(),
@@ -129,7 +233,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         self.accounts = accounts
     }
 
-    init(
+    nonisolated init(
         version: Int = currentVersion,
         exportedAt: Date = Date(),
         name: String?,
@@ -139,6 +243,8 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         emailHint: String?,
         accountIdentifier: String?,
         lastLoginAt: Date? = nil,
+        rateLimits: Account.RateLimits? = nil,
+        rateLimitCredential: SyncedRateLimitCredential? = nil,
         snapshotContents: String
     ) {
         self.init(
@@ -153,6 +259,8 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
                     emailHint: emailHint,
                     accountIdentifier: accountIdentifier,
                     lastLoginAt: lastLoginAt,
+                    rateLimits: rateLimits,
+                    rateLimitCredential: rateLimitCredential,
                     snapshotContents: snapshotContents
                 )
             ]
@@ -266,6 +374,14 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
 
     var lastLoginAt: Date? {
         primaryAccount?.lastLoginAt
+    }
+
+    var rateLimits: Account.RateLimits? {
+        primaryAccount?.rateLimits
+    }
+
+    var rateLimitCredential: SyncedRateLimitCredential? {
+        primaryAccount?.rateLimitCredential
     }
 
     var snapshotContents: String {
@@ -431,6 +547,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
     let emailHint: String?
     let accountIdentifier: String?
     let lastLoginAt: Date?
+    let rateLimits: CodexAccountArchive.Account.RateLimits?
     let suggestedFilename: String
 
     var resolvedSuggestedFilename: String {
@@ -446,6 +563,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
             Self.keyComponent(emailHint),
             Self.keyComponent(accountIdentifier),
             Self.keyComponent(lastLoginAt.map { String($0.timeIntervalSinceReferenceDate) }),
+            Self.keyComponent(rateLimits?.exportContentKey),
             Self.keyComponent(suggestedFilename),
         ].joined(separator: "|")
     }
@@ -462,6 +580,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
         self.emailHint = account.emailHint
         self.accountIdentifier = account.accountIdentifier
         self.lastLoginAt = account.lastLoginAt
+        self.rateLimits = CodexAccountArchive.Account.RateLimits(account: account)
         self.suggestedFilename = CodexAccountArchive(
             name: self.name ?? AccountsPresentationLogic.displayName(for: account),
             iconSystemName: self.iconSystemName,
@@ -470,6 +589,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
             emailHint: self.emailHint,
             accountIdentifier: self.accountIdentifier,
             lastLoginAt: self.lastLoginAt,
+            rateLimits: self.rateLimits,
             snapshotContents: "{}"
         ).suggestedFilename
     }
@@ -517,14 +637,17 @@ nonisolated struct CodexAccountArchiveBatchExportRequest: Sendable, Equatable {
 
 actor CodexAccountArchiveFileExporter {
     private let snapshotStore: AccountSnapshotStoring
+    private let syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring
     private let fileManager: FileManager
     private let exportDirectoryURL: URL
 
     init(
         snapshotStore: AccountSnapshotStoring = SharedKeychainSnapshotStore(),
+        syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring,
         fileManager: FileManager = .default
     ) {
         self.snapshotStore = snapshotStore
+        self.syncedRateLimitCredentialStore = syncedRateLimitCredentialStore
         self.fileManager = fileManager
         self.exportDirectoryURL = fileManager.temporaryDirectory
             .appendingPathComponent("CodexAccountArchiveExports", isDirectory: true)
@@ -558,6 +681,9 @@ actor CodexAccountArchiveFileExporter {
 
         for account in request.accounts {
             let snapshotContents = try await snapshotStore.loadSnapshot(forIdentityKey: account.identityKey)
+            let rateLimitCredential = try? await syncedRateLimitCredentialStore.load(
+                forIdentityKey: account.identityKey
+            )
             archiveAccounts.append(
                 CodexAccountArchive.Account(
                     name: account.name,
@@ -567,6 +693,8 @@ actor CodexAccountArchiveFileExporter {
                     emailHint: account.emailHint,
                     accountIdentifier: account.accountIdentifier,
                     lastLoginAt: account.lastLoginAt,
+                    rateLimits: account.rateLimits,
+                    rateLimitCredential: rateLimitCredential,
                     snapshotContents: snapshotContents
                 )
             )
