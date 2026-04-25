@@ -502,11 +502,23 @@ final class AppController {
         }
     }
 
+    var canPasteAccountArchivesFromPasteboard: Bool {
+        !Self.accountArchiveURLs(from: .general).isEmpty
+    }
+
     func pasteAccountArchivesFromPasteboard() {
         if Self.forwardPasteboardCommandToTextInput(#selector(NSText.paste(_:))) {
             return
         }
 
+        pasteAccountArchivesFromGeneralPasteboard()
+    }
+
+    func pasteAccountArchivesFromContextMenu() {
+        pasteAccountArchivesFromGeneralPasteboard()
+    }
+
+    private func pasteAccountArchivesFromGeneralPasteboard() {
         guard renameTargetID == nil else {
             return
         }

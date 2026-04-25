@@ -716,6 +716,13 @@ struct ContentView: View {
             }
 
             Button {
+                controller.pasteAccountArchivesFromContextMenu()
+            } label: {
+                menuActionLabel(title: "Paste", systemImage: "clipboard")
+            }
+            .disabled(!controller.canPasteAccountArchivesFromPasteboard)
+
+            Button {
                 controller.beginAccountArchiveImport()
             } label: {
                 menuActionLabel(title: "Import", systemImage: "square.and.arrow.down")
