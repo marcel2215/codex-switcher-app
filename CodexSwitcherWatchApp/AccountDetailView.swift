@@ -121,13 +121,6 @@ struct WatchAccountDetailView: View {
                 }
             }
 
-            Section {
-                Button("Remove Account", role: .destructive) {
-                    showingRemoveConfirmation = true
-                }
-            } header: {
-                Text("Danger Zone")
-            }
         }
         .navigationTitle(displayName)
         .refreshable {
@@ -144,14 +137,24 @@ struct WatchAccountDetailView: View {
             )
         }
         .confirmationDialog(
-            "Remove this account?",
+            "Remove \"\(displayName)\"?",
             isPresented: $showingRemoveConfirmation
         ) {
             Button("Remove", role: .destructive) {
                 dismissAndRemoveAccount()
             }
         } message: {
-            Text("You can add it again later from the Mac.")
+            Text("Are you sure you want to remove this account from Codex switcher? You will be able to add it again later.")
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingRemoveConfirmation = true
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .accessibilityLabel("Account actions")
+            }
         }
     }
 

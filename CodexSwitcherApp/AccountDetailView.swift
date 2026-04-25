@@ -110,15 +110,6 @@ struct AccountDetailView: View {
                         .foregroundStyle(.red)
                 }
             }
-
-            Section {
-                Button(role: .destructive, action: onRemove) {
-                    Label("Remove Account", systemImage: "trash")
-                        .foregroundStyle(.red)
-                }
-            } header: {
-                Text("Danger Zone")
-            }
         }
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -332,12 +323,17 @@ struct AccountDetailView: View {
                 controller.setPinned(!account.isPinned, for: account, in: modelContext)
             } label: {
                 Label(
-                    account.isPinned ? "Unpin Account" : "Pin Account",
+                    account.isPinned ? "Unpin" : "Pin",
                     systemImage: account.isPinned ? "pin.slash" : "pin"
                 )
             }
+
+            Button(role: .destructive, action: onRemove) {
+                Label("Remove", systemImage: "trash")
+                    .foregroundStyle(.red)
+            }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Image(systemName: "ellipsis")
         }
         .accessibilityLabel("Account Actions")
     }

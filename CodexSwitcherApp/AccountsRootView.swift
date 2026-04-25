@@ -774,7 +774,7 @@ struct AccountsRootView: View {
             return Alert(
                 title: Text("Remove \"\(AccountsPresentationLogic.displayName(for: account))\"?"),
                 message: Text("Are you sure you want to remove this account from Codex switcher? You will be able to add it again later."),
-                primaryButton: .destructive(Text("Remove Account")) {
+                primaryButton: .destructive(Text("Remove")) {
                     removeAccountFromDetailOrList(account)
                 },
                 secondaryButton: .cancel {
