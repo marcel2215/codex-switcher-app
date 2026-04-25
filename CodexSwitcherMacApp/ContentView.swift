@@ -107,8 +107,8 @@ struct ContentView: View {
                 }
             }
 
-            if let banner = controller.pendingCodexRestartBanner {
-                pendingRestartStatusBar(banner)
+            if controller.pendingCodexRestartBanner != nil {
+                pendingRestartStatusBar()
             }
         }
         .background(
@@ -338,11 +338,11 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func pendingRestartStatusBar(_ banner: PendingCodexRestartBanner) -> some View {
+    private func pendingRestartStatusBar() -> some View {
         HStack {
             Spacer(minLength: 12)
 
-            Text("Account change pending. Close and reopen Codex to use \(banner.target.displayName).")
+            Text("Account change pending. Restart Codex.")
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
