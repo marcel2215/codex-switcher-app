@@ -22,9 +22,7 @@ struct AccountDetailsWindowView: View {
     var body: some View {
         Group {
             if let selectedAccount {
-                NavigationStack {
-                    AccountDetailsWindowForm(account: selectedAccount, controller: controller)
-                }
+                AccountDetailsWindowForm(account: selectedAccount, controller: controller)
             } else {
                 ContentUnavailableView(
                     "Account Not Available",
@@ -76,6 +74,17 @@ private struct AccountDetailsWindowForm: View {
         case fiveHour
     }
 
+    private struct SharePreparationKey: Equatable {
+        let transferItemID: UUID
+        let availabilityKey: String
+        let exportContentKey: String
+    }
+
+    private struct PreparedShare: Equatable {
+        let key: SharePreparationKey
+        let file: PreparedCodexAccountArchiveFile
+    }
+
     let account: StoredAccount
     let controller: AppController
 
@@ -85,6 +94,9 @@ private struct AccountDetailsWindowForm: View {
         .sevenDay: .relative,
         .fiveHour: .relative,
     ]
+    @State private var preparedShare: PreparedShare?
+    @State private var isPreparingShare = false
+    @State private var shareAvailability: Bool?
 
     init(account: StoredAccount, controller: AppController) {
         self.account = account
@@ -131,7 +143,18 @@ private struct AccountDetailsWindowForm: View {
         }
         .formStyle(.grouped)
         .navigationTitle(displayName)
+        .toolbar {
+            ToolbarItemGroup {
+                shareToolbarItem
+                pinToolbarItem
+                removeToolbarItem
+            }
+        }
         .onDisappear(perform: persistDraftName)
+        .task(id: sharePreparationKey) {
+            let preparationKey = sharePreparationKey
+            await prepareShareArchive(for: preparationKey, presentsErrors: false)
+        }
         .onChange(of: account.id) { _, _ in
             draftName = account.name
         }
@@ -208,6 +231,19 @@ private struct AccountDetailsWindowForm: View {
         AccountIconOption.resolve(from: account.iconSystemName)
     }
 
+    private var sharePreparationKey: SharePreparationKey {
+        let transferItem = shareTransferItem
+        return SharePreparationKey(
+            transferItemID: transferItem.id,
+            availabilityKey: transferItem.availabilityKey,
+            exportContentKey: transferItem.request.exportContentKey
+        )
+    }
+
+    private var shareTransferItem: CodexAccountArchiveTransferItem {
+        controller.archiveTransferItem(for: account)
+    }
+
     private func usageValueText(_ value: Int?, isUnavailable: Bool) -> some View {
         Text(
             AccountDisplayFormatter.detailedPercentDescription(
@@ -249,6 +285,115 @@ private struct AccountDetailsWindowForm: View {
     private func toggleResetDisplayMode(for row: ResetRow) {
         let currentMode = resetDisplayModes[row] ?? .relative
         resetDisplayModes[row] = currentMode == .relative ? .absolute : .relative
+    }
+
+    @ViewBuilder
+    private var shareToolbarItem: some View {
+        let preparationKey = sharePreparationKey
+
+        if let preparedShare, preparedShare.key == preparationKey {
+            ShareLink(item: preparedShare.file.fileURL, preview: SharePreview(displayName)) {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .accessibilityLabel("Share Account Archive")
+            .help("Share Account Archive")
+        } else if isPreparingShare || shareAvailability == nil {
+            Button {
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .disabled(true)
+            .accessibilityLabel("Share Account Archive")
+            .help("Share Account Archive")
+        } else {
+            Button {
+                Task { @MainActor in
+                    let preparationKey = sharePreparationKey
+                    await prepareShareArchive(for: preparationKey, presentsErrors: true)
+                }
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .accessibilityLabel("Share Account Archive")
+            .help("Share Account Archive")
+        }
+    }
+
+    private var pinToolbarItem: some View {
+        Button {
+            controller.setPinned(!account.isPinned, for: account.id)
+        } label: {
+            Image(systemName: account.isPinned ? "pin.slash" : "pin")
+        }
+        .accessibilityLabel(account.isPinned ? "Unpin Account" : "Pin Account")
+        .help(account.isPinned ? "Unpin Account" : "Pin Account")
+    }
+
+    private var removeToolbarItem: some View {
+        Button(role: .destructive) {
+            controller.removeAccounts(withIDs: [account.id])
+        } label: {
+            Image(systemName: "trash")
+        }
+        .accessibilityLabel("Remove Account")
+        .help("Remove Account")
+    }
+
+    @MainActor
+    private func prepareShareArchive(
+        for preparationKey: SharePreparationKey,
+        presentsErrors: Bool
+    ) async {
+        guard !account.isDeleted else {
+            preparedShare = nil
+            shareAvailability = false
+            isPreparingShare = false
+            return
+        }
+
+        preparedShare = nil
+        shareAvailability = nil
+        isPreparingShare = true
+
+        defer {
+            if sharePreparationKey == preparationKey {
+                isPreparingShare = false
+            }
+        }
+
+        do {
+            let preparedFile = try await controller.prepareArchiveFile(for: account)
+
+            guard sharePreparationKey == preparationKey else {
+                return
+            }
+
+            preparedShare = PreparedShare(key: preparationKey, file: preparedFile)
+            shareAvailability = true
+        } catch {
+            guard sharePreparationKey == preparationKey else {
+                return
+            }
+
+            preparedShare = nil
+            shareAvailability = false
+
+            if presentsErrors {
+                controller.presentedAlert = UserFacingAlert(
+                    title: "Couldn't Export Account",
+                    message: sharePreparationErrorMessage(for: error)
+                )
+            }
+        }
+    }
+
+    private func sharePreparationErrorMessage(for error: Error) -> String {
+        if let snapshotError = error as? AccountSnapshotStoreError,
+           snapshotError == .missingSnapshot {
+            return "That saved account is not exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
+        }
+
+        return error.localizedDescription
     }
 
     private func persistDraftName() {

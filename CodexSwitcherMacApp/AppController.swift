@@ -419,6 +419,15 @@ final class AppController {
         )
     }
 
+    func prepareArchiveFile(for account: StoredAccount) async throws -> PreparedCodexAccountArchiveFile {
+        let transferItem = archiveTransferItem(for: account)
+        let fileURL = try await archiveExporter.exportFile(for: transferItem.request)
+        return PreparedCodexAccountArchiveFile(
+            fileURL: fileURL,
+            suggestedFilename: transferItem.exportedArchiveFilename
+        )
+    }
+
 #if os(macOS)
     func macOSDragItemProvider(
         for accounts: [StoredAccount],
