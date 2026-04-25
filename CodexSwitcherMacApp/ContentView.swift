@@ -15,6 +15,7 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.openWindow) private var openWindow
     @AppStorage(
         CodexSharedPreferenceKey.showNoneAccount,
         store: CodexSharedPreferences.userDefaults
@@ -742,19 +743,18 @@ struct ContentView: View {
     private func singleAccountContextMenu(for account: StoredAccount, targetIDs: Set<UUID>) -> some View {
         Button {
             controller.selection = targetIDs
-            controller.login(accountID: account.id)
+            openAccountDetails(account.id)
         } label: {
-            menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
+            menuActionLabel(title: "Get Info", systemImage: "info.circle")
         }
+
+        Divider()
 
         Button {
             controller.selection = targetIDs
-            controller.setPinned(!account.isPinned, for: account.id)
+            controller.login(accountID: account.id)
         } label: {
-            menuActionLabel(
-                title: account.isPinned ? "Unpin" : "Pin",
-                systemImage: account.isPinned ? "pin.slash" : "pin"
-            )
+            menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
         }
 
         Button {
@@ -771,9 +771,23 @@ struct ContentView: View {
             menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
         }
 
+        Button {
+            controller.selection = targetIDs
+            controller.setPinned(!account.isPinned, for: account.id)
+        } label: {
+            menuActionLabel(
+                title: account.isPinned ? "Unpin" : "Pin",
+                systemImage: account.isPinned ? "pin.slash" : "pin"
+            )
+        }
+
         Divider()
 
         removeAccountsButton(targetIDs: targetIDs)
+    }
+
+    private func openAccountDetails(_ accountID: UUID) {
+        openWindow(id: AccountDetailsWindowID.details, value: accountID)
     }
 
     private func removeAccountsButton(targetIDs: Set<UUID>) -> some View {

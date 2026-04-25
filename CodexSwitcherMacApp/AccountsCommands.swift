@@ -13,6 +13,8 @@ struct AccountsCommands: Commands {
     let applicationDelegate: ApplicationDelegate
     let showsMenuBarExtra: Bool
 
+    @Environment(\.openWindow) private var openWindow
+
     var body: some Commands {
         // Keep standard macOS categories intact, and only use a custom top-level
         // menu for actions that are truly account-specific.
@@ -30,7 +32,7 @@ struct AccountsCommands: Commands {
             Button("Import...") {
                 controller.beginAccountArchiveImport()
             }
-            .keyboardShortcut("i", modifiers: [.command])
+            .keyboardShortcut("o", modifiers: [.command])
         }
 
         CommandGroup(after: .pasteboard) {
@@ -101,6 +103,16 @@ struct AccountsCommands: Commands {
         }
 
         CommandMenu("Account") {
+            Button("Get Info") {
+                if let selectedAccountID = controller.selectedAccountID {
+                    openWindow(id: AccountDetailsWindowID.details, value: selectedAccountID)
+                }
+            }
+            .keyboardShortcut("i", modifiers: [.command])
+            .disabled(controller.selection.count != 1)
+
+            Divider()
+
             Button("Log In") {
                 controller.switchSelectedAccount()
             }

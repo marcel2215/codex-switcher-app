@@ -242,6 +242,15 @@ struct MenuBarAccountsView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(controller.isSwitching)
+                        .contextMenu {
+                            if item.identityKey != nil {
+                                Button {
+                                    openAccountDetails(item.id)
+                                } label: {
+                                    Label("Get Info", systemImage: "info.circle")
+                                }
+                            }
+                        }
                         .onAppear {
                             if let identityKey = item.identityKey {
                                 controller.setRateLimitVisibility(true, for: identityKey)
@@ -291,6 +300,13 @@ struct MenuBarAccountsView: View {
     private func openMainWindow() {
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "main")
+        NSApp.activate(ignoringOtherApps: true)
+        dismiss()
+    }
+
+    private func openAccountDetails(_ accountID: UUID) {
+        NSApp.setActivationPolicy(.regular)
+        openWindow(id: AccountDetailsWindowID.details, value: accountID)
         NSApp.activate(ignoringOtherApps: true)
         dismiss()
     }

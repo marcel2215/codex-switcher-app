@@ -78,6 +78,7 @@ struct CodexSwitcherApp: App {
 
     var body: some Scene {
         mainWindowScene
+        accountDetailsWindowScene
         settingsScene
         menuBarScene
     }
@@ -98,6 +99,17 @@ struct CodexSwitcherApp: App {
                 showsMenuBarExtra: showMenuBarExtra
             )
         }
+    }
+
+    @SceneBuilder
+    private var accountDetailsWindowScene: some Scene {
+        WindowGroup("Account Details", id: AccountDetailsWindowID.details, for: UUID.self) { accountID in
+            accountDetailsWindowContent(accountID: accountID.wrappedValue)
+                .task {
+                    await performAppStartupTasksIfNeeded()
+                }
+        }
+        .defaultSize(width: 500, height: 420)
     }
 
     @SceneBuilder
@@ -347,6 +359,18 @@ struct CodexSwitcherApp: App {
             }
         } else {
             StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
+        }
+    }
+
+    @ViewBuilder
+    private func accountDetailsWindowContent(accountID: UUID?) -> some View {
+        if let sharedModelContainer {
+            AccountDetailsWindowView(accountID: accountID, controller: controller)
+                .modelContainer(sharedModelContainer)
+                .frame(minWidth: 460, minHeight: 360)
+        } else {
+            StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
+                .frame(minWidth: 460, minHeight: 360)
         }
     }
 }
