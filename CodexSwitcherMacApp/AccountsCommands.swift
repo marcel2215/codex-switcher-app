@@ -35,7 +35,17 @@ struct AccountsCommands: Commands {
             .keyboardShortcut("o", modifiers: [.command])
         }
 
-        CommandGroup(after: .pasteboard) {
+        CommandGroup(replacing: .pasteboard) {
+            Button("Copy") {
+                controller.copySelectedAccountsToPasteboard()
+            }
+            .keyboardShortcut("c", modifiers: [.command])
+
+            Button("Paste") {
+                controller.pasteAccountArchivesFromPasteboard()
+            }
+            .keyboardShortcut("v", modifiers: [.command])
+
             Divider()
 
             Button(role: .destructive) {

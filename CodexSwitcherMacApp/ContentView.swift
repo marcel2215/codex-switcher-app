@@ -727,7 +727,7 @@ struct ContentView: View {
                   let account = accounts.first(where: { $0.id == accountID }) {
             singleAccountContextMenu(for: account, targetIDs: targetIDs)
         } else {
-            removeAccountsButton(targetIDs: targetIDs)
+            multipleAccountsContextMenu(for: targetIDs)
         }
     }
 
@@ -746,6 +746,13 @@ struct ContentView: View {
             openAccountDetails(account.id)
         } label: {
             menuActionLabel(title: "Get Info", systemImage: "info.circle")
+        }
+
+        Button {
+            controller.selection = targetIDs
+            controller.copyAccountsToPasteboard(withIDs: targetIDs)
+        } label: {
+            menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
         }
 
         Divider()
@@ -779,6 +786,20 @@ struct ContentView: View {
                 title: account.isPinned ? "Unpin" : "Pin",
                 systemImage: account.isPinned ? "pin.slash" : "pin"
             )
+        }
+
+        Divider()
+
+        removeAccountsButton(targetIDs: targetIDs)
+    }
+
+    @ViewBuilder
+    private func multipleAccountsContextMenu(for targetIDs: Set<UUID>) -> some View {
+        Button {
+            controller.selection = targetIDs
+            controller.copyAccountsToPasteboard(withIDs: targetIDs)
+        } label: {
+            menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
         }
 
         Divider()

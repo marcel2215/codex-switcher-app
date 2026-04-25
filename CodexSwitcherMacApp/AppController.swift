@@ -351,6 +351,10 @@ final class AppController {
         return account.isPinned
     }
 
+    private var copyableSelectedAccountIDs: Set<UUID> {
+        Set(selection.filter { $0 != Self.noneAccountSelectionID })
+    }
+
     var shouldShowAuthStatusBanner: Bool {
         authAccessState.showsInlineStatus
     }
@@ -453,6 +457,109 @@ final class AppController {
         }
 
         return transferItem.macOSItemProvider(includeReorderToken: includeReorderToken)
+    }
+
+    func copySelectedAccountsToPasteboard() {
+        if Self.forwardPasteboardCommandToTextInput(#selector(NSText.copy(_:))) {
+            return
+        }
+
+        copyAccountsToPasteboard(withIDs: copyableSelectedAccountIDs)
+    }
+
+    func copyAccountsToPasteboard(withIDs accountIDs: Set<UUID>) {
+        guard renameTargetID == nil else {
+            return
+        }
+
+        let accountIDs = Set(accountIDs.filter { $0 != Self.noneAccountSelectionID })
+        guard !accountIDs.isEmpty else {
+            return
+        }
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.copyAccountArchivesToPasteboard(withIDs: accountIDs)
+        }
+    }
+
+    func pasteAccountArchivesFromPasteboard() {
+        if Self.forwardPasteboardCommandToTextInput(#selector(NSText.paste(_:))) {
+            return
+        }
+
+        guard renameTargetID == nil else {
+            return
+        }
+
+        let accountArchiveURLs = Self.accountArchiveURLs(from: .general)
+        guard !accountArchiveURLs.isEmpty else {
+            return
+        }
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.importAccountArchives(from: accountArchiveURLs)
+        }
+    }
+
+    private func copyAccountArchivesToPasteboard(withIDs accountIDs: Set<UUID>) async {
+        await waitForInitializationIfNeeded()
+
+        do {
+            let orderedAccounts = sortedAccounts(from: try fetchAccounts())
+                .filter { accountIDs.contains($0.id) }
+            guard !orderedAccounts.isEmpty else {
+                return
+            }
+
+            let transferItem = archiveTransferItem(for: orderedAccounts)
+            guard await transferItem.canExport() else {
+                throw ControllerError.accountNeedsLocalSnapshotForExport
+            }
+
+            let fileURL = try await archiveExporter.exportFile(for: transferItem.request)
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            guard pasteboard.writeObjects([fileURL as NSURL]) else {
+                throw ControllerError.pasteboardWriteFailed
+            }
+        } catch {
+            present(error, title: "Couldn't Copy Account")
+        }
+    }
+
+    private static func accountArchiveURLs(from pasteboard: NSPasteboard) -> [URL] {
+        let objects = pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) ?? []
+        var seenURLs = Set<URL>()
+
+        return objects.compactMap { object in
+            guard let url = object as? URL ?? (object as? NSURL).map({ $0 as URL }),
+                  isAccountArchiveURL(url),
+                  seenURLs.insert(url).inserted
+            else {
+                return nil
+            }
+
+            return url
+        }
+    }
+
+    private static func forwardPasteboardCommandToTextInput(_ action: Selector) -> Bool {
+        guard NSApp.keyWindow?.firstResponder is NSTextView else {
+            return false
+        }
+
+        return NSApp.sendAction(action, to: nil, from: nil)
     }
 #endif
 
@@ -4782,6 +4889,7 @@ private enum ControllerError: LocalizedError {
     case noSupportedAccountArchives
     case accountArchiveIdentityMismatch
     case accountNeedsLocalSnapshotForExport
+    case pasteboardWriteFailed
 
     var errorDescription: String? {
         switch self {
@@ -4799,6 +4907,8 @@ private enum ControllerError: LocalizedError {
             "That .cxa file doesn't match the account snapshot it contains."
         case .accountNeedsLocalSnapshotForExport:
             "That saved account needs a local capture on this Mac before it can be exported."
+        case .pasteboardWriteFailed:
+            "Codex Switcher couldn't put the account archive on the clipboard."
         }
     }
 }
