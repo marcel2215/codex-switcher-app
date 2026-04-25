@@ -50,8 +50,12 @@ struct WatchAccountRow: View {
         if let unavailableSuffix = parts.unavailableSuffix {
             HStack(spacing: 0) {
                 Text(parts.name)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Text(unavailableSuffix)
                     .foregroundStyle(.red)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
             }
         } else {
             Text(parts.name)

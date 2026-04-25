@@ -84,19 +84,19 @@ struct WatchAccountDetailView: View {
 
             Section {
                 LabeledContent("5-Hour Remaining") {
-                    usageValueText(account.fiveHourLimitUsedPercent)
+                    usageValueText(account.fiveHourLimitUsedPercent, isUnavailable: account.isUnavailable)
                 }
 
                 LabeledContent("5-Hour Reset") {
-                    resetValueButton(account.fiveHourResetsAt, row: .fiveHour)
+                    resetValueButton(account.fiveHourResetsAt, row: .fiveHour, isUnavailable: account.isUnavailable)
                 }
 
                 LabeledContent("7-Day Remaining") {
-                    usageValueText(account.sevenDayLimitUsedPercent)
+                    usageValueText(account.sevenDayLimitUsedPercent, isUnavailable: account.isUnavailable)
                 }
 
                 LabeledContent("7-Day Reset") {
-                    resetValueButton(account.sevenDayResetsAt, row: .sevenDay)
+                    resetValueButton(account.sevenDayResetsAt, row: .sevenDay, isUnavailable: account.isUnavailable)
                 }
             } header: {
                 Text("Rate Limits")
@@ -171,16 +171,23 @@ struct WatchAccountDetailView: View {
         AccountIconOption.resolve(from: account.iconSystemName)
     }
 
-    private func usageValueText(_ value: Int?) -> some View {
-        Text(AccountDisplayFormatter.detailedPercentDescription(value))
+    private func usageValueText(_ value: Int?, isUnavailable: Bool) -> some View {
+        Text(
+            AccountDisplayFormatter.detailedPercentDescription(
+                value,
+                isUnavailable: isUnavailable
+            )
+        )
             .foregroundStyle(.secondary)
     }
 
     @ViewBuilder
-    private func resetValueButton(_ value: Date?, row: ResetRow) -> some View {
-        if value == nil {
+    private func resetValueButton(_ value: Date?, row: ResetRow, isUnavailable: Bool) -> some View {
+        let displayedValue = isUnavailable ? nil : value
+
+        if displayedValue == nil {
             RateLimitResetText(
-                resetAt: value,
+                resetAt: displayedValue,
                 fallbackText: "Unavailable",
                 displayMode: resetDisplayModes[row] ?? .relative
             )
@@ -192,7 +199,7 @@ struct WatchAccountDetailView: View {
                 toggleResetDisplayMode(for: row)
             } label: {
                 RateLimitResetText(
-                    resetAt: value,
+                    resetAt: displayedValue,
                     fallbackText: "Unavailable",
                     displayMode: resetDisplayModes[row] ?? .relative
                 )
