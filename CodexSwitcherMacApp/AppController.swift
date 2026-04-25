@@ -9,6 +9,7 @@ import AppKit
 import AppIntents
 import Foundation
 import IOKit.ps
+import ObjectiveC.runtime
 import Observation
 import OSLog
 import SwiftData
@@ -539,7 +540,7 @@ final class AppController {
 
     func accountArchiveSharingServiceOptions() -> [AccountArchiveSharingServiceOption] {
         let previewURL = Self.accountArchiveSharingPreviewURL()
-        return NSSharingService.sharingServices(forItems: [previewURL])
+        return Self.inlineAccountArchiveSharingServices(for: [previewURL])
             .enumerated()
             .map { index, service in
                 let menuTitle = service.menuItemTitle.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -641,6 +642,18 @@ final class AppController {
 
             return url
         }
+    }
+
+    private static func inlineAccountArchiveSharingServices(for items: [Any]) -> [NSSharingService] {
+        let selector = NSSelectorFromString("sharingServicesForItems:")
+        guard let method = class_getClassMethod(NSSharingService.self, selector) else {
+            return []
+        }
+
+        typealias SharingServicesFunction = @convention(c) (AnyClass, Selector, NSArray) -> NSArray
+        let implementation = method_getImplementation(method)
+        let function = unsafeBitCast(implementation, to: SharingServicesFunction.self)
+        return function(NSSharingService.self, selector, items as NSArray) as? [NSSharingService] ?? []
     }
 
     private static func forwardPasteboardCommandToTextInput(_ action: Selector) -> Bool {
