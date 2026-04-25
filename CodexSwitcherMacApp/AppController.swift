@@ -49,6 +49,16 @@ struct PendingCodexRestartBanner: Identifiable, Equatable {
     let codexProcessIDsAtSwitch: Set<pid_t>
 }
 
+#if os(macOS)
+struct AccountArchiveSharingServiceOption: Identifiable {
+    let id: String
+    let title: String
+    let image: NSImage
+
+    fileprivate let service: NSSharingService
+}
+#endif
+
 @Observable
 @MainActor
 final class AppController {
@@ -509,6 +519,41 @@ final class AppController {
         }
     }
 
+    func accountArchiveSharingServiceOptions() -> [AccountArchiveSharingServiceOption] {
+        let previewURL = Self.accountArchiveSharingPreviewURL()
+        return NSSharingService.sharingServices(forItems: [previewURL])
+            .enumerated()
+            .map { index, service in
+                let menuTitle = service.menuItemTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                let title = menuTitle.isEmpty ? service.title : menuTitle
+                return AccountArchiveSharingServiceOption(
+                    id: "\(index)-\(title)-\(service.title)",
+                    title: title,
+                    image: service.image,
+                    service: service
+                )
+            }
+    }
+
+    func shareAccounts(withIDs accountIDs: Set<UUID>, using option: AccountArchiveSharingServiceOption) {
+        guard renameTargetID == nil else {
+            return
+        }
+
+        let accountIDs = Set(accountIDs.filter { $0 != Self.noneAccountSelectionID })
+        guard !accountIDs.isEmpty else {
+            return
+        }
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.shareAccountArchives(withIDs: accountIDs, using: option.service)
+        }
+    }
+
     private func copyAccountArchivesToPasteboard(withIDs accountIDs: Set<UUID>) async {
         await waitForInitializationIfNeeded()
 
@@ -532,6 +577,32 @@ final class AppController {
             }
         } catch {
             present(error, title: "Couldn't Copy Account")
+        }
+    }
+
+    private func shareAccountArchives(
+        withIDs accountIDs: Set<UUID>,
+        using service: NSSharingService
+    ) async {
+        await waitForInitializationIfNeeded()
+
+        do {
+            let orderedAccounts = sortedAccounts(from: try fetchAccounts())
+                .filter { accountIDs.contains($0.id) }
+            guard !orderedAccounts.isEmpty else {
+                return
+            }
+
+            let transferItem = archiveTransferItem(for: orderedAccounts)
+            guard await transferItem.canExport() else {
+                throw ControllerError.accountNeedsLocalSnapshotForExport
+            }
+
+            let fileURL = try await archiveExporter.exportFile(for: transferItem.request)
+            service.subject = transferItem.exportedArchiveFilename
+            service.perform(withItems: [fileURL])
+        } catch {
+            present(error, title: "Couldn't Share Account")
         }
     }
 
@@ -560,6 +631,17 @@ final class AppController {
         }
 
         return NSApp.sendAction(action, to: nil, from: nil)
+    }
+
+    private static func accountArchiveSharingPreviewURL() -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Codex Account.cxa", isDirectory: false)
+
+        if !FileManager.default.fileExists(atPath: url.path) {
+            try? Data().write(to: url, options: .atomic)
+        }
+
+        return url
     }
 #endif
 

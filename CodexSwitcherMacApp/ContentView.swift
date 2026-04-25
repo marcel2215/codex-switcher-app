@@ -755,6 +755,8 @@ struct ContentView: View {
             menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
         }
 
+        shareMenu(for: targetIDs)
+
         Divider()
 
         Button {
@@ -802,9 +804,39 @@ struct ContentView: View {
             menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
         }
 
+        shareMenu(for: targetIDs)
+
         Divider()
 
         removeAccountsButton(targetIDs: targetIDs)
+    }
+
+    @ViewBuilder
+    private func shareMenu(for targetIDs: Set<UUID>) -> some View {
+        let sharingServices = controller.accountArchiveSharingServiceOptions()
+
+        if !sharingServices.isEmpty {
+            Menu {
+                ForEach(sharingServices) { service in
+                    Button {
+                        controller.selection = targetIDs
+                        controller.shareAccounts(withIDs: targetIDs, using: service)
+                    } label: {
+                        shareServiceLabel(service)
+                    }
+                }
+            } label: {
+                menuActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+            }
+        }
+    }
+
+    private func shareServiceLabel(_ service: AccountArchiveSharingServiceOption) -> some View {
+        Label {
+            Text(service.title)
+        } icon: {
+            Image(nsImage: service.image)
+        }
     }
 
     private func openAccountDetails(_ accountID: UUID) {
