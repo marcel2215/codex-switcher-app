@@ -55,7 +55,7 @@ struct AccountsCommands: Commands {
                     .foregroundStyle(.red)
             }
             .keyboardShortcut(.delete, modifiers: [])
-            .disabled(controller.selection.isEmpty)
+            .disabled(controller.selectedAccountIDsForMenuActions.isEmpty)
         }
 
         CommandGroup(after: .toolbar) {

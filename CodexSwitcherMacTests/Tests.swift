@@ -2819,14 +2819,21 @@ struct Tests {
         #expect(await syncedRateLimitCredentialStore.containsCredential(forIdentityKey: secondAccount.identityKey) == false)
     }
 
-    @Test func removalShortcutSupportsDeleteWithExpectedModifiersOnly() {
+    @Test func removalShortcutSupportsDeleteWithAnyModifierCombination() {
         #expect(ContentView.supportsRemovalShortcut(modifiers: []) == true)
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.command]) == true)
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.shift]) == true)
         #expect(ContentView.supportsRemovalShortcut(modifiers: [.command, .shift]) == true)
-        #expect(ContentView.supportsRemovalShortcut(modifiers: [.option]) == false)
-        #expect(ContentView.supportsRemovalShortcut(modifiers: [.control]) == false)
-        #expect(ContentView.supportsRemovalShortcut(modifiers: [.command, .option]) == false)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.command, .option]) == true)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.command, .shift, .option]) == true)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.control]) == true)
+        #expect(ContentView.supportsRemovalShortcut(modifiers: [.command, .control, .option]) == true)
+    }
+
+    @Test func removalShortcutMonitorRecognizesBackspaceAndForwardDelete() {
+        #expect(RemovalShortcutMonitorBridge.isRemovalKeyCode(51) == true)
+        #expect(RemovalShortcutMonitorBridge.isRemovalKeyCode(117) == true)
+        #expect(RemovalShortcutMonitorBridge.isRemovalKeyCode(36) == false)
     }
 
     @Test func spaceShortcutRequiresSingleSelectionAndNoRename() {

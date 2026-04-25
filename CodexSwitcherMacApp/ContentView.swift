@@ -112,8 +112,17 @@ struct ContentView: View {
             }
         }
         .background(
-            MouseButtonMonitorBridge {
-                clearReorderHandleInteraction()
+            ZStack {
+                MouseButtonMonitorBridge {
+                    clearReorderHandleInteraction()
+                }
+
+                RemovalShortcutMonitorBridge(
+                    isEnabled: canRemoveSelectionFromKeyboard,
+                    onRemove: {
+                        controller.removeSelectedAccounts()
+                    }
+                )
             }
         )
         .navigationTitle("Codex Switcher")
@@ -182,7 +191,7 @@ struct ContentView: View {
         }
         .onKeyPress(.delete, phases: [.down]) { keyPress in
             guard
-                !controller.selection.isEmpty,
+                !controller.selectedAccountIDsForMenuActions.isEmpty,
                 controller.renameTargetID == nil,
                 shouldRemoveSelection(for: keyPress)
             else {
@@ -393,6 +402,11 @@ struct ContentView: View {
 
     private func shouldRemoveSelection(for keyPress: KeyPress) -> Bool {
         Self.supportsRemovalShortcut(modifiers: keyPress.modifiers)
+    }
+
+    private var canRemoveSelectionFromKeyboard: Bool {
+        !controller.selectedAccountIDsForMenuActions.isEmpty
+            && controller.renameTargetID == nil
     }
 
     private func accountListRow(for item: AccountListItem, draftName: Binding<String>) -> some View {
@@ -944,22 +958,10 @@ private struct AccountListItem: Identifiable, Hashable {
 }
 
 extension ContentView {
-    /// Matches the delete-key combinations this list treats as an account
-    /// removal shortcut. Keep this narrow so regular text editing shortcuts
-    /// continue to work when inline rename is active.
-    static func supportsRemovalShortcut(modifiers: EventModifiers) -> Bool {
-        switch modifiers {
-        case []:
-            true
-        case [.command]:
-            true
-        case [.shift]:
-            true
-        case [.command, .shift]:
-            true
-        default:
-            false
-        }
+    /// Any Delete/Backspace key equivalent removes selected accounts. Inline
+    /// rename is guarded before this is called so text editing keeps priority.
+    static func supportsRemovalShortcut(modifiers _: EventModifiers) -> Bool {
+        true
     }
 
     /// Space should behave like a lightweight "activate" action only when the
