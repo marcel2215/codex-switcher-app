@@ -144,7 +144,8 @@ private struct AccountDetailsWindowForm: View {
         .formStyle(.grouped)
         .navigationTitle(displayName)
         .toolbar {
-            ToolbarItemGroup {
+            ToolbarItemGroup(placement: .primaryAction) {
+                loginToolbarItem
                 shareToolbarItem
                 pinToolbarItem
                 removeToolbarItem
@@ -285,6 +286,17 @@ private struct AccountDetailsWindowForm: View {
     private func toggleResetDisplayMode(for row: ResetRow) {
         let currentMode = resetDisplayModes[row] ?? .relative
         resetDisplayModes[row] = currentMode == .relative ? .absolute : .relative
+    }
+
+    private var loginToolbarItem: some View {
+        Button {
+            persistDraftName()
+            controller.login(accountID: account.id)
+        } label: {
+            Image(systemName: "key")
+        }
+        .accessibilityLabel("Log In")
+        .help("Log In")
     }
 
     @ViewBuilder
