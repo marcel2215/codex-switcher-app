@@ -102,68 +102,12 @@ struct AccountsCommands: Commands {
             .keyboardShortcut("r", modifiers: [.command])
         }
 
-        // This utility app does not print documents, so reuse the standard
-        // Print slot for pinning to avoid conflicting with macOS' built-in Cmd-P.
         CommandGroup(replacing: .printItem) {
-            Button(controller.selectedAccountIsPinned == true ? "Unpin" : "Pin") {
-                controller.setSelectedAccountPinned(controller.selectedAccountIsPinned != true)
-            }
-            .keyboardShortcut("p", modifiers: [.command])
-            .disabled(controller.selection.count != 1)
+            EmptyView()
         }
 
         CommandMenu("Account") {
-            Button("Get Info") {
-                if let selectedAccountID = controller.selectedAccountID {
-                    openWindow(id: AccountDetailsWindowID.details, value: selectedAccountID)
-                }
-            }
-            .keyboardShortcut("i", modifiers: [.command])
-            .disabled(controller.selection.count != 1)
-
-            Divider()
-
-            Button("Log In") {
-                controller.switchSelectedAccount()
-            }
-            .keyboardShortcut("l", modifiers: [.command])
-            .disabled(controller.selection.count != 1)
-
-            Divider()
-
-            Button(controller.selectedAccountIsPinned == true ? "Unpin" : "Pin") {
-                controller.setSelectedAccountPinned(controller.selectedAccountIsPinned != true)
-            }
-            .keyboardShortcut("p", modifiers: [.command])
-            .disabled(controller.selection.count != 1)
-
-            Button("Rename") {
-                controller.beginRenamingSelectedAccount()
-            }
-            .keyboardShortcut(.return, modifiers: [])
-            .disabled(controller.selection.count != 1)
-
-            Menu("Choose Icon") {
-                ForEach(AccountIconOption.displayOrder) { icon in
-                    Button {
-                        controller.setSelectedAccountIcon(icon)
-                    } label: {
-                        checkedMenuLabel(
-                            title: icon.title,
-                            systemImage: icon.systemName,
-                            isSelected: controller.selectedAccountIconOption == icon
-                        )
-                    }
-                }
-            }
-            .disabled(controller.selection.count != 1)
-
-            Divider()
-
-            Button("Export...") {
-                controller.beginExportSelectedAccount()
-            }
-            .disabled(controller.selection.count != 1)
+            accountMenuItems
         }
 
         CommandGroup(replacing: .appTermination) {
@@ -186,6 +130,149 @@ struct AccountsCommands: Commands {
                 .keyboardShortcut("q", modifiers: [.command])
             }
         }
+    }
+
+    @ViewBuilder
+    private var accountMenuItems: some View {
+        let accountIDs = controller.selectedAccountIDsForMenuActions
+
+        if accountIDs.count > 1 {
+            multipleAccountsMenuItems(accountIDs: accountIDs)
+        } else {
+            singleAccountMenuItems(accountIDs: accountIDs)
+        }
+    }
+
+    @ViewBuilder
+    private func singleAccountMenuItems(accountIDs: Set<UUID>) -> some View {
+        Button {
+            if let selectedAccountID = controller.selectedAccountID {
+                openWindow(id: AccountDetailsWindowID.details, value: selectedAccountID)
+            }
+        } label: {
+            menuActionLabel(title: "Get Info", systemImage: "info.circle")
+        }
+        .keyboardShortcut("i", modifiers: [.command])
+        .disabled(controller.selectedAccountID == nil)
+
+        Button {
+            controller.copyAccountsToPasteboard(withIDs: accountIDs)
+        } label: {
+            menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
+        }
+        .disabled(accountIDs.isEmpty)
+
+        shareMenu(for: accountIDs)
+
+        Divider()
+
+        Button {
+            controller.switchSelectedAccount()
+        } label: {
+            menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
+        }
+        .keyboardShortcut("l", modifiers: [.command])
+        .disabled(controller.selectedAccountID == nil)
+
+        Button {
+            controller.beginRenamingSelectedAccount()
+        } label: {
+            menuActionLabel(title: "Rename", systemImage: "pencil")
+        }
+        .keyboardShortcut(.return, modifiers: [])
+        .disabled(controller.selectedAccountID == nil)
+
+        Menu {
+            ForEach(AccountIconOption.displayOrder) { icon in
+                Button {
+                    controller.setSelectedAccountIcon(icon)
+                } label: {
+                    checkedMenuLabel(
+                        title: icon.title,
+                        systemImage: icon.systemName,
+                        isSelected: controller.selectedAccountIconOption == icon
+                    )
+                }
+            }
+        } label: {
+            menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
+        }
+        .disabled(controller.selectedAccountID == nil)
+
+        Button {
+            controller.setSelectedAccountPinned(controller.selectedAccountIsPinned != true)
+        } label: {
+            menuActionLabel(
+                title: controller.selectedAccountIsPinned == true ? "Unpin" : "Pin",
+                systemImage: controller.selectedAccountIsPinned == true ? "pin.slash" : "pin"
+            )
+        }
+        .keyboardShortcut("p", modifiers: [.command])
+        .disabled(controller.selectedAccountID == nil)
+
+        Divider()
+
+        removeAccountsButton(accountIDs: accountIDs)
+            .disabled(accountIDs.isEmpty)
+    }
+
+    @ViewBuilder
+    private func multipleAccountsMenuItems(accountIDs: Set<UUID>) -> some View {
+        Button {
+            controller.copyAccountsToPasteboard(withIDs: accountIDs)
+        } label: {
+            menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
+        }
+        .disabled(accountIDs.isEmpty)
+
+        shareMenu(for: accountIDs)
+
+        Divider()
+
+        removeAccountsButton(accountIDs: accountIDs)
+    }
+
+    @ViewBuilder
+    private func shareMenu(for accountIDs: Set<UUID>) -> some View {
+        let sharingServices = accountIDs.isEmpty ? [] : controller.accountArchiveSharingServiceOptions()
+
+        Menu {
+            ForEach(sharingServices) { service in
+                Button {
+                    controller.shareAccounts(withIDs: accountIDs, using: service)
+                } label: {
+                    shareServiceLabel(service)
+                }
+            }
+        } label: {
+            menuActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+        }
+        .disabled(accountIDs.isEmpty || sharingServices.isEmpty)
+    }
+
+    private func removeAccountsButton(accountIDs: Set<UUID>) -> some View {
+        Button(role: .destructive) {
+            controller.removeAccounts(withIDs: accountIDs)
+        } label: {
+            destructiveMenuLabel(title: "Remove", systemImage: "trash")
+        }
+    }
+
+    private func shareServiceLabel(_ service: AccountArchiveSharingServiceOption) -> some View {
+        Label {
+            Text(service.title)
+        } icon: {
+            Image(nsImage: service.image)
+        }
+    }
+
+    private func menuActionLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+    }
+
+    private func destructiveMenuLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .foregroundStyle(.red)
     }
 
     @ViewBuilder

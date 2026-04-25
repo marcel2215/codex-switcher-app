@@ -365,6 +365,12 @@ final class AppController {
         Set(selection.filter { $0 != Self.noneAccountSelectionID })
     }
 
+#if os(macOS)
+    var selectedAccountIDsForMenuActions: Set<UUID> {
+        copyableSelectedAccountIDs
+    }
+#endif
+
     var shouldShowAuthStatusBanner: Bool {
         authAccessState.showsInlineStatus
     }

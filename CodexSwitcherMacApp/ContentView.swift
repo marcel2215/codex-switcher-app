@@ -718,7 +718,7 @@ struct ContentView: View {
             Button {
                 controller.beginAccountArchiveImport()
             } label: {
-                menuActionLabel(title: "Import Archive", systemImage: "square.and.arrow.down")
+                menuActionLabel(title: "Import", systemImage: "square.and.arrow.down")
             }
         } else if targetIDs.contains(AppController.noneAccountSelectionID) {
             EmptyView()
