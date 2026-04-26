@@ -611,6 +611,97 @@ struct Tests {
         #expect(account.emailHint == "acct-auto-on@example.com")
     }
 
+    @Test func immediateAutomationScanAddsCurrentAccountWhenAutomaticAddIsEnabled() async throws {
+        let previousAutomaticallyAddAccounts = CodexSharedPreferences.automaticallyAddAccounts
+        let previousAutomaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts
+        CodexSharedPreferences.userDefaults.set(true, forKey: CodexSharedPreferenceKey.automaticallyAddAccounts)
+        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts)
+        defer {
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyAddAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyAddAccounts
+            )
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyRemoveAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts
+            )
+        }
+
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-auto-scan-add"))
+        let controller = makeController(authFileManager: authFileManager)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.scanEnabledAutomationPreferencesImmediately()
+
+        try await waitUntil(iterations: 80, sleepMilliseconds: 25) {
+            await MainActor.run {
+                (try? fetchAccounts(in: container.mainContext).count) == 1
+            }
+        }
+
+        let account = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(account.emailHint == "acct-auto-scan-add@example.com")
+        #expect(controller.activeIdentityKey == account.identityKey)
+    }
+
+    @Test func immediateAutomationScanAddsCurrentAccountAndRemovesUnavailableAccounts() async throws {
+        let previousAutomaticallyAddAccounts = CodexSharedPreferences.automaticallyAddAccounts
+        let previousAutomaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts
+        CodexSharedPreferences.userDefaults.set(true, forKey: CodexSharedPreferenceKey.automaticallyAddAccounts)
+        CodexSharedPreferences.userDefaults.set(true, forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts)
+        defer {
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyAddAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyAddAccounts
+            )
+            CodexSharedPreferences.userDefaults.set(
+                previousAutomaticallyRemoveAccounts,
+                forKey: CodexSharedPreferenceKey.automaticallyRemoveAccounts
+            )
+        }
+
+        let container = try makeInMemoryContainer()
+        let unavailableContents = makeChatGPTAuthJSON(accountID: "acct-auto-scan-remove")
+        let currentContents = makeChatGPTAuthJSON(accountID: "acct-auto-scan-current")
+        let unavailableSnapshot = try CodexAuthFile.parse(contents: unavailableContents)
+        let authFileManager = FakeAuthFileManager(contents: currentContents)
+        let secretStore = FakeSecretStore()
+        let controller = makeController(
+            authFileManager: authFileManager,
+            secretStore: secretStore
+        )
+        let unavailableAccount = StoredAccount(
+            identityKey: unavailableSnapshot.identityKey,
+            name: "Unavailable",
+            customOrder: 0,
+            authModeRaw: unavailableSnapshot.authMode.rawValue,
+            emailHint: unavailableSnapshot.email,
+            accountIdentifier: unavailableSnapshot.accountIdentifier
+        )
+        _ = AccountAvailabilityUpdater.markUnavailable(unavailableAccount, reason: .unauthorized)
+        container.mainContext.insert(unavailableAccount)
+        try container.mainContext.save()
+        try await secretStore.saveSnapshot(unavailableContents, forIdentityKey: unavailableSnapshot.identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.scanEnabledAutomationPreferencesImmediately()
+
+        try await waitUntil(iterations: 120, sleepMilliseconds: 25) {
+            await MainActor.run {
+                guard let accounts = try? fetchAccounts(in: container.mainContext) else {
+                    return false
+                }
+
+                return accounts.count == 1 && accounts.first?.emailHint == "acct-auto-scan-current@example.com"
+            }
+        }
+
+        let remainingAccount = try #require(fetchAccounts(in: container.mainContext).first)
+        #expect(remainingAccount.emailHint == "acct-auto-scan-current@example.com")
+        #expect(await secretStore.secret(forIdentityKey: unavailableSnapshot.identityKey) == nil)
+    }
+
     @Test func automaticAccountObservationReplacesUnavailableAccountMatchingEmail() async throws {
         let previousAutomaticallyAddAccounts = CodexSharedPreferences.automaticallyAddAccounts
         let previousAutomaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts

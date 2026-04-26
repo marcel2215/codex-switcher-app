@@ -50,6 +50,7 @@ struct CodexSwitcherApp: App {
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
     @State private var controller: AppController
     @State private var sharedPreferenceObservationTask: Task<Void, Never>?
+    @State private var hasRunInitialAutomationPreferenceScan = false
 
     private let sharedModelContainer: ModelContainer?
     private let storageRecoveryMessage: String?
@@ -123,7 +124,7 @@ struct CodexSwitcherApp: App {
                 sevenDayResetNotificationsEnabled: $sevenDayResetNotificationsEnabled,
                 autopilotEnabled: autopilotBinding,
                 showNoneAccount: showNoneAccountBinding,
-                automaticallyAddAccounts: $automaticallyAddAccounts,
+                automaticallyAddAccounts: automaticallyAddAccountsBinding,
                 automaticallyRemoveAccounts: automaticallyRemoveAccountsBinding,
                 showMenuBarExtra: showMenuBarExtraBinding,
                 menuBarIcon: menuBarIconBinding,
@@ -194,8 +195,12 @@ struct CodexSwitcherApp: App {
                 autopilotEnabled
             },
             set: { newValue in
+                let wasEnabled = autopilotEnabled
                 autopilotEnabled = newValue
                 controller.setAutopilotEnabled(newValue)
+                if newValue && !wasEnabled {
+                    controller.scanEnabledAutomationPreferencesImmediately()
+                }
                 applicationDelegate.applyBackgroundResidency(
                     menuBarEnabled: showMenuBarExtra,
                     autopilotEnabled: newValue
@@ -216,6 +221,21 @@ struct CodexSwitcherApp: App {
         )
     }
 
+    private var automaticallyAddAccountsBinding: Binding<Bool> {
+        Binding(
+            get: {
+                automaticallyAddAccounts
+            },
+            set: { newValue in
+                let wasEnabled = automaticallyAddAccounts
+                automaticallyAddAccounts = newValue
+                if newValue && !wasEnabled {
+                    controller.scanEnabledAutomationPreferencesImmediately()
+                }
+            }
+        )
+    }
+
     private var automaticallyRemoveAccountsBinding: Binding<Bool> {
         Binding(
             get: {
@@ -225,7 +245,7 @@ struct CodexSwitcherApp: App {
                 let wasEnabled = automaticallyRemoveAccounts
                 automaticallyRemoveAccounts = newValue
                 if newValue && !wasEnabled {
-                    controller.removeUnavailableAccountsIfAutomaticRemoveEnabled()
+                    controller.scanEnabledAutomationPreferencesImmediately()
                 }
             }
         )
@@ -312,6 +332,12 @@ struct CodexSwitcherApp: App {
         if automaticallyRemoveAccounts {
             controller.removeUnavailableAccountsIfAutomaticRemoveEnabled()
         }
+        if !hasRunInitialAutomationPreferenceScan {
+            hasRunInitialAutomationPreferenceScan = true
+            if autopilotEnabled || automaticallyAddAccounts || automaticallyRemoveAccounts {
+                controller.scanEnabledAutomationPreferencesImmediately()
+            }
+        }
         applicationDelegate.applyBackgroundResidency(
             menuBarEnabled: showMenuBarExtra,
             autopilotEnabled: autopilotEnabled
@@ -336,6 +362,10 @@ struct CodexSwitcherApp: App {
     }
 
     private func synchronizeRuntimePreferencesFromSharedStore() {
+        let wasAutopilotEnabled = autopilotEnabled
+        let wasAutomaticallyAddAccounts = automaticallyAddAccounts
+        let wasAutomaticallyRemoveAccounts = automaticallyRemoveAccounts
+
         accountSwitchNotificationsEnabled = CodexSharedPreferences.accountSwitchNotificationsEnabled
         fiveHourResetNotificationsEnabled = CodexSharedPreferences.fiveHourResetNotificationsEnabled
         sevenDayResetNotificationsEnabled = CodexSharedPreferences.sevenDayResetNotificationsEnabled
@@ -345,6 +375,12 @@ struct CodexSwitcherApp: App {
         automaticallyRemoveAccounts = CodexSharedPreferences.automaticallyRemoveAccounts
         showMenuBarExtra = CodexSharedPreferences.showMenuBarExtra
         applyRuntimePreferences()
+
+        if (autopilotEnabled && !wasAutopilotEnabled)
+            || (automaticallyAddAccounts && !wasAutomaticallyAddAccounts)
+            || (automaticallyRemoveAccounts && !wasAutomaticallyRemoveAccounts) {
+            controller.scanEnabledAutomationPreferencesImmediately()
+        }
     }
 
     @ViewBuilder

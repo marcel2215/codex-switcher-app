@@ -157,6 +157,8 @@ final class AppController {
     @ObservationIgnored private var systemStateObservationTasks: [Task<Void, Never>] = []
     @ObservationIgnored private var sharedStatePublishTask: Task<Void, Never>?
     @ObservationIgnored private var observedAuthFileChangeTask: Task<Void, Never>?
+    @ObservationIgnored private var automationPreferenceScanTask: Task<Void, Never>?
+    @ObservationIgnored private var automationPreferenceScanID: UUID?
     @ObservationIgnored private var rateLimitPollingTask: Task<Void, Never>?
     @ObservationIgnored private var autopilotTask: Task<Void, Never>?
     @ObservationIgnored private var rateLimitSnapshotsByIdentityKey: [String: CodexRateLimitSnapshot] = [:]
@@ -237,6 +239,7 @@ final class AppController {
         rateLimitPollingTask?.cancel()
         autopilotTask?.cancel()
         observedAuthFileChangeTask?.cancel()
+        automationPreferenceScanTask?.cancel()
         if let remoteSwitchObserver {
             DistributedNotificationCenter.default().removeObserver(remoteSwitchObserver)
         }
@@ -1475,6 +1478,57 @@ final class AppController {
             }
 
             await self.removeUnavailableAccountsIfNeeded()
+        }
+    }
+
+    func scanEnabledAutomationPreferencesImmediately() {
+        automationPreferenceScanTask?.cancel()
+        let scanID = UUID()
+        automationPreferenceScanID = scanID
+        automationPreferenceScanTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            defer {
+                if self.automationPreferenceScanID == scanID {
+                    self.automationPreferenceScanTask = nil
+                    self.automationPreferenceScanID = nil
+                }
+            }
+
+            await self.scanEnabledAutomationPreferencesNow()
+        }
+    }
+
+    private func scanEnabledAutomationPreferencesNow() async {
+        await waitForInitializationIfNeeded()
+
+        guard !Task.isCancelled else {
+            return
+        }
+
+        await refreshAuthState(showUnexpectedErrors: false)
+
+        guard !Task.isCancelled else {
+            return
+        }
+
+        await autoAddObservedAccountIfNeeded()
+
+        guard !Task.isCancelled else {
+            return
+        }
+
+        await removeUnavailableAccountsIfNeeded()
+
+        guard !Task.isCancelled else {
+            return
+        }
+
+        if isAutopilotEnabled {
+            scheduleAutopilotEvaluationSoon(trigger: .started)
+            updateAutopilotState()
         }
     }
 
