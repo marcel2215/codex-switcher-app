@@ -196,7 +196,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         let legacyContents: String
         do {
             legacyContents = try await Task.detached(priority: .userInitiated) { [self, accountID] in
-                try decodeSnapshotContents(from: legacyQuery(forLegacyAccountID: accountID))
+                try decodeSnapshotContents(from: legacyReadQuery(forLegacyAccountID: accountID))
             }.value
         } catch AccountSnapshotStoreError.missingSnapshot {
             return false
@@ -210,7 +210,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
     }
 
     nonisolated private func deleteLegacySnapshot(forLegacyAccountID accountID: UUID) throws {
-        let status = SecItemDelete(legacyQuery(forLegacyAccountID: accountID) as CFDictionary)
+        let status = SecItemDelete(legacyDeleteQuery(forLegacyAccountID: accountID) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             logger.error("Legacy keychain delete failed with status \(status, privacy: .public)")
             throw AccountSnapshotStoreError.unexpectedStatus(status)
@@ -327,6 +327,15 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
             attributes.forEach { item[$0.key] = $0.value }
 
             let status = SecItemAdd(item as CFDictionary, nil)
+            if status == errSecDuplicateItem {
+                let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+                guard updateStatus == errSecSuccess else {
+                    logger.error("\(logPrefix, privacy: .public) duplicate-item repair update failed for \(identityKey, privacy: .private) with status \(updateStatus, privacy: .public)")
+                    throw normalizedKeychainError(updateStatus)
+                }
+                return
+            }
+
             guard status == errSecSuccess else {
                 logger.error("\(logPrefix, privacy: .public) add failed for \(identityKey, privacy: .private) with status \(status, privacy: .public)")
                 throw normalizedKeychainError(status)
@@ -416,14 +425,23 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         )
     }
 
-    nonisolated private func legacyQuery(forLegacyAccountID accountID: UUID) -> [String: Any] {
+    nonisolated private func legacyBaseQuery(forLegacyAccountID accountID: UUID) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: CodexSharedApplicationIdentity.mainApplicationBundleIdentifier + ".accountSecrets",
             kSecAttrAccount as String: accountID.uuidString,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
         ]
+    }
+
+    nonisolated private func legacyReadQuery(forLegacyAccountID accountID: UUID) -> [String: Any] {
+        var query = legacyBaseQuery(forLegacyAccountID: accountID)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        return query
+    }
+
+    nonisolated private func legacyDeleteQuery(forLegacyAccountID accountID: UUID) -> [String: Any] {
+        legacyBaseQuery(forLegacyAccountID: accountID)
     }
 
     private func normalizedIdentityKey(_ identityKey: String) throws -> String {

@@ -85,6 +85,7 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
     )
     private let watcher = AuthDirectoryWatcher()
     private var onChange: (@Sendable () -> Void)?
+    private var lastResolveFailureDescription: String?
 
     func linkedLocation() async throws -> AuthLinkedLocation? {
         guard let folderURL = try resolveLinkedFolderURLIfAvailable() else {
@@ -97,18 +98,30 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
 
     private func resolveLinkedFolderURLIfAvailable() throws -> URL? {
         do {
-            return try resolveLinkedFolderURL()
+            let folderURL = try resolveLinkedFolderURL()
+            lastResolveFailureDescription = nil
+            return folderURL
         } catch let error as AuthFileAccessError {
             if case .accessRequired = error {
                 return nil
             }
 
-            logger.error("Failed to resolve linked folder: \(String(describing: error), privacy: .private)")
+            logResolveFailureIfNeeded(error)
             throw error
         } catch {
-            logger.error("Failed to resolve linked folder: \(String(describing: error), privacy: .private)")
+            logResolveFailureIfNeeded(error)
             throw error
         }
+    }
+
+    private func logResolveFailureIfNeeded(_ error: Error) {
+        let description = String(describing: error)
+        guard description != lastResolveFailureDescription else {
+            return
+        }
+
+        lastResolveFailureDescription = description
+        logger.error("Failed to resolve linked folder: \(description, privacy: .private)")
     }
 
     func linkLocation(_ selectedURL: URL) async throws -> AuthLinkedLocation {

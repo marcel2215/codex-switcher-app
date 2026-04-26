@@ -774,7 +774,9 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
     private let timeout: TimeInterval
     private let queue = DispatchQueue(label: "com.marcel2215.codexswitcher.oauth-callback")
     private let state = CodexOAuthCallbackState()
+    private let cancellationLock = NSLock()
     private var listener: NWListener?
+    private var isListenerCancelled = false
 
     nonisolated init(expectedState: String, timeout: TimeInterval, preferredPort: UInt16 = 0) throws {
         self.expectedState = expectedState
@@ -821,7 +823,7 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         listener.start(queue: queue)
         queue.asyncAfter(deadline: .now() + timeout) { [weak self] in
             self?.state.failCallback(CodexOfficialLoginError.cancelled)
-            self?.listener?.cancel()
+            self?.cancelListener()
         }
 
         return try await state.waitForStart()
@@ -834,7 +836,7 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
     nonisolated func cancel() {
         state.failStart(CodexOfficialLoginError.cancelled)
         state.failCallback(CodexOfficialLoginError.cancelled)
-        listener?.cancel()
+        cancelListener()
     }
 
     private nonisolated func handle(_ connection: NWConnection) {
@@ -851,15 +853,27 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
                 switch result.outcome {
                 case let .success(code):
                     self?.state.completeCallback(code)
-                    self?.listener?.cancel()
+                    self?.cancelListener()
                 case let .failure(error):
                     self?.state.failCallback(error)
-                    self?.listener?.cancel()
+                    self?.cancelListener()
                 case .none:
                     break
                 }
             })
         }
+    }
+
+    private nonisolated func cancelListener() {
+        cancellationLock.lock()
+        defer { cancellationLock.unlock() }
+
+        guard !isListenerCancelled else {
+            return
+        }
+
+        isListenerCancelled = true
+        listener?.cancel()
     }
 
     private nonisolated static func receiveRequest(

@@ -6,5 +6,9 @@
 	<string>$(AppIdentifierPrefix)group.com.marcel2215.codexswitcher</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>
