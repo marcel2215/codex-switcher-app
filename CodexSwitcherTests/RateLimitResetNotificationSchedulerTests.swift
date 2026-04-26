@@ -108,6 +108,69 @@ struct RateLimitResetNotificationSchedulerTests {
         #expect(recordedRequests.isEmpty)
         #expect(removed.sorted() == ["managed-delivered", "managed-pending"])
     }
+
+    @Test
+    func schedulerCapsPendingResetNotifications() async {
+        let requests = NotificationRequestRecorder()
+        let scheduler = makeScheduler(requests: requests)
+        let accounts = (0..<60).map { index in
+            makeAccountRecord(
+                id: String(format: "account-%02d", index),
+                name: "Account \(index)",
+                fiveHourLimitUsedPercent: 82,
+                fiveHourResetsAt: Date().addingTimeInterval(TimeInterval(60 + index)),
+                fiveHourDataStatus: .exact
+            )
+        }
+
+        await scheduler.synchronize(with: makeSharedState(accounts: accounts))
+
+        #expect(await requests.value().count == 48)
+    }
+
+    @Test
+    func schedulerOnlyRemovesStaleManagedNotificationsBeforeAddingNewOnes() async {
+        let requests = NotificationRequestRecorder()
+        let removedIdentifiers = RemovedIdentifierRecorder()
+        let desiredIdentifier = "com.marcel2215.codexswitcher.rate-limit-reset.five-hour."
+            + hexEncoded("school")
+        let scheduler = RateLimitResetNotificationScheduler(
+            stateStore: .init(),
+            notificationPreferencesProvider: {
+                .init(fiveHourEnabled: true, sevenDayEnabled: true)
+            },
+            authorizationStatusProvider: { .authorized },
+            addNotificationRequestHandler: { request in
+                await requests.append(
+                    RecordedNotificationRequest(
+                        identifier: request.identifier,
+                        title: request.content.title,
+                        body: request.content.body
+                    )
+                )
+            },
+            pendingNotificationIdentifiersProvider: {
+                [desiredIdentifier, "stale-managed"]
+            },
+            deliveredNotificationIdentifiersProvider: { [] },
+            removeNotificationsHandler: { identifiers in
+                removedIdentifiers.append(contentsOf: identifiers)
+            }
+        )
+
+        await scheduler.synchronize(with: makeSharedState(accounts: [
+            makeAccountRecord(
+                id: "school",
+                name: "School",
+                fiveHourLimitUsedPercent: 82,
+                fiveHourResetsAt: Date().addingTimeInterval(60 * 30),
+                fiveHourDataStatus: .exact
+            )
+        ]))
+
+        #expect(removedIdentifiers.value == ["stale-managed"])
+        #expect(await requests.value().map(\.identifier) == [desiredIdentifier])
+    }
 }
 
 private func makeScheduler(
@@ -175,6 +238,10 @@ private func makeAccountRecord(
         sortOrder: 0,
         hasLocalSnapshot: true
     )
+}
+
+private func hexEncoded(_ value: String) -> String {
+    value.utf8.map { String(format: "%02x", $0) }.joined()
 }
 
 private struct RecordedNotificationRequest: Equatable, Sendable {

@@ -155,7 +155,7 @@ struct RateLimitAccessoryEntry: TimelineEntry {
 
 enum WidgetRateLimitResolver {
     static func loadState() -> SharedCodexState {
-        (try? CodexSharedStateStore().load()) ?? .empty
+        CodexSharedStateStore().loadBestEffort()
     }
 
 #if !os(watchOS)

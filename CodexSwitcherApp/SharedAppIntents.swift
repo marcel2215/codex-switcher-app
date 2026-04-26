@@ -371,7 +371,8 @@ struct CodexAccountEntityQuery: EntityStringQuery {
     nonisolated func entities(for identifiers: [String]) async throws -> [CodexAccountEntity] {
         let state = try CodexSharedAccountIntentResolver.loadState(store: store)
         let entitiesByIdentifier = Dictionary(
-            uniqueKeysWithValues: CodexSharedAccountIntentResolver.allEntities(in: state).map { ($0.id, $0) }
+            CodexSharedAccountIntentResolver.allEntities(in: state).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
 
         return identifiers.compactMap { entitiesByIdentifier[$0] }

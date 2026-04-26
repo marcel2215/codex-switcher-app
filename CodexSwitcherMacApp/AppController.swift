@@ -4700,16 +4700,8 @@ final class AppController {
             return
         }
 
-        let sharedState: SharedCodexState
-        do {
-            sharedState = try makeSharedState()
-        } catch {
-            logger.error("Couldn't prepare shared widget state: \(String(describing: error), privacy: .private)")
-            return
-        }
-
         sharedStatePublishTask?.cancel()
-        sharedStatePublishTask = Task.detached(priority: .utility) {
+        sharedStatePublishTask = Task.detached(priority: .utility) { [weak self] in
             let sharedStateLogger = Logger(
                 subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
                 category: "SharedState"
@@ -4720,7 +4712,15 @@ final class AppController {
                     try? await Task.sleep(for: .milliseconds(150))
                     try Task.checkCancellation()
                 }
-                try CodexSharedStateStore().save(sharedState)
+                let sharedState = try await MainActor.run { [weak self] in
+                    guard let self else {
+                        throw CancellationError()
+                    }
+
+                    return try self.makeSharedState()
+                }
+                try Task.checkCancellation()
+                try CodexSharedStateStore().saveMergingRuntimeFields(sharedState)
                 try Task.checkCancellation()
                 await RateLimitResetNotificationScheduler.shared.synchronize(with: sharedState)
                 try Task.checkCancellation()

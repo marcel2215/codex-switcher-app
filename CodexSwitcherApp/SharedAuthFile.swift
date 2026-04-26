@@ -210,12 +210,9 @@ enum SharedCodexAuthFile {
     }
 
     private nonisolated static func firstNonEmpty(_ values: String?...) -> String? {
-        values.first { value in
-            guard let value else {
-                return false
-            }
-            return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        } ?? nil
+        values.lazy
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
     }
 }
 
@@ -235,12 +232,9 @@ private extension SharedCodexAuthMode {
 }
 
 private nonisolated func firstNonEmpty(_ values: String?...) -> String? {
-    values.first { value in
-        guard let value else {
-            return false
-        }
-        return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    } ?? nil
+    values.lazy
+        .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .first { !$0.isEmpty }
 }
 
 private nonisolated struct SharedCodexPayload: Decodable {

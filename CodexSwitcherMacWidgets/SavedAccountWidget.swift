@@ -46,7 +46,7 @@ struct SavedAccountProvider: AppIntentTimelineProvider {
     }
 
     private func loadSharedState() -> SharedCodexState {
-        (try? CodexSharedStateStore().load()) ?? .empty
+        CodexSharedStateStore().loadBestEffort()
     }
 }
 

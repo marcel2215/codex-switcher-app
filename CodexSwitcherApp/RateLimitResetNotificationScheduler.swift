@@ -24,7 +24,9 @@ actor RateLimitResetNotificationScheduler {
     private struct PendingResetNotification {
         let identifier: String
         let content: UNMutableNotificationContent
-        let timeInterval: TimeInterval
+        let fireDate: Date
+        let isCurrentAccount: Bool
+        let isPinnedAccount: Bool
     }
 
     private enum ResetWindow: String, CaseIterable, Sendable {
@@ -69,6 +71,7 @@ actor RateLimitResetNotificationScheduler {
     }
 
     private static let identifierPrefix = "com.marcel2215.codexswitcher.rate-limit-reset."
+    private static let maximumPendingResetNotifications = 48
     private let stateStore: CodexSharedStateStore
     private let notificationPreferencesProvider: @Sendable () -> NotificationPreferences
     private let authorizationStatusProvider: @Sendable () async -> UNAuthorizationStatus
@@ -118,7 +121,7 @@ actor RateLimitResetNotificationScheduler {
     }
 
     func synchronizeWithStoredState() async {
-        let sharedState = (try? stateStore.load()) ?? .empty
+        let sharedState = stateStore.loadBestEffort()
         await synchronize(with: sharedState)
     }
 
@@ -146,19 +149,27 @@ actor RateLimitResetNotificationScheduler {
                         for: account,
                         window: $0,
                         preferences: notificationPreferences,
+                        currentAccountID: sharedState.currentAccountID,
                         now: now
                     )
                 }
             }
+            .sorted(by: resetNotificationComparator)
+            .prefix(Self.maximumPendingResetNotifications)
 
-        removeManagedNotifications(identifiers: existingIdentifiers)
+        let desiredIdentifiers = Set(scheduledNotifications.map(\.identifier))
+        let staleIdentifiers = existingIdentifiers.filter {
+            !desiredIdentifiers.contains($0)
+        }
+
+        removeManagedNotifications(identifiers: staleIdentifiers)
 
         for notification in scheduledNotifications {
             let request = UNNotificationRequest(
                 identifier: notification.identifier,
                 content: notification.content,
                 trigger: UNTimeIntervalNotificationTrigger(
-                    timeInterval: notification.timeInterval,
+                    timeInterval: max(notification.fireDate.timeIntervalSinceNow, 1),
                     repeats: false
                 )
             )
@@ -177,6 +188,7 @@ actor RateLimitResetNotificationScheduler {
         for account: SharedCodexAccountRecord,
         window: ResetWindow,
         preferences: NotificationPreferences,
+        currentAccountID: String?,
         now: Date
     ) -> PendingResetNotification? {
         guard window.isEnabled(in: preferences) else {
@@ -204,8 +216,7 @@ actor RateLimitResetNotificationScheduler {
             return nil
         }
 
-        let timeInterval = resetDate.timeIntervalSince(now)
-        guard timeInterval > 1 else {
+        guard resetDate.timeIntervalSince(now) > 1 else {
             return nil
         }
 
@@ -220,8 +231,29 @@ actor RateLimitResetNotificationScheduler {
         return PendingResetNotification(
             identifier: Self.identifierPrefix + window.identifierComponent + "." + hexEncoded(account.id),
             content: content,
-            timeInterval: timeInterval
+            fireDate: resetDate,
+            isCurrentAccount: account.id == currentAccountID,
+            isPinnedAccount: account.isPinned
         )
+    }
+
+    private func resetNotificationComparator(
+        lhs: PendingResetNotification,
+        rhs: PendingResetNotification
+    ) -> Bool {
+        if lhs.isCurrentAccount != rhs.isCurrentAccount {
+            return lhs.isCurrentAccount
+        }
+
+        if lhs.isPinnedAccount != rhs.isPinnedAccount {
+            return lhs.isPinnedAccount
+        }
+
+        if lhs.fireDate != rhs.fireDate {
+            return lhs.fireDate < rhs.fireDate
+        }
+
+        return lhs.identifier < rhs.identifier
     }
 
     private func notificationIdentifiersWithManagedPrefix() async -> [String] {

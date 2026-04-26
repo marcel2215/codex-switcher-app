@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 #if canImport(AppKit)
 import AppKit
@@ -24,6 +25,10 @@ nonisolated struct CodexPendingAccountOpenRequest: Codable, Equatable, Sendable 
 nonisolated struct CodexPendingAccountOpenRequestStore: Sendable {
     private let baseURL: URL?
     private let lock: CodexSharedProcessLock
+    private let logger = Logger(
+        subsystem: CodexSharedApplicationIdentity.mainApplicationBundleIdentifier,
+        category: "PendingAccountOpenRequestStore"
+    )
 
     nonisolated init(
         baseURL: URL? = nil,
@@ -52,6 +57,7 @@ nonisolated struct CodexPendingAccountOpenRequestStore: Sendable {
                 withIntermediateDirectories: true
             )
             try data.write(to: fileURL, options: [.atomic])
+            try CodexSharedFileProtection.apply(to: fileURL)
         }
     }
 
@@ -71,7 +77,27 @@ nonisolated struct CodexPendingAccountOpenRequestStore: Sendable {
                 return nil
             }
 
-            let request = try JSONDecoder().decode(CodexPendingAccountOpenRequest.self, from: data)
+            let request: CodexPendingAccountOpenRequest
+            do {
+                request = try JSONDecoder().decode(CodexPendingAccountOpenRequest.self, from: data)
+            } catch {
+                do {
+                    let backupURL = try CodexCorruptSharedFileQuarantine.moveAside(
+                        fileURL,
+                        reason: "open-request"
+                    )
+                    logger.error(
+                        "Quarantined corrupt pending account-open request at \(backupURL.path, privacy: .private): \(String(describing: error), privacy: .private)"
+                    )
+                } catch {
+                    logger.error(
+                        "Couldn't quarantine corrupt pending account-open request: \(String(describing: error), privacy: .private)"
+                    )
+                    throw error
+                }
+                return nil
+            }
+
             return request.identityKey.isEmpty ? nil : request
         }
     }

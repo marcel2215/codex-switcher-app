@@ -2440,6 +2440,26 @@ struct Tests {
         }
     }
 
+    @Test func authParsersTrimIdentityAndDisplayFields() throws {
+        let contents = makeChatGPTAuthJSON(
+            accountID: "  acct-trimmed  ",
+            userID: "  user-trimmed  ",
+            email: "  Person@Example.COM  "
+        )
+
+        let macSnapshot = try CodexAuthFile.parse(contents: contents)
+        let sharedSnapshot = try SharedCodexAuthFile.parse(contents: contents)
+        let macCredentials = try CodexAuthFile.parseRateLimitCredentials(contents: contents)
+        let sharedCredentials = try SharedCodexAuthFile.parseRateLimitCredentials(contents: contents)
+
+        #expect(macSnapshot.accountIdentifier == "acct-trimmed")
+        #expect(sharedSnapshot.accountIdentifier == "acct-trimmed")
+        #expect(macSnapshot.email == "person@example.com")
+        #expect(sharedSnapshot.email == "person@example.com")
+        #expect(macCredentials.accountID == "acct-trimmed")
+        #expect(sharedCredentials.accountID == "acct-trimmed")
+    }
+
     @Test func accountEntityQueryReturnsEmptyCollectionsForNormalEmptyStates() async throws {
         let temporaryDirectory = try makeTemporaryDirectory()
         let store = CodexSharedStateStore(baseURL: temporaryDirectory)
@@ -2462,6 +2482,106 @@ struct Tests {
         let missingMatches = try await query.entities(matching: "missing")
         #expect(emptySearchMatches.isEmpty)
         #expect(missingMatches.isEmpty)
+    }
+
+    @Test func sharedStateLoadThrowsForInvalidJSONButBestEffortFallsBack() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let stateURL = temporaryDirectory.appending(
+            path: CodexSharedAppGroup.stateFilename,
+            directoryHint: .notDirectory
+        )
+        let store = CodexSharedStateStore(baseURL: temporaryDirectory)
+
+        try Data("{ bad json".utf8).write(to: stateURL, options: [.atomic])
+
+        do {
+            _ = try store.load()
+            Issue.record("Expected invalid shared state JSON to throw.")
+        } catch {
+        }
+        #expect(store.loadBestEffort().accounts.isEmpty)
+    }
+
+    @Test func sharedStateMissingFileStillLoadsAsEmpty() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let store = CodexSharedStateStore(baseURL: temporaryDirectory)
+
+        let state = try store.load()
+
+        #expect(state.accounts.isEmpty)
+        #expect(state.authState == .unlinked)
+    }
+
+    @Test func sharedStateMergePreservesNewerRuntimeFields() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let store = CodexSharedStateStore(baseURL: temporaryDirectory)
+        var olderAccount = makeSharedAccountRecord(
+            identityKey: "chatgpt:merge",
+            name: "Merge",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 50,
+            fiveHourLimitUsedPercent: 50
+        )
+        olderAccount.lastLoginAt = Date(timeIntervalSince1970: 100)
+        var newerAccount = olderAccount
+        newerAccount.lastLoginAt = Date(timeIntervalSince1970: 200)
+
+        try store.save(
+            SharedCodexState(
+                schemaVersion: SharedCodexState.currentSchemaVersion,
+                authState: .ready,
+                linkedFolderPath: "/newer/.codex",
+                currentAccountID: "chatgpt:merge",
+                selectedAccountID: nil,
+                selectedAccountIsLive: false,
+                accounts: [newerAccount],
+                updatedAt: Date(timeIntervalSince1970: 200)
+            )
+        )
+
+        try store.saveMergingRuntimeFields(
+            SharedCodexState(
+                schemaVersion: SharedCodexState.currentSchemaVersion,
+                authState: .unlinked,
+                linkedFolderPath: nil,
+                currentAccountID: nil,
+                selectedAccountID: nil,
+                selectedAccountIsLive: false,
+                accounts: [olderAccount],
+                updatedAt: Date(timeIntervalSince1970: 100)
+            )
+        )
+
+        let merged = try store.load()
+        #expect(merged.authState == .ready)
+        #expect(merged.linkedFolderPath == "/newer/.codex")
+        #expect(merged.currentAccountID == "chatgpt:merge")
+        #expect(merged.accounts.first?.lastLoginAt == Date(timeIntervalSince1970: 200))
+    }
+
+    @Test func accountEntityQueryToleratesDuplicateIdentifiers() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let store = CodexSharedStateStore(baseURL: temporaryDirectory)
+        let query = CodexAccountEntityQuery(store: store)
+        let first = makeSharedAccountRecord(
+            identityKey: "chatgpt:duplicate",
+            name: "First",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 50,
+            fiveHourLimitUsedPercent: 50
+        )
+        let second = makeSharedAccountRecord(
+            identityKey: "chatgpt:duplicate",
+            name: "Second",
+            sortOrder: 1,
+            sevenDayLimitUsedPercent: 60,
+            fiveHourLimitUsedPercent: 60
+        )
+
+        try store.save(makeSharedState(accounts: [first, second]))
+
+        let entities = try await query.entities(for: ["chatgpt:duplicate"])
+        #expect(entities.map(\.name) == ["First"])
     }
 
     @Test func restoreSortPreferencesUsesStoredValuesAndFallsBackSafely() {
@@ -2617,6 +2737,87 @@ struct Tests {
         #expect(accounts.count == 1)
         let remainingCommands = try queue.load()
         #expect(remainingCommands.isEmpty)
+    }
+
+    @Test func corruptSharedCommandQueueIsQuarantinedAndCanBeReused() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let queue = CodexSharedAppCommandQueue(baseURL: temporaryDirectory)
+        let fileURL = temporaryDirectory.appending(
+            path: CodexSharedAppGroup.appCommandFilename,
+            directoryHint: .notDirectory
+        )
+
+        try Data("{ bad json".utf8).write(to: fileURL, options: [.atomic])
+
+        #expect(try queue.load().isEmpty)
+        #expect(FileManager.default.fileExists(atPath: fileURL.path) == false)
+
+        let quarantinedFiles = try FileManager.default.contentsOfDirectory(
+            at: temporaryDirectory,
+            includingPropertiesForKeys: nil
+        )
+        .filter { $0.lastPathComponent.contains(".commands.corrupt-") }
+        #expect(quarantinedFiles.count == 1)
+
+        let command = CodexSharedAppCommand(action: .captureCurrentAccount)
+        try queue.enqueue(command)
+        #expect(try queue.load() == [command])
+    }
+
+    @Test func corruptSharedCommandResultsAreQuarantinedAndCanBeReused() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let resultStore = CodexSharedAppCommandResultStore(baseURL: temporaryDirectory)
+        let fileURL = temporaryDirectory.appending(
+            path: CodexSharedAppGroup.appCommandResultFilename,
+            directoryHint: .notDirectory
+        )
+        let commandID = UUID()
+
+        try Data("{ bad json".utf8).write(to: fileURL, options: [.atomic])
+
+        #expect(try resultStore.load(commandID: commandID) == nil)
+        #expect(FileManager.default.fileExists(atPath: fileURL.path) == false)
+
+        let quarantinedFiles = try FileManager.default.contentsOfDirectory(
+            at: temporaryDirectory,
+            includingPropertiesForKeys: nil
+        )
+        .filter { $0.lastPathComponent.contains(".results.corrupt-") }
+        #expect(quarantinedFiles.count == 1)
+
+        let result = CodexSharedAppCommandResult(commandID: commandID, status: .success)
+        try resultStore.save(result)
+        #expect(try resultStore.load(commandID: commandID) == result)
+    }
+
+    @Test func sharedProcessLockTimesOutWhenAnotherProcessHoldsIt() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let holderState = ProcessLockHolderState()
+        let holdingLock = CodexSharedProcessLock(baseURL: temporaryDirectory)
+        let contendingLock = CodexSharedProcessLock(
+            baseURL: temporaryDirectory,
+            timeout: 0.05,
+            asyncTimeout: .milliseconds(50)
+        )
+
+        let holdingTask = Task.detached {
+            try holdingLock.withExclusiveAccess {
+                Task {
+                    await holderState.markLocked()
+                }
+                Thread.sleep(forTimeInterval: 0.25)
+            }
+        }
+
+        try await waitUntil {
+            await holderState.isLocked
+        }
+
+        #expect(throws: CodexSharedProcessLockError.timedOut) {
+            try contendingLock.withExclusiveAccess {}
+        }
+
+        try await holdingTask.value
     }
 
     @Test func expectedResultCommandsPersistSuccessfulCompletions() async throws {
@@ -3433,6 +3634,18 @@ private func makeRateLimitSnapshot(
 private struct TestPowerStateSource {
     var lowPowerModeEnabled: Bool
     var batteryChargePercent: Int?
+}
+
+private actor ProcessLockHolderState {
+    private var locked = false
+
+    var isLocked: Bool {
+        locked
+    }
+
+    func markLocked() {
+        locked = true
+    }
 }
 
 private struct TestTimeoutError: Error {}

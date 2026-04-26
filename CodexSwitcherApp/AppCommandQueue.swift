@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 #if canImport(AppKit)
 import AppKit
@@ -73,6 +74,10 @@ struct CodexSharedAppCommand: Codable, Equatable, Identifiable, Sendable {
 struct CodexSharedAppCommandQueue: Sendable {
     private let baseURL: URL?
     private let lock: CodexSharedProcessLock
+    private let logger = Logger(
+        subsystem: CodexSharedApplicationIdentity.mainApplicationBundleIdentifier,
+        category: "AppCommandQueue"
+    )
 
     nonisolated init(
         baseURL: URL? = nil,
@@ -121,7 +126,26 @@ struct CodexSharedAppCommandQueue: Sendable {
             return []
         }
 
-        return try JSONDecoder().decode([CodexSharedAppCommand].self, from: data)
+        do {
+            return try JSONDecoder().decode([CodexSharedAppCommand].self, from: data)
+        } catch {
+            do {
+                let backupURL = try CodexCorruptSharedFileQuarantine.moveAside(
+                    fileURL,
+                    reason: "commands"
+                )
+                logger.error(
+                    "Quarantined corrupt app command queue at \(backupURL.path, privacy: .private): \(String(describing: error), privacy: .private)"
+                )
+            } catch {
+                logger.error(
+                    "Couldn't quarantine corrupt app command queue: \(String(describing: error), privacy: .private)"
+                )
+                throw error
+            }
+
+            return []
+        }
     }
 
     private nonisolated func saveCommandsUnlocked(
@@ -136,6 +160,7 @@ struct CodexSharedAppCommandQueue: Sendable {
             withIntermediateDirectories: true
         )
         try data.write(to: fileURL, options: [.atomic])
+        try CodexSharedFileProtection.apply(to: fileURL)
     }
 
     private nonisolated func commandsFileURL() throws -> URL {

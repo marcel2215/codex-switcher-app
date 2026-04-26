@@ -77,13 +77,7 @@ struct LocalAccountSnapshotAvailabilityStore: Sendable {
         encoder.outputFormatting = [.sortedKeys]
         let data = try encoder.encode(identityKeys)
         try data.write(to: fileURL, options: [.atomic])
-
-#if os(iOS) || os(watchOS) || os(tvOS)
-        try FileManager.default.setAttributes(
-            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
-            ofItemAtPath: fileURL.path
-        )
-#endif
+        try CodexSharedFileProtection.apply(to: fileURL)
     }
 
     private nonisolated func fileURL() throws -> URL {

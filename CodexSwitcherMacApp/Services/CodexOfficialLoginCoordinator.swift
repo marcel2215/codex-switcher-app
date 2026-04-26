@@ -780,7 +780,9 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         self.expectedState = expectedState
         self.timeout = timeout
         let port = NWEndpoint.Port(rawValue: preferredPort) ?? .any
-        listener = try NWListener(using: .tcp, on: port)
+        let parameters = NWParameters.tcp
+        parameters.requiredInterfaceType = .loopback
+        listener = try NWListener(using: parameters, on: port)
     }
 
     nonisolated func start() async throws -> UInt16 {
@@ -889,6 +891,10 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         for request: String,
         expectedState: String
     ) -> (response: String, outcome: CodexOAuthCallbackOutcome) {
+        guard isAllowedCallbackHost(hostHeader(in: request)) else {
+            return (httpResponse(status: 400, body: "Bad Request"), .failure(CodexOfficialLoginError.invalidOAuthCallback))
+        }
+
         guard
             let requestLine = request.components(separatedBy: "\r\n").first,
             let target = requestLine.split(separator: " ").dropFirst().first,
@@ -929,6 +935,43 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         default:
             return (httpResponse(status: 404, body: "Not Found"), .none)
         }
+    }
+
+    private nonisolated static func hostHeader(in request: String) -> String? {
+        let headerLines = request
+            .components(separatedBy: "\r\n")
+            .dropFirst()
+
+        guard let line = headerLines.first(where: { line in
+            line.range(of: "Host:", options: [.anchored, .caseInsensitive]) != nil
+        })
+        else {
+            return nil
+        }
+
+        return String(line.dropFirst("Host:".count))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private nonisolated static func isAllowedCallbackHost(_ hostHeader: String?) -> Bool {
+        guard let rawHost = hostHeader?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+            !rawHost.isEmpty
+        else {
+            return false
+        }
+
+        if rawHost == "[::1]" || rawHost.hasPrefix("[::1]:") {
+            return true
+        }
+
+        let host = rawHost
+            .split(separator: ":", maxSplits: 1)
+            .first
+            .map(String.init)
+
+        return host == "localhost" || host == "127.0.0.1" || host == "::1"
     }
 
     private nonisolated static func httpResponse(status: Int, body: String) -> String {

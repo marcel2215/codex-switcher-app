@@ -29,7 +29,7 @@ struct CurrentAccountProvider: TimelineProvider {
     }
 
     private func loadSharedState() -> SharedCodexState {
-        (try? CodexSharedStateStore().load()) ?? .empty
+        CodexSharedStateStore().loadBestEffort()
     }
 }
 

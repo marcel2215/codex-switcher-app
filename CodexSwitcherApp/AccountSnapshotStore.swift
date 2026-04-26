@@ -24,6 +24,7 @@ enum AccountSnapshotStoreError: LocalizedError, Equatable {
     case invalidIdentityKey
     case missingSnapshot
     case invalidEncoding
+    case keychainUnavailableUntilUnlock
     case unexpectedStatus(OSStatus)
 
     var errorDescription: String? {
@@ -34,6 +35,8 @@ enum AccountSnapshotStoreError: LocalizedError, Equatable {
             "That saved account no longer has a stored auth snapshot on this device."
         case .invalidEncoding:
             "The stored auth snapshot is no longer valid UTF-8 text."
+        case .keychainUnavailableUntilUnlock:
+            "Unlock this device and try again."
         case let .unexpectedStatus(status):
             "Keychain access failed with status \(status)."
         }
@@ -93,8 +96,6 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
                     "Synchronizable keychain save failed for \(normalizedIdentityKey, privacy: .private); the snapshot will stay available only on this device until keychain sync succeeds: \(error.localizedDescription, privacy: .public)"
                 )
             }
-
-            pruneLegacySynchronizableSharedSnapshot(forIdentityKey: normalizedIdentityKey)
         }.value
 
         snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: normalizedIdentityKey)
@@ -165,7 +166,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
                 matching: synchronizableQuery(forIdentityKey: normalizedIdentityKey),
                 logPrefix: "Synchronizable keychain"
             )
-            try deleteLegacySynchronizableSharedSnapshotIfPresent(forIdentityKey: normalizedIdentityKey)
+            try deleteLegacyDefaultSynchronizableSnapshotIfPresent(forIdentityKey: normalizedIdentityKey)
         }.value
         snapshotAvailabilityStore.setSnapshotAvailable(false, forIdentityKey: normalizedIdentityKey)
     }
@@ -235,9 +236,12 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         case errSecItemNotFound:
             throw AccountSnapshotStoreError.missingSnapshot
 
+        case errSecInteractionNotAllowed:
+            throw AccountSnapshotStoreError.keychainUnavailableUntilUnlock
+
         default:
             logger.error("Keychain read failed with status \(status, privacy: .public)")
-            throw AccountSnapshotStoreError.unexpectedStatus(status)
+            throw normalizedKeychainError(status)
         }
     }
 
@@ -303,7 +307,6 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
             }
         }
 
-        pruneLegacySynchronizableSharedSnapshot(forIdentityKey: identityKey)
     }
 
     nonisolated private func upsertSnapshot(
@@ -326,19 +329,19 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
             let status = SecItemAdd(item as CFDictionary, nil)
             guard status == errSecSuccess else {
                 logger.error("\(logPrefix, privacy: .public) add failed for \(identityKey, privacy: .private) with status \(status, privacy: .public)")
-                throw AccountSnapshotStoreError.unexpectedStatus(status)
+                throw normalizedKeychainError(status)
             }
 
         case errSecSuccess:
             let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
             guard status == errSecSuccess else {
                 logger.error("\(logPrefix, privacy: .public) update failed for \(identityKey, privacy: .private) with status \(status, privacy: .public)")
-                throw AccountSnapshotStoreError.unexpectedStatus(status)
+                throw normalizedKeychainError(status)
             }
 
         case let status:
             logger.error("\(logPrefix, privacy: .public) lookup failed for \(identityKey, privacy: .private) with status \(status, privacy: .public)")
-            throw AccountSnapshotStoreError.unexpectedStatus(status)
+            throw normalizedKeychainError(status)
         }
     }
 
@@ -361,7 +364,7 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
     }
 
     nonisolated private func synchronizableQuery(forIdentityKey identityKey: String) -> [String: Any] {
-        var query = baseQuery(forIdentityKey: identityKey, accessGroup: nil)
+        var query = baseQuery(forIdentityKey: identityKey, accessGroup: sharedAccessGroup)
         query[kSecAttrSynchronizable as String] = kCFBooleanTrue
         return query
     }
@@ -375,15 +378,11 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         return query
     }
 
-    /// The synchronizable copy intentionally uses the app's default access
-    /// group so the primary app can pick it up on another device even when the
-    /// device-local app-group copy hasn't been recreated there yet.
-    nonisolated private func legacySharedSynchronizableQuery(forIdentityKey identityKey: String) -> [String: Any]? {
-        guard let sharedAccessGroup else {
-            return nil
-        }
-
-        var query = baseQuery(forIdentityKey: identityKey, accessGroup: sharedAccessGroup)
+    /// Older builds allowed Keychain Services to choose the default access
+    /// group for the synchronizable copy. Keep this read path so those items
+    /// can repopulate the explicit shared-group copies.
+    nonisolated private func legacyDefaultSynchronizableQuery(forIdentityKey identityKey: String) -> [String: Any] {
+        var query = baseQuery(forIdentityKey: identityKey, accessGroup: nil)
         query[kSecAttrSynchronizable as String] = kCFBooleanTrue
         return query
     }
@@ -391,13 +390,9 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
     nonisolated private func loadLegacySynchronizableSharedSnapshotIfPresent(
         forIdentityKey identityKey: String
     ) throws -> String? {
-        guard let legacyQuery = legacySharedSynchronizableQuery(forIdentityKey: identityKey) else {
-            return nil
-        }
-
         return try loadSnapshotContentsIfPresent(
             forIdentityKey: identityKey,
-            query: legacyQuery
+            query: legacyDefaultSynchronizableQuery(forIdentityKey: identityKey)
         )
     }
 
@@ -408,31 +403,17 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             logger.error("\(logPrefix, privacy: .public) delete failed with status \(status, privacy: .public)")
-            throw AccountSnapshotStoreError.unexpectedStatus(status)
+            throw normalizedKeychainError(status)
         }
     }
 
-    nonisolated private func deleteLegacySynchronizableSharedSnapshotIfPresent(
+    nonisolated private func deleteLegacyDefaultSynchronizableSnapshotIfPresent(
         forIdentityKey identityKey: String
     ) throws {
-        guard let legacyQuery = legacySharedSynchronizableQuery(forIdentityKey: identityKey) else {
-            return
-        }
-
         try deleteSnapshotIfPresent(
-            matching: legacyQuery,
-            logPrefix: "Legacy synchronizable keychain"
+            matching: legacyDefaultSynchronizableQuery(forIdentityKey: identityKey),
+            logPrefix: "Legacy default synchronizable keychain"
         )
-    }
-
-    nonisolated private func pruneLegacySynchronizableSharedSnapshot(forIdentityKey identityKey: String) {
-        do {
-            try deleteLegacySynchronizableSharedSnapshotIfPresent(forIdentityKey: identityKey)
-        } catch {
-            logger.error(
-                "Couldn't prune legacy synchronizable shared snapshot for \(identityKey, privacy: .private): \(String(describing: error), privacy: .private)"
-            )
-        }
     }
 
     nonisolated private func legacyQuery(forLegacyAccountID accountID: UUID) -> [String: Any] {
@@ -452,5 +433,11 @@ final class SharedKeychainSnapshotStore: @unchecked Sendable, AccountSnapshotSto
         }
 
         return normalizedIdentityKey
+    }
+
+    nonisolated private func normalizedKeychainError(_ status: OSStatus) -> AccountSnapshotStoreError {
+        status == errSecInteractionNotAllowed
+            ? .keychainUnavailableUntilUnlock
+            : .unexpectedStatus(status)
     }
 }

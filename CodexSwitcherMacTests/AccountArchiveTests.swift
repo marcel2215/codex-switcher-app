@@ -298,7 +298,7 @@ struct CodexAccountArchiveTests {
             request: CodexAccountArchiveExportRequest(account: account),
             exporter: CodexAccountArchiveFileExporter(
                 snapshotStore: FakeArchiveSnapshotStore(),
-                syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore()
+                syncedRateLimitCredentialStore: FakeArchiveSyncedRateLimitCredentialStore()
             )
         )
 
@@ -323,7 +323,7 @@ struct CodexAccountArchiveTests {
             request: CodexAccountArchiveExportRequest(account: account),
             exporter: CodexAccountArchiveFileExporter(
                 snapshotStore: FakeArchiveSnapshotStore(),
-                syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore()
+                syncedRateLimitCredentialStore: FakeArchiveSyncedRateLimitCredentialStore()
             )
         )
 
@@ -374,7 +374,7 @@ struct CodexAccountArchiveTests {
 
         let exporter = CodexAccountArchiveFileExporter(
             snapshotStore: snapshotStore,
-            syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore()
+            syncedRateLimitCredentialStore: FakeArchiveSyncedRateLimitCredentialStore()
         )
         let fileURL = try await exporter.exportFile(for: request)
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
@@ -427,7 +427,7 @@ struct CodexAccountArchiveTests {
 
         let exporter = CodexAccountArchiveFileExporter(
             snapshotStore: snapshotStore,
-            syncedRateLimitCredentialStore: FakeSyncedRateLimitCredentialStore()
+            syncedRateLimitCredentialStore: FakeArchiveSyncedRateLimitCredentialStore()
         )
         let archive = try CodexAccountArchive.decode(from: try await exporter.exportData(for: request))
 
@@ -438,7 +438,7 @@ struct CodexAccountArchiveTests {
     @MainActor
     @Test func exporterIncludesSyncedRateLimitCredentialWhenAvailable() async throws {
         let snapshotStore = FakeArchiveSnapshotStore()
-        let credentialStore = FakeSyncedRateLimitCredentialStore()
+        let credentialStore = FakeArchiveSyncedRateLimitCredentialStore()
         let identityKey = "chatgpt:abc123"
         try await snapshotStore.saveSnapshot(
             #"{"tokens":{"access_token":"snapshot-token"}}"#,
@@ -525,7 +525,7 @@ private final class FakeArchiveSnapshotStore: @unchecked Sendable, AccountSnapsh
     }
 }
 
-private actor FakeSyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
+private actor FakeArchiveSyncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring {
     private var credentials: [String: SyncedRateLimitCredential] = [:]
 
     func save(_ credential: SyncedRateLimitCredential) async throws {

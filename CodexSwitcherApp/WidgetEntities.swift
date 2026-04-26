@@ -57,7 +57,7 @@ struct WidgetCodexAccountEntity: AppEntity, Identifiable, Hashable, Sendable {
 
 struct WidgetCodexAccountEntityQuery: EntityQuery, EntityStringQuery, EnumerableEntityQuery {
     func allEntities() async throws -> [WidgetCodexAccountEntity] {
-        let state = (try? CodexSharedStateStore().load()) ?? .empty
+        let state = CodexSharedStateStore().loadBestEffort()
         return allEntities(in: state)
     }
 
@@ -70,7 +70,7 @@ struct WidgetCodexAccountEntityQuery: EntityQuery, EntityStringQuery, Enumerable
     }
 
     func entities(for identifiers: [String]) async throws -> [WidgetCodexAccountEntity] {
-        let state = (try? CodexSharedStateStore().load()) ?? .empty
+        let state = CodexSharedStateStore().loadBestEffort()
 
         return identifiers.map { identifier in
             if identifier == WidgetCodexAccountEntity.automaticID {
@@ -86,12 +86,12 @@ struct WidgetCodexAccountEntityQuery: EntityQuery, EntityStringQuery, Enumerable
     }
 
     func suggestedEntities() async throws -> [WidgetCodexAccountEntity] {
-        let state = (try? CodexSharedStateStore().load()) ?? .empty
+        let state = CodexSharedStateStore().loadBestEffort()
         return allEntities(in: state)
     }
 
     func entities(matching string: String) async throws -> [WidgetCodexAccountEntity] {
-        let state = (try? CodexSharedStateStore().load()) ?? .empty
+        let state = CodexSharedStateStore().loadBestEffort()
         let query = string.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !query.isEmpty else {

@@ -11,10 +11,42 @@ import OSLog
 import SwiftData
 import UIKit
 
+struct BackgroundRateLimitRefreshCursorStore: Sendable {
+    private let suiteName: String
+    private let key: String
+
+    init(
+        suiteName: String = CodexSharedAppGroup.identifier,
+        key: String = "RateLimitBackgroundRefreshCursor"
+    ) {
+        self.suiteName = suiteName
+        self.key = key
+    }
+
+    func nextBatch(from identityKeys: [String], limit: Int) -> [String] {
+        let sortedIdentityKeys = Array(Set(identityKeys)).sorted()
+        guard !sortedIdentityKeys.isEmpty else {
+            return []
+        }
+
+        let normalizedLimit = min(max(limit, 1), sortedIdentityKeys.count)
+        let defaults = UserDefaults(suiteName: suiteName)
+        let start = (defaults?.integer(forKey: key) ?? 0) % sortedIdentityKeys.count
+
+        let batch = (0..<normalizedLimit).map { offset in
+            sortedIdentityKeys[(start + offset) % sortedIdentityKeys.count]
+        }
+
+        defaults?.set((start + batch.count) % sortedIdentityKeys.count, forKey: key)
+        return batch
+    }
+}
+
 @MainActor
 final class IOSBackgroundAppRefreshCoordinator {
     nonisolated static let taskIdentifier = "com.marcel2215.codexswitcher.app-refresh"
     nonisolated static let earliestBeginInterval: TimeInterval = 15 * 60
+    nonisolated static let defaultRefreshBatchLimit = 12
 
     static let shared = IOSBackgroundAppRefreshCoordinator()
 
@@ -26,11 +58,15 @@ final class IOSBackgroundAppRefreshCoordinator {
     private let submitRequest: @Sendable (BGAppRefreshTaskRequest) throws -> Void
     private let cancelRequest: @Sendable (String) -> Void
     private let publishSnapshot: @MainActor (ModelContext) -> Void
+    private let refreshBatchLimit: Int
+    private let refreshCursorStore: BackgroundRateLimitRefreshCursorStore
 
     init(
         provider: CodexRateLimitProviding = CodexRateLimitProvider(),
         snapshotStore: AccountSnapshotStoring = SharedKeychainSnapshotStore(),
         credentialStore: SyncedRateLimitCredentialStoring = SyncedRateLimitCredentialStore(),
+        refreshBatchLimit: Int = defaultRefreshBatchLimit,
+        refreshCursorStore: BackgroundRateLimitRefreshCursorStore = BackgroundRateLimitRefreshCursorStore(),
         backgroundRefreshStatusProvider: @escaping @MainActor () -> UIBackgroundRefreshStatus = {
             UIApplication.shared.backgroundRefreshStatus
         },
@@ -51,6 +87,8 @@ final class IOSBackgroundAppRefreshCoordinator {
         self.provider = provider
         self.snapshotStore = snapshotStore
         self.credentialStore = credentialStore
+        self.refreshBatchLimit = max(refreshBatchLimit, 1)
+        self.refreshCursorStore = refreshCursorStore
         self.backgroundRefreshStatusProvider = backgroundRefreshStatusProvider
         self.submitRequest = submitRequest
         self.cancelRequest = cancelRequest
@@ -111,6 +149,10 @@ final class IOSBackgroundAppRefreshCoordinator {
         await remoteDeletionCleanup.consumeHistoryIfNeeded()
 
         let identityKeys = loadTrackedIdentityKeys(from: modelContext)
+        let identityBatch = refreshCursorStore.nextBatch(
+            from: identityKeys,
+            limit: refreshBatchLimit
+        )
 
         // Reuse the main refresh engine so background updates honor the same auth, retry, and backoff rules.
         let engine = ForegroundRateLimitRefreshController(
@@ -120,7 +162,10 @@ final class IOSBackgroundAppRefreshCoordinator {
             logger: logger
         )
         engine.configure(modelContext: modelContext)
-        await engine.refreshTrackedAccountsForBackground(identityKeys: identityKeys)
+        await engine.refreshTrackedAccountsForBackground(
+            identityKeys: identityBatch,
+            limit: refreshBatchLimit
+        )
         publishSnapshot(modelContext)
         return true
     }

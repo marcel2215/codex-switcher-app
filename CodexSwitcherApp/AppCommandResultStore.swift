@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 enum CodexSharedAppCommandResultStatus: String, Codable, Equatable, Sendable {
     case success
@@ -51,6 +52,10 @@ enum CodexSharedIntentExecutionError: LocalizedError {
 struct CodexSharedAppCommandResultStore: Sendable {
     private let baseURL: URL?
     private let lock: CodexSharedProcessLock
+    private let logger = Logger(
+        subsystem: CodexSharedApplicationIdentity.mainApplicationBundleIdentifier,
+        category: "AppCommandResultStore"
+    )
 
     nonisolated init(
         baseURL: URL? = nil,
@@ -128,7 +133,26 @@ struct CodexSharedAppCommandResultStore: Sendable {
             return [:]
         }
 
-        return try JSONDecoder().decode([UUID: CodexSharedAppCommandResult].self, from: data)
+        do {
+            return try JSONDecoder().decode([UUID: CodexSharedAppCommandResult].self, from: data)
+        } catch {
+            do {
+                let backupURL = try CodexCorruptSharedFileQuarantine.moveAside(
+                    fileURL,
+                    reason: "results"
+                )
+                logger.error(
+                    "Quarantined corrupt app command result store at \(backupURL.path, privacy: .private): \(String(describing: error), privacy: .private)"
+                )
+            } catch {
+                logger.error(
+                    "Couldn't quarantine corrupt app command result store: \(String(describing: error), privacy: .private)"
+                )
+                throw error
+            }
+
+            return [:]
+        }
     }
 
     private nonisolated func saveAllUnlocked(
@@ -143,6 +167,7 @@ struct CodexSharedAppCommandResultStore: Sendable {
             withIntermediateDirectories: true
         )
         try data.write(to: fileURL, options: [.atomic])
+        try CodexSharedFileProtection.apply(to: fileURL)
     }
 
     private nonisolated func pruneExpiredResults(

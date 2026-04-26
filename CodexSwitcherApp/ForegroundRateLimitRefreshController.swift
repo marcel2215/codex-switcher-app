@@ -202,7 +202,10 @@ final class ForegroundRateLimitRefreshController {
         await refreshIfNeeded(identityKey: normalizedIdentityKey(identityKey), force: true)
     }
 
-    func refreshTrackedAccountsForBackground(identityKeys: [String]) async {
+    func refreshTrackedAccountsForBackground(
+        identityKeys: [String],
+        limit: Int? = nil
+    ) async {
         let normalizedIdentityKeys = identityKeys
             .map(normalizedIdentityKey)
             .filter { !$0.isEmpty }
@@ -212,7 +215,7 @@ final class ForegroundRateLimitRefreshController {
         selectedIdentityKey = nil
         visibleIdentityKeys = Set(knownIdentityKeys)
         reconcileKnownIdentityKeys(knownIdentityKeys)
-        await refreshDueAccounts()
+        await refreshDueAccounts(limit: limit)
     }
 
     private func startPollingIfNeeded() {
@@ -276,10 +279,20 @@ final class ForegroundRateLimitRefreshController {
         Task { await refreshIfNeeded(identityKey: identityKey, force: force) }
     }
 
-    private func refreshDueAccounts() async {
+    private func refreshDueAccounts(limit: Int? = nil) async {
         applyLocalResetsIfNeeded(relativeTo: .now)
 
+        var attemptedCount = 0
         for identityKey in prioritizedIdentityKeys() {
+            if Task.isCancelled {
+                break
+            }
+
+            if let limit, attemptedCount >= limit {
+                break
+            }
+
+            attemptedCount += 1
             await refreshIfNeeded(identityKey: identityKey, force: false)
         }
     }

@@ -29,11 +29,14 @@ enum CodexSharedAppGroup {
 
 enum CodexSharedDataStoreError: LocalizedError {
     case containerUnavailable(String)
+    case keychainAccessGroupUnavailable
 
     nonisolated var errorDescription: String? {
         switch self {
         case let .containerUnavailable(identifier):
             "Codex Switcher couldn't open its shared App Group container (\(identifier))."
+        case .keychainAccessGroupUnavailable:
+            "Codex Switcher couldn't determine its shared keychain access group."
         }
     }
 }

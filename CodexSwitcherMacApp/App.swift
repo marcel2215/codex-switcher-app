@@ -56,6 +56,7 @@ struct CodexSwitcherApp: App {
 
     init() {
         CodexSharedPreferences.migrateLegacyPreferencesIfNeeded()
+        CodexSharedContainerPreflight.logFailureIfNeeded()
         CodexSwitcherAppShortcuts.updateAppShortcutParameters()
         let bootstrap = AppBootstrap.make()
         self.sharedModelContainer = bootstrap.modelContainer

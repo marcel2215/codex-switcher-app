@@ -378,7 +378,7 @@ struct CodexSharedAccountSwitchService: Sendable {
     }
 
     private nonisolated func linkedFolderURLHint() -> URL? {
-        guard let linkedFolderPath = try? stateStore.load().linkedFolderPath else {
+        guard let linkedFolderPath = stateStore.loadBestEffort().linkedFolderPath else {
             return nil
         }
 

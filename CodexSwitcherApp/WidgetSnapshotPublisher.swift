@@ -63,7 +63,7 @@ enum WidgetSnapshotPublisher {
                 )
             }
 
-        let existingState = (try? store.load()) ?? .empty
+        let existingState = store.loadBestEffort()
         let resolvedAccounts = mergedAccounts(
             localAccounts: sharedAccounts,
             existingState: existingState,
@@ -81,7 +81,7 @@ enum WidgetSnapshotPublisher {
         )
 
         do {
-            try store.save(sharedState)
+            try store.saveMergingRuntimeFields(sharedState)
             Task(priority: .utility) {
                 await RateLimitResetNotificationScheduler.shared.synchronize(with: sharedState)
                 do {

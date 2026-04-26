@@ -442,6 +442,64 @@ struct RateLimitRefreshControllerTests {
     }
 
     @Test
+    func backgroundRefreshCapsWorkAndRotatesBatches() async throws {
+        let accounts = (0..<30).map { index in
+            makeRefreshTestAccount(
+                identityKey: String(format: "identity-background-%02d", index),
+                name: "Background \(index)",
+                customOrder: Double(index)
+            )
+        }
+        let harness = try makeRefreshHarness(accounts: accounts)
+        let provider = TestIOSRateLimitProvider()
+        let credentialStore = TestSyncedRateLimitCredentialStore()
+        let suiteName = "CodexSwitcherBackgroundCursorTests-\(UUID().uuidString)"
+        UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
+        defer {
+            UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
+        }
+
+        for account in accounts {
+            try await credentialStore.save(
+                SyncedRateLimitCredential(
+                    credentials: CodexRateLimitCredentials(
+                        identityKey: account.identityKey,
+                        authMode: .chatgpt,
+                        accountID: "acct-\(account.identityKey)",
+                        accessToken: "token-\(account.identityKey)",
+                        idToken: nil
+                    )
+                )
+            )
+            await provider.setSnapshot(
+                makeRefreshSnapshot(identityKey: account.identityKey),
+                for: account.identityKey
+            )
+        }
+
+        let coordinator = IOSBackgroundAppRefreshCoordinator(
+            provider: provider,
+            credentialStore: credentialStore,
+            refreshBatchLimit: 12,
+            refreshCursorStore: BackgroundRateLimitRefreshCursorStore(suiteName: suiteName),
+            backgroundRefreshStatusProvider: { .available },
+            submitRequest: { _ in },
+            cancelRequest: { _ in },
+            publishSnapshot: { _ in }
+        )
+
+        #expect(await coordinator.performRefresh(using: harness.modelContainer))
+        let firstBatch = await provider.requestedIdentityKeys()
+        #expect(firstBatch.count == 12)
+
+        await provider.resetRequests()
+        #expect(await coordinator.performRefresh(using: harness.modelContainer))
+        let secondBatch = await provider.requestedIdentityKeys()
+        #expect(secondBatch.count == 12)
+        #expect(Set(firstBatch).isDisjoint(with: Set(secondBatch)))
+    }
+
+    @Test
     func scheduleNextRefreshSubmitsAppRefreshRequestWhenAvailable() async throws {
         let submittedRequest = SubmittedBackgroundRequestSpy()
         let cancelledIdentifiers = CancelledBackgroundRequestsSpy()
@@ -560,6 +618,10 @@ private actor TestIOSRateLimitProvider: CodexRateLimitProviding {
 
     func requestCount(for identityKey: String) -> Int {
         requestsByIdentityKey[identityKey, default: 0]
+    }
+
+    func requestedIdentityKeys() -> [String] {
+        requestsByIdentityKey.keys.sorted()
     }
 
     func resetRequests() {

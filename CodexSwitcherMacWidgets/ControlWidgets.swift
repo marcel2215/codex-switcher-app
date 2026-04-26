@@ -18,7 +18,7 @@ private struct QuickSwitchControlValue: Hashable, Sendable {
 
 private struct QuickSwitchControlValueProvider: AppIntentControlValueProvider {
     func currentValue(configuration: SwitchAccountControlIntent) async throws -> QuickSwitchControlValue {
-        let state = (try? CodexSharedStateStore().load()) ?? .empty
+        let state = CodexSharedStateStore().loadBestEffort()
         return makeValue(
             configuration: configuration,
             currentAccountID: state.currentAccountID,

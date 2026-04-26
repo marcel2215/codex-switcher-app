@@ -14,6 +14,7 @@ struct CodexSwitcherWatchApp: App {
 
     init() {
         CodexSharedPreferences.migrateLegacyPreferencesIfNeeded()
+        CodexSharedContainerPreflight.logFailureIfNeeded()
     }
 
     var body: some Scene {
