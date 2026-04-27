@@ -41,7 +41,7 @@ enum IOSAppBootstrap {
             "Accounts",
             schema: schema,
             isStoredInMemoryOnly: isStoredInMemoryOnly,
-            cloudKitDatabase: isStoredInMemoryOnly ? .none : .automatic
+            cloudKitDatabase: isStoredInMemoryOnly ? .none : .private(CodexSharedCloudKitContainer.identifier)
         )
 
         let modelContainer = try ModelContainer(for: schema, configurations: [configuration])

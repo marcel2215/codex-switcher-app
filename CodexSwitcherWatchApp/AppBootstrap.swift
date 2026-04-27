@@ -18,7 +18,7 @@ enum WatchAppBootstrap {
             "Accounts",
             schema: schema,
             isStoredInMemoryOnly: isStoredInMemoryOnly,
-            cloudKitDatabase: isStoredInMemoryOnly ? .none : .automatic
+            cloudKitDatabase: isStoredInMemoryOnly ? .none : .private(CodexSharedCloudKitContainer.identifier)
         )
 
         do {

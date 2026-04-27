@@ -16,6 +16,7 @@
 		1F310E4F2F8DC3E2006AA106 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */; };
 		1F310E502F8DC3E2006AA106 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */; };
 		1F310E5B2F8DC3E3006AA106 /* CodexSwitcherWatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1F310E4E2F8DC3E2006AA106 /* CodexSwitcherWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1F6D00412F9FEA9B00C0D3E1 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F6D00402F9FEA9B00C0D3E1 /* CloudKit.framework */; };
 		1FA0357F2F8AF68400367DD6 /* Codex Switcher.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 1FA0355F2F8AF68300367DD6 /* Codex Switcher.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -145,6 +146,7 @@
 		1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		1F310E4E2F8DC3E2006AA106 /* CodexSwitcherWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CodexSwitcherWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F6D00402F9FEA9B00C0D3E1 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 		1F87C9472F8406C7007DED25 /* Codex Switcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Codex Switcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F87C9562F8406C9007DED25 /* CodexSwitcherMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CodexSwitcherMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F87C9602F8406C9007DED25 /* CodexSwitcherMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CodexSwitcherMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -521,6 +523,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1F6D00412F9FEA9B00C0D3E1 /* CloudKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -586,6 +589,7 @@
 		1F28ABAD2F86DA4A00639A74 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				1F6D00402F9FEA9B00C0D3E1 /* CloudKit.framework */,
 				1F28ABAE2F86DA4A00639A74 /* WidgetKit.framework */,
 				1F28ABB02F86DA4B00639A74 /* SwiftUI.framework */,
 			);
