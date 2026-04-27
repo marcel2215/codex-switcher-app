@@ -86,10 +86,6 @@ struct WatchAccountDetailView: View {
                 }
             }
 
-            Section("Notes") {
-                notesEditor
-            }
-
             Section {
                 LabeledContent("5-Hour Remaining") {
                     usageValueText(account.fiveHourLimitUsedPercent, isUnavailable: account.isUnavailable)
@@ -120,6 +116,10 @@ struct WatchAccountDetailView: View {
                     }
                 }
                 .opacity(isLuminanceReduced ? 0.72 : 1)
+            }
+
+            Section("Notes") {
+                notesEditor
             }
 
             if account.isUnavailable {

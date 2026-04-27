@@ -120,10 +120,6 @@ private struct AccountDetailsWindowForm: View {
                 }
             }
 
-            Section("Notes") {
-                notesEditor
-            }
-
             Section("Rate Limits") {
                 LabeledContent("5-Hour Remaining") {
                     usageValueText(account.fiveHourLimitUsedPercent, isUnavailable: account.isUnavailable)
@@ -140,6 +136,10 @@ private struct AccountDetailsWindowForm: View {
                 LabeledContent("7-Day Reset") {
                     resetValueButton(account.sevenDayResetsAt, row: .sevenDay)
                 }
+            }
+
+            Section("Notes") {
+                notesEditor
             }
 
             if account.isUnavailable {
