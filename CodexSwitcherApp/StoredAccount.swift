@@ -29,6 +29,8 @@ final class StoredAccount {
     @Attribute(.preserveValueOnDeletion)
     var identityKey: String = ""
     var name: String = ""
+    @Attribute(.allowsCloudEncryption)
+    var notes: String = ""
     var createdAt: Date = Date()
     var lastLoginAt: Date?
     var customOrder: Double = 0
@@ -74,6 +76,7 @@ final class StoredAccount {
         id: UUID = UUID(),
         identityKey: String,
         name: String,
+        notes: String = "",
         createdAt: Date = .now,
         lastLoginAt: Date? = nil,
         customOrder: Double,
@@ -100,6 +103,7 @@ final class StoredAccount {
         self.id = id
         self.identityKey = identityKey
         self.name = name
+        self.notes = notes
         self.createdAt = createdAt
         self.lastLoginAt = lastLoginAt
         self.customOrder = customOrder

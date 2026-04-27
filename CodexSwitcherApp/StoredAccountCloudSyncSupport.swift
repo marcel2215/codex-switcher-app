@@ -311,6 +311,11 @@ enum StoredAccountCloudSyncSupport {
             didChange = true
         }
 
+        if survivor.notes.isEmpty && !duplicate.notes.isEmpty {
+            survivor.notes = duplicate.notes
+            didChange = true
+        }
+
         if (duplicate.rateLimitsObservedAt ?? .distantPast) > (survivor.rateLimitsObservedAt ?? .distantPast) {
             survivor.rateLimitsObservedAt = duplicate.rateLimitsObservedAt
             survivor.sevenDayLimitUsedPercent = duplicate.sevenDayLimitUsedPercent

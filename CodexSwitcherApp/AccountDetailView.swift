@@ -36,7 +36,9 @@ struct AccountDetailView: View {
     let controller: IOSAccountsController
     let onRemove: () -> Void
 
+    @FocusState private var isNotesEditorFocused: Bool
     @State private var draftName: String
+    @State private var draftNotes: String
     @State private var resetDisplayModes: [ResetRow: AccountDisplayFormatter.ResetTimeDisplayMode] = [
         .sevenDay: .relative,
         .fiveHour: .relative,
@@ -44,6 +46,7 @@ struct AccountDetailView: View {
     @State private var preparedShare: PreparedShare?
     @State private var isPreparingShare = false
     @State private var shareAvailability: Bool?
+    @State private var pendingNotesSaveTask: Task<Void, Never>?
 
     init(
         account: StoredAccount,
@@ -54,6 +57,7 @@ struct AccountDetailView: View {
         self.controller = controller
         self.onRemove = onRemove
         _draftName = State(initialValue: account.name)
+        _draftNotes = State(initialValue: account.notes)
     }
 
     var body: some View {
@@ -84,6 +88,10 @@ struct AccountDetailView: View {
                 LabeledContent("Last Login") {
                     LastLoginText(lastLoginAt: account.lastLoginAt)
                 }
+            }
+
+            Section("Notes") {
+                notesEditor
             }
 
             Section("Rate Limits") {
@@ -123,10 +131,42 @@ struct AccountDetailView: View {
             }
         }
         .navigationDestination(for: DetailDestination.self, destination: destinationView)
-        .onDisappear(perform: persistDraftName)
+        .onDisappear(perform: persistDrafts)
+        .onChange(of: draftNotes) { _, _ in
+            scheduleDraftNotesSave()
+        }
+        .onChange(of: account.notes) { _, newNotes in
+            guard !isNotesEditorFocused, draftNotes != newNotes else {
+                return
+            }
+
+            draftNotes = newNotes
+        }
+        .onChange(of: isNotesEditorFocused) { _, isFocused in
+            if !isFocused {
+                persistDraftNotes()
+            }
+        }
         .task(id: sharePreparationKey) {
             let preparationKey = sharePreparationKey
             await prepareShareArchive(for: preparationKey, presentsErrors: false)
+        }
+    }
+
+    private var notesEditor: some View {
+        ZStack(alignment: .topLeading) {
+            TextEditor(text: $draftNotes)
+                .focused($isNotesEditorFocused)
+                .frame(minHeight: 128)
+                .accessibilityLabel("Account Notes")
+
+            if draftNotes.isEmpty {
+                Text("Add notes")
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 8)
+                    .padding(.leading, 5)
+                    .allowsHitTesting(false)
+            }
         }
     }
 
@@ -222,6 +262,11 @@ struct AccountDetailView: View {
         }
     }
 
+    private func persistDrafts() {
+        persistDraftName()
+        persistDraftNotes()
+    }
+
     private func persistDraftName() {
         guard !account.isDeleted else {
             return
@@ -229,6 +274,42 @@ struct AccountDetailView: View {
 
         controller.commitRename(for: account, proposedName: draftName, in: modelContext)
         draftName = account.name
+    }
+
+    private func scheduleDraftNotesSave() {
+        guard draftNotes != account.notes else {
+            return
+        }
+
+        pendingNotesSaveTask?.cancel()
+        pendingNotesSaveTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: .milliseconds(700))
+            } catch {
+                return
+            }
+
+            persistDraftNotes(cancelsPendingSave: false)
+            pendingNotesSaveTask = nil
+        }
+    }
+
+    private func persistDraftNotes(cancelsPendingSave: Bool = true) {
+        if cancelsPendingSave {
+            pendingNotesSaveTask?.cancel()
+            pendingNotesSaveTask = nil
+        }
+
+        guard !account.isDeleted else {
+            return
+        }
+
+        guard draftNotes != account.notes else {
+            return
+        }
+
+        controller.setNotes(draftNotes, for: account, in: modelContext)
+        draftNotes = account.notes
     }
 
     @ViewBuilder

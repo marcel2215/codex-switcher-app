@@ -148,6 +148,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         }
 
         let name: String?
+        let notes: String?
         let iconSystemName: String?
         let identityKey: String?
         let authModeRaw: String?
@@ -164,6 +165,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
 
         init(
             name: String?,
+            notes: String? = nil,
             iconSystemName: String?,
             identityKey: String?,
             authModeRaw: String?,
@@ -175,6 +177,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             snapshotContents: String
         ) {
             self.name = CodexAccountArchive.normalizedOptionalString(name)
+            self.notes = CodexAccountArchive.normalizedOptionalNotes(notes)
             self.iconSystemName = CodexAccountArchive.normalizedOptionalString(iconSystemName)
             self.identityKey = CodexAccountArchive.normalizedOptionalString(identityKey)
             self.authModeRaw = CodexAccountArchive.normalizedOptionalString(authModeRaw)
@@ -237,6 +240,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         version: Int = currentVersion,
         exportedAt: Date = Date(),
         name: String?,
+        notes: String? = nil,
         iconSystemName: String?,
         identityKey: String?,
         authModeRaw: String?,
@@ -253,6 +257,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             accounts: [
                 Account(
                     name: name,
+                    notes: notes,
                     iconSystemName: iconSystemName,
                     identityKey: identityKey,
                     authModeRaw: authModeRaw,
@@ -272,6 +277,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         case exportedAt
         case accounts
         case name
+        case notes
         case iconSystemName
         case identityKey
         case authModeRaw
@@ -296,6 +302,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         self.version = Self.currentVersion
         self.exportedAt = exportedAt
         let name = try container.decodeIfPresent(String.self, forKey: .name)
+        let notes = try container.decodeIfPresent(String.self, forKey: .notes)
         let iconSystemName = try container.decodeIfPresent(String.self, forKey: .iconSystemName)
         let identityKey = try container.decodeIfPresent(String.self, forKey: .identityKey)
         let authModeRaw = try container.decodeIfPresent(String.self, forKey: .authModeRaw)
@@ -306,6 +313,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         self.accounts = [
             Account(
                 name: name,
+                notes: notes,
                 iconSystemName: iconSystemName,
                 identityKey: identityKey,
                 authModeRaw: authModeRaw,
@@ -350,6 +358,10 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
 
     var name: String? {
         primaryAccount?.name
+    }
+
+    var notes: String? {
+        primaryAccount?.notes
     }
 
     var iconSystemName: String? {
@@ -455,6 +467,14 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
         return value
     }
 
+    private static func normalizedOptionalNotes(_ value: String?) -> String? {
+        guard let value, !value.isEmpty else {
+            return nil
+        }
+
+        return value
+    }
+
     private static func decodeArchiveDate(_ rawValue: String) -> Date? {
         let formatterWithFractionalSeconds = ISO8601DateFormatter()
         formatterWithFractionalSeconds.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -540,6 +560,7 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
 
 nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
     let name: String?
+    let notes: String?
     let iconSystemName: String
     let identityKey: String
     let hasLocalSnapshot: Bool
@@ -557,6 +578,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
     var exportContentKey: String {
         [
             Self.keyComponent(name),
+            Self.keyComponent(notes),
             Self.keyComponent(iconSystemName),
             Self.keyComponent(identityKey),
             Self.keyComponent(authModeRaw),
@@ -571,6 +593,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
     @MainActor
     init(account: StoredAccount, hasLocalSnapshot: Bool? = nil) {
         self.name = account.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : account.name
+        self.notes = account.notes.isEmpty ? nil : account.notes
         self.iconSystemName = account.iconSystemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? "key.fill"
             : account.iconSystemName
@@ -583,6 +606,7 @@ nonisolated struct CodexAccountArchiveExportRequest: Sendable, Equatable {
         self.rateLimits = CodexAccountArchive.Account.RateLimits(account: account)
         self.suggestedFilename = CodexAccountArchive(
             name: self.name ?? AccountsPresentationLogic.displayName(for: account),
+            notes: self.notes,
             iconSystemName: self.iconSystemName,
             identityKey: self.identityKey,
             authModeRaw: self.authModeRaw,
@@ -687,6 +711,7 @@ actor CodexAccountArchiveFileExporter {
             archiveAccounts.append(
                 CodexAccountArchive.Account(
                     name: account.name,
+                    notes: account.notes,
                     iconSystemName: account.iconSystemName,
                     identityKey: account.identityKey,
                     authModeRaw: account.authModeRaw,

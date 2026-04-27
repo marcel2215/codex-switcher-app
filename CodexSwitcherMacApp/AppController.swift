@@ -1136,6 +1136,22 @@ final class AppController {
         }
     }
 
+    func setNotes(_ notes: String, for accountID: UUID) {
+        guard accountID != Self.noneAccountSelectionID else {
+            return
+        }
+
+        do {
+            guard let account = try account(withID: accountID) else {
+                throw ControllerError.accountNotFound
+            }
+
+            try StoredAccountMutations.setNotes(notes, for: account, in: requireModelContext())
+        } catch {
+            present(error, title: "Couldn't Save Notes")
+        }
+    }
+
     func setSelectedAccountIcon(_ icon: AccountIconOption) {
         guard let selectedAccountID else {
             return
@@ -2135,6 +2151,7 @@ final class AppController {
                                 identityKey: snapshot.identityKey,
                                 name: archivedAccount.preferredStoredName
                                     ?? defaultName(for: snapshot, existingAccounts: allAccounts),
+                                notes: archivedAccount.notes ?? "",
                                 lastLoginAt: archivedAccount.lastLoginAt,
                                 customOrder: nextCustomOrder,
                                 authModeRaw: snapshot.authMode.rawValue,
@@ -2258,6 +2275,11 @@ final class AppController {
         if account.iconSystemName == AccountIconOption.defaultOption.systemName,
            importedIconSystemName != AccountIconOption.defaultOption.systemName {
             account.iconSystemName = importedIconSystemName
+            didChange = true
+        }
+
+        if account.notes.isEmpty, let importedNotes = archive.notes, !importedNotes.isEmpty {
+            account.notes = importedNotes
             didChange = true
         }
 
@@ -4627,6 +4649,11 @@ final class AppController {
 
         if !survivor.isPinned && duplicate.isPinned {
             survivor.isPinned = true
+            didChange = true
+        }
+
+        if survivor.notes.isEmpty && !duplicate.notes.isEmpty {
+            survivor.notes = duplicate.notes
             didChange = true
         }
 

@@ -16,6 +16,7 @@ struct CodexAccountArchiveTests {
         let archive = CodexAccountArchive(
             exportedAt: exportedAt,
             name: "Work Account",
+            notes: "Uses the shared team quota.",
             iconSystemName: "briefcase.fill",
             identityKey: "chatgpt:abc123",
             authModeRaw: CodexAuthMode.chatgpt.rawValue,
@@ -28,6 +29,7 @@ struct CodexAccountArchiveTests {
 
         #expect(decodedArchive == archive)
         #expect(decodedArchive.exportedAt == exportedAt)
+        #expect(decodedArchive.notes == "Uses the shared team quota.")
         #expect(decodedArchive.suggestedFilename == "Work Account")
     }
 
@@ -362,6 +364,7 @@ struct CodexAccountArchiveTests {
         let account = StoredAccount(
             identityKey: identityKey,
             name: "Work Account",
+            notes: "Review quota before Monday.",
             createdAt: .now,
             customOrder: 0,
             hasLocalSnapshot: true,
@@ -458,6 +461,7 @@ struct CodexAccountArchiveTests {
         let account = StoredAccount(
             identityKey: identityKey,
             name: "Work Account",
+            notes: "Review quota before Monday.",
             createdAt: .now,
             customOrder: 0,
             hasLocalSnapshot: true,
@@ -474,6 +478,7 @@ struct CodexAccountArchiveTests {
         )
         let archive = try CodexAccountArchive.decode(from: try await exporter.exportData(for: request))
 
+        #expect(archive.primaryAccount?.notes == "Review quota before Monday.")
         #expect(archive.primaryAccount?.rateLimitCredential == syncedCredential)
         #expect(archive.primaryAccount?.rateLimitCredential?.accessToken == "live-token")
     }

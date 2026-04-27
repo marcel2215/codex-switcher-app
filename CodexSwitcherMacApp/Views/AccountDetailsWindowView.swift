@@ -89,7 +89,9 @@ private struct AccountDetailsWindowForm: View {
     let controller: AppController
 
     @FocusState private var isNameFieldFocused: Bool
+    @FocusState private var isNotesEditorFocused: Bool
     @State private var draftName: String
+    @State private var draftNotes: String
     @State private var resetDisplayModes: [ResetRow: AccountDisplayFormatter.ResetTimeDisplayMode] = [
         .sevenDay: .relative,
         .fiveHour: .relative,
@@ -97,11 +99,13 @@ private struct AccountDetailsWindowForm: View {
     @State private var preparedShare: PreparedShare?
     @State private var isPreparingShare = false
     @State private var shareAvailability: Bool?
+    @State private var pendingNotesSaveTask: Task<Void, Never>?
 
     init(account: StoredAccount, controller: AppController) {
         self.account = account
         self.controller = controller
         _draftName = State(initialValue: account.name)
+        _draftNotes = State(initialValue: account.notes)
     }
 
     var body: some View {
@@ -114,6 +118,10 @@ private struct AccountDetailsWindowForm: View {
                     LastLoginText(lastLoginAt: account.lastLoginAt)
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            Section("Notes") {
+                notesEditor
             }
 
             Section("Rate Limits") {
@@ -151,13 +159,14 @@ private struct AccountDetailsWindowForm: View {
                 removeToolbarItem
             }
         }
-        .onDisappear(perform: persistDraftName)
+        .onDisappear(perform: persistDrafts)
         .task(id: sharePreparationKey) {
             let preparationKey = sharePreparationKey
             await prepareShareArchive(for: preparationKey, presentsErrors: false)
         }
         .onChange(of: account.id) { _, _ in
             draftName = account.name
+            draftNotes = account.notes
         }
         .onChange(of: account.name) { _, newName in
             guard !isNameFieldFocused else {
@@ -165,6 +174,21 @@ private struct AccountDetailsWindowForm: View {
             }
 
             draftName = newName
+        }
+        .onChange(of: account.notes) { _, newNotes in
+            guard !isNotesEditorFocused, draftNotes != newNotes else {
+                return
+            }
+
+            draftNotes = newNotes
+        }
+        .onChange(of: draftNotes) { _, _ in
+            scheduleDraftNotesSave()
+        }
+        .onChange(of: isNotesEditorFocused) { _, isFocused in
+            if !isFocused {
+                persistDraftNotes()
+            }
         }
     }
 
@@ -198,6 +222,24 @@ private struct AccountDetailsWindowForm: View {
             .labelsHidden()
             .pickerStyle(.menu)
             .frame(maxWidth: 220, alignment: .trailing)
+        }
+    }
+
+    private var notesEditor: some View {
+        ZStack(alignment: .topLeading) {
+            TextEditor(text: $draftNotes)
+                .font(.body)
+                .focused($isNotesEditorFocused)
+                .frame(minHeight: 132)
+                .accessibilityLabel("Account Notes")
+
+            if draftNotes.isEmpty {
+                Text("Add notes")
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 8)
+                    .padding(.leading, 5)
+                    .allowsHitTesting(false)
+            }
         }
     }
 
@@ -408,6 +450,11 @@ private struct AccountDetailsWindowForm: View {
         return error.localizedDescription
     }
 
+    private func persistDrafts() {
+        persistDraftName()
+        persistDraftNotes()
+    }
+
     private func persistDraftName() {
         guard !account.isDeleted else {
             return
@@ -419,5 +466,41 @@ private struct AccountDetailsWindowForm: View {
 
         controller.commitRename(for: account.id, proposedName: draftName)
         draftName = account.name
+    }
+
+    private func scheduleDraftNotesSave() {
+        guard draftNotes != account.notes else {
+            return
+        }
+
+        pendingNotesSaveTask?.cancel()
+        pendingNotesSaveTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: .milliseconds(700))
+            } catch {
+                return
+            }
+
+            persistDraftNotes(cancelsPendingSave: false)
+            pendingNotesSaveTask = nil
+        }
+    }
+
+    private func persistDraftNotes(cancelsPendingSave: Bool = true) {
+        if cancelsPendingSave {
+            pendingNotesSaveTask?.cancel()
+            pendingNotesSaveTask = nil
+        }
+
+        guard !account.isDeleted else {
+            return
+        }
+
+        guard draftNotes != account.notes else {
+            return
+        }
+
+        controller.setNotes(draftNotes, for: account.id)
+        draftNotes = account.notes
     }
 }

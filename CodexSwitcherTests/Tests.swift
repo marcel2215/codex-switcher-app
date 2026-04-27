@@ -51,6 +51,17 @@ struct Tests {
     }
 
     @Test
+    func notesChangePersistsExactText() throws {
+        let account = makeAccount(name: "Original", customOrder: 0)
+        let harness = try makeHarness(accounts: [account])
+        let notes = " Follow up before switching.\nKeep the leading space."
+
+        harness.controller.setNotes(notes, for: account, in: harness.modelContext)
+
+        #expect(try fetchAccounts(in: harness.modelContext).first?.notes == notes)
+    }
+
+    @Test
     func displayNameFallsBackToEmailHintWhenNameIsEmpty() {
         let account = makeAccount(
             name: "",
@@ -628,6 +639,7 @@ struct Tests {
         let duplicate = StoredAccount(
             identityKey: identityKey,
             name: "Work",
+            notes: "Keep this workspace for long-context runs.",
             createdAt: .now,
             customOrder: 0,
             isPinned: true,
@@ -648,6 +660,7 @@ struct Tests {
         #expect(accounts.count == 1)
         #expect(mergedAccount.isPinned)
         #expect(mergedAccount.name == "Work")
+        #expect(mergedAccount.notes == "Keep this workspace for long-context runs.")
         #expect(mergedAccount.sevenDayDataStatusRaw == RateLimitMetricDataStatus.exact.rawValue)
         #expect(mergedAccount.fiveHourDataStatusRaw == RateLimitMetricDataStatus.cached.rawValue)
     }

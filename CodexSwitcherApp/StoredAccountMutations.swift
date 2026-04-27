@@ -129,6 +129,25 @@ enum StoredAccountMutations {
     }
 
     @MainActor
+    static func setNotes(
+        _ notes: String,
+        for account: StoredAccount,
+        in modelContext: ModelContext
+    ) throws {
+        guard !account.isDeleted else {
+            return
+        }
+
+        let normalizedLegacyFields = account.normalizeLegacyLocalOnlyFields()
+        guard account.notes != notes || normalizedLegacyFields else {
+            return
+        }
+
+        account.notes = notes
+        try modelContext.save()
+    }
+
+    @MainActor
     static func remove(
         _ account: StoredAccount,
         in modelContext: ModelContext,

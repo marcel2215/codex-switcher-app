@@ -29,13 +29,16 @@ struct WatchAccountDetailView: View {
     let refreshController: WatchRateLimitRefreshController
     let onError: (PresentedError) -> Void
 
+    @FocusState private var isNotesEditorFocused: Bool
     @State private var draftName: String
+    @State private var draftNotes: String
     @State private var liveRefreshStatus: LiveRefreshStatus = .checking
     @State private var resetDisplayModes: [ResetRow: AccountDisplayFormatter.ResetTimeDisplayMode] = [
         .fiveHour: .relative,
         .sevenDay: .relative,
     ]
     @State private var showingRemoveConfirmation = false
+    @State private var pendingNotesSaveTask: Task<Void, Never>?
 
     init(
         account: StoredAccount,
@@ -46,6 +49,7 @@ struct WatchAccountDetailView: View {
         self.refreshController = refreshController
         self.onError = onError
         _draftName = State(initialValue: account.name)
+        _draftNotes = State(initialValue: account.notes)
     }
 
     var body: some View {
@@ -80,6 +84,10 @@ struct WatchAccountDetailView: View {
                     LastLoginText(lastLoginAt: account.lastLoginAt)
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            Section("Notes") {
+                notesEditor
             }
 
             Section {
@@ -123,6 +131,22 @@ struct WatchAccountDetailView: View {
 
         }
         .navigationTitle(displayName)
+        .onDisappear(perform: persistDrafts)
+        .onChange(of: draftNotes) { _, _ in
+            scheduleDraftNotesSave()
+        }
+        .onChange(of: account.notes) { _, newNotes in
+            guard !isNotesEditorFocused, draftNotes != newNotes else {
+                return
+            }
+
+            draftNotes = newNotes
+        }
+        .onChange(of: isNotesEditorFocused) { _, isFocused in
+            if !isFocused {
+                persistDraftNotes()
+            }
+        }
         .refreshable {
             await refreshController.refreshNowAndWait(for: account.identityKey)
             await updateLiveRefreshAvailability()
@@ -171,6 +195,13 @@ struct WatchAccountDetailView: View {
         AccountIconOption.resolve(from: account.iconSystemName)
     }
 
+    private var notesEditor: some View {
+        TextField("Add notes", text: $draftNotes, axis: .vertical)
+            .focused($isNotesEditorFocused)
+            .lineLimit(4...8)
+            .accessibilityLabel("Account Notes")
+    }
+
     private func usageValueText(_ value: Int?, isUnavailable: Bool) -> some View {
         Text(
             AccountDisplayFormatter.detailedPercentDescription(
@@ -216,6 +247,11 @@ struct WatchAccountDetailView: View {
         resetDisplayModes[row] = currentMode == .relative ? .absolute : .relative
     }
 
+    private func persistDrafts() {
+        persistDraftName()
+        persistDraftNotes()
+    }
+
     private func persistDraftName() {
         guard !account.isDeleted else {
             return
@@ -228,6 +264,51 @@ struct WatchAccountDetailView: View {
             onError(
                 PresentedError(
                     title: "Couldn't Rename Account",
+                    message: error.localizedDescription
+                )
+            )
+        }
+    }
+
+    private func scheduleDraftNotesSave() {
+        guard draftNotes != account.notes else {
+            return
+        }
+
+        pendingNotesSaveTask?.cancel()
+        pendingNotesSaveTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: .milliseconds(700))
+            } catch {
+                return
+            }
+
+            persistDraftNotes(cancelsPendingSave: false)
+            pendingNotesSaveTask = nil
+        }
+    }
+
+    private func persistDraftNotes(cancelsPendingSave: Bool = true) {
+        if cancelsPendingSave {
+            pendingNotesSaveTask?.cancel()
+            pendingNotesSaveTask = nil
+        }
+
+        guard !account.isDeleted else {
+            return
+        }
+
+        guard draftNotes != account.notes else {
+            return
+        }
+
+        do {
+            try StoredAccountMutations.setNotes(draftNotes, for: account, in: modelContext)
+            draftNotes = account.notes
+        } catch {
+            onError(
+                PresentedError(
+                    title: "Couldn't Save Notes",
                     message: error.localizedDescription
                 )
             )

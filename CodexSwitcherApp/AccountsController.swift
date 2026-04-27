@@ -202,6 +202,21 @@ final class IOSAccountsController {
         }
     }
 
+    func setNotes(_ notes: String, for account: StoredAccount, in modelContext: ModelContext) {
+        guard !account.isDeleted else {
+            return
+        }
+
+        do {
+            try StoredAccountMutations.setNotes(notes, for: account, in: modelContext)
+        } catch {
+            presentedError = PresentedError(
+                title: "Couldn't Save Notes",
+                message: error.localizedDescription
+            )
+        }
+    }
+
     func remove(_ account: StoredAccount, in modelContext: ModelContext) async {
         guard !account.isDeleted else {
             return
@@ -344,6 +359,7 @@ final class IOSAccountsController {
                                 identityKey: snapshot.identityKey,
                                 name: archivedAccount.preferredStoredName
                                     ?? Self.defaultName(for: snapshot, existingAccounts: allAccounts),
+                                notes: archivedAccount.notes ?? "",
                                 lastLoginAt: archivedAccount.lastLoginAt,
                                 customOrder: nextCustomOrder,
                                 authModeRaw: snapshot.authMode.rawValue,
@@ -556,6 +572,11 @@ final class IOSAccountsController {
         if account.iconSystemName == AccountIconOption.defaultOption.systemName,
            importedIconSystemName != AccountIconOption.defaultOption.systemName {
             account.iconSystemName = importedIconSystemName
+            didChange = true
+        }
+
+        if account.notes.isEmpty, let importedNotes = archive.notes, !importedNotes.isEmpty {
+            account.notes = importedNotes
             didChange = true
         }
 
