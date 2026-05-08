@@ -835,6 +835,9 @@ final class AppController {
             return []
         }
 
+        let showNoneAccount = CodexSharedPreferences.showNoneAccount
+        let accountLimit = showNoneAccount ? max(limit - 1, 0) : limit
+
         do {
             let orderedAccounts = AccountsPresentationLogic.sortedAccounts(
                 from: try fetchAccounts().filter { account in
@@ -846,7 +849,7 @@ final class AppController {
                 sortDirection: sortDirection
             )
 
-            return Array(orderedAccounts.prefix(limit)).map { account in
+            let accountItems = Array(orderedAccounts.prefix(accountLimit)).map { account in
                 DockAccountItem(
                     id: account.id,
                     title: AccountsPresentationLogic.displayName(for: account),
@@ -854,8 +857,17 @@ final class AppController {
                     isCurrentAccount: account.identityKey == activeIdentityKey
                 )
             }
+
+            guard showNoneAccount else {
+                return accountItems
+            }
+
+            return [DockAccountItem.none(isCurrentAccount: activeIdentityKey == nil)] + accountItems
         } catch {
             logger.error("Couldn't prepare Dock accounts: \(String(describing: error), privacy: .private)")
+            if showNoneAccount {
+                return [DockAccountItem.none(isCurrentAccount: activeIdentityKey == nil)]
+            }
             return []
         }
     }

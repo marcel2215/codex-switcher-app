@@ -14,6 +14,15 @@ struct DockAccountItem: Equatable, Sendable {
     let title: String
     let iconSystemName: String
     let isCurrentAccount: Bool
+
+    static func none(isCurrentAccount: Bool) -> DockAccountItem {
+        DockAccountItem(
+            id: AppController.noneAccountSelectionID,
+            title: "None",
+            iconSystemName: "power",
+            isCurrentAccount: isCurrentAccount
+        )
+    }
 }
 
 final class ApplicationDelegate: NSObject, NSApplicationDelegate {

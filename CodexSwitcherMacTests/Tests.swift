@@ -1213,6 +1213,12 @@ struct Tests {
     }
 
     @Test func dockAccountsFollowAppSortOrderAndLimitSwitchableAccounts() async throws {
+        let previousShowNoneAccount = CodexSharedPreferences.showNoneAccount
+        CodexSharedPreferences.userDefaults.set(false, forKey: CodexSharedPreferenceKey.showNoneAccount)
+        defer {
+            CodexSharedPreferences.userDefaults.set(previousShowNoneAccount, forKey: CodexSharedPreferenceKey.showNoneAccount)
+        }
+
         let container = try makeInMemoryContainer()
         let currentContents = makeChatGPTAuthJSON(accountID: "acct-current")
         let authFileManager = FakeAuthFileManager(contents: currentContents)
@@ -1354,6 +1360,65 @@ struct Tests {
         #expect(dockAccounts.map(\.title) == expectedTitles)
         #expect(dockAccounts.map(\.iconSystemName) == expectedIcons)
         #expect(dockAccounts.map(\.isCurrentAccount) == expectedCurrentFlags)
+    }
+
+    @Test func dockAccountsShowNoneFirstWhenPreferenceEnabled() async throws {
+        let previousShowNoneAccount = CodexSharedPreferences.showNoneAccount
+        CodexSharedPreferences.userDefaults.set(true, forKey: CodexSharedPreferenceKey.showNoneAccount)
+        defer {
+            CodexSharedPreferences.userDefaults.set(previousShowNoneAccount, forKey: CodexSharedPreferenceKey.showNoneAccount)
+        }
+
+        let container = try makeInMemoryContainer()
+        let snapshotAvailabilityStore = LocalAccountSnapshotAvailabilityStore(
+            baseURL: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString, isDirectory: true)
+        )
+        let controller = makeController(
+            authFileManager: FakeAuthFileManager(contents: "{}"),
+            snapshotAvailabilityStore: snapshotAvailabilityStore
+        )
+
+        let alphaContents = makeChatGPTAuthJSON(accountID: "acct-alpha")
+        let alphaSnapshot = try CodexAuthFile.parse(contents: alphaContents)
+        let alphaAccount = StoredAccount(
+            identityKey: alphaSnapshot.identityKey,
+            name: "Alpha",
+            customOrder: 0,
+            hasLocalSnapshot: true,
+            authModeRaw: alphaSnapshot.authMode.rawValue,
+            emailHint: alphaSnapshot.email,
+            accountIdentifier: alphaSnapshot.accountIdentifier
+        )
+
+        let zuluContents = makeChatGPTAuthJSON(accountID: "acct-zulu")
+        let zuluSnapshot = try CodexAuthFile.parse(contents: zuluContents)
+        let zuluAccount = StoredAccount(
+            identityKey: zuluSnapshot.identityKey,
+            name: "Zulu",
+            customOrder: 1,
+            hasLocalSnapshot: true,
+            authModeRaw: zuluSnapshot.authMode.rawValue,
+            emailHint: zuluSnapshot.email,
+            accountIdentifier: zuluSnapshot.accountIdentifier
+        )
+
+        container.mainContext.insert(alphaAccount)
+        container.mainContext.insert(zuluAccount)
+        try container.mainContext.save()
+
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: alphaAccount.identityKey)
+        snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: zuluAccount.identityKey)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        controller.sortCriterion = .name
+        controller.sortDirection = .descending
+
+        let dockAccounts = controller.dockAccounts(limit: 2)
+
+        #expect(dockAccounts.map(\.id) == [AppController.noneAccountSelectionID, zuluAccount.id])
+        #expect(dockAccounts.map(\.title) == ["None", "Zulu"])
+        #expect(dockAccounts.map(\.iconSystemName) == ["power", AccountIconOption.defaultOption.systemName])
+        #expect(dockAccounts.map(\.isCurrentAccount) == [true, false])
     }
 
     @Test func autopilotSwitchesToTheBestRateLimitAccountAndNotifiesOnlyOnRealChange() async throws {
