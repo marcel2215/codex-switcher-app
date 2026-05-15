@@ -172,7 +172,7 @@ actor UITestAuthFileManager: AuthFileManaging {
         }
 
         switch linkedLocationState.credentialStoreHint {
-        case .auto, .keyring:
+        case .auto, .keyring, .unsupported:
             throw AuthFileAccessError.unsupportedCredentialStore(
                 linkedLocationState.folderURL,
                 mode: linkedLocationState.credentialStoreHint

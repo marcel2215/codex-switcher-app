@@ -11,6 +11,11 @@ import SwiftData
 
 @MainActor
 enum StoredAccountLegacyCloudSyncRepair {
+    private struct MigrationResult {
+        var didChange = false
+        var artifactCleanupIdentityKeys: Set<String> = []
+    }
+
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "CodexSwitcher",
         category: "StoredAccountLegacyCloudSyncRepair"
@@ -46,16 +51,19 @@ enum StoredAccountLegacyCloudSyncRepair {
     ) async throws -> Bool {
         let accounts = try modelContext.fetch(FetchDescriptor<StoredAccount>())
         var didChange = false
+        var artifactCleanupIdentityKeys: Set<String> = []
 
         for account in accounts {
             didChange = account.normalizeLegacyLocalOnlyFields() || didChange
-            didChange = await migrateLegacySnapshotIfNeeded(
+            let migrationResult = await migrateLegacySnapshotIfNeeded(
                 for: account,
                 in: modelContext,
                 snapshotStore: snapshotStore,
                 syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
                 logger: logger
-            ) || didChange
+            )
+            didChange = migrationResult.didChange || didChange
+            artifactCleanupIdentityKeys.formUnion(migrationResult.artifactCleanupIdentityKeys)
 
             guard let storedContents = await bestAvailableSnapshotContents(
                 for: account,
@@ -82,14 +90,7 @@ enum StoredAccountLegacyCloudSyncRepair {
                     )
 
                     if !previousIdentityKey.isEmpty {
-                        await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
-                            identityKey: previousIdentityKey,
-                            in: modelContext,
-                            snapshotStore: snapshotStore,
-                            syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
-                            excludingAccountIDs: [account.id],
-                            logger: logger
-                        )
+                        artifactCleanupIdentityKeys.insert(previousIdentityKey)
                     }
 
                     didChange = true
@@ -134,6 +135,16 @@ enum StoredAccountLegacyCloudSyncRepair {
             try modelContext.save()
         }
 
+        for identityKey in artifactCleanupIdentityKeys {
+            await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
+                identityKey: identityKey,
+                in: modelContext,
+                snapshotStore: snapshotStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                logger: logger
+            )
+        }
+
         return didChange
     }
 
@@ -143,14 +154,14 @@ enum StoredAccountLegacyCloudSyncRepair {
         snapshotStore: AccountSnapshotStoring,
         syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring,
         logger: Logger
-    ) async -> Bool {
-        var didChange = false
+    ) async -> MigrationResult {
+        var result = MigrationResult()
         let previousIdentityKey = account.identityKey
 
         if let syncedContents = account.authFileContents, !syncedContents.isEmpty {
             do {
                 let migratedSnapshot = try SharedCodexAuthFile.parse(contents: syncedContents)
-                didChange = StoredAccountCloudSyncSupport.update(account, from: migratedSnapshot) || didChange
+                result.didChange = StoredAccountCloudSyncSupport.update(account, from: migratedSnapshot) || result.didChange
                 try await snapshotStore.saveSnapshot(
                     syncedContents,
                     forIdentityKey: migratedSnapshot.identityKey
@@ -173,19 +184,12 @@ enum StoredAccountLegacyCloudSyncRepair {
                     )
                 }
                 account.authFileContents = nil
-                didChange = true
+                result.didChange = true
 
                 let normalizedPreviousIdentityKey = previousIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines)
                 if normalizedPreviousIdentityKey != migratedSnapshot.identityKey,
                    !normalizedPreviousIdentityKey.isEmpty {
-                    await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
-                        identityKey: normalizedPreviousIdentityKey,
-                        in: modelContext,
-                        snapshotStore: snapshotStore,
-                        syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
-                        excludingAccountIDs: [account.id],
-                        logger: logger
-                    )
+                    result.artifactCleanupIdentityKeys.insert(normalizedPreviousIdentityKey)
                 }
             } catch {
                 logger.error(
@@ -223,7 +227,7 @@ enum StoredAccountLegacyCloudSyncRepair {
                             )
                         }
                     }
-                    didChange = true
+                    result.didChange = true
                 }
             } catch {
                 logger.error(
@@ -232,7 +236,7 @@ enum StoredAccountLegacyCloudSyncRepair {
             }
         }
 
-        return didChange
+        return result
     }
 
     private static func bestAvailableSnapshotContents(

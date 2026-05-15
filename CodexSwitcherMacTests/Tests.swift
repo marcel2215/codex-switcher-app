@@ -70,6 +70,62 @@ struct Tests {
         #expect(snapshot.accountIdentifier == nil)
     }
 
+    @Test func credentialStoreHintReadsOnlyRootTOMLStringValues() throws {
+        let codexFolderURL = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: codexFolderURL) }
+        let configURL = codexFolderURL.appending(path: "config.toml", directoryHint: .notDirectory)
+
+        func detect(_ contents: String) throws -> CodexCredentialStoreHint {
+            try contents.write(to: configURL, atomically: true, encoding: .utf8)
+            return CodexCredentialStoreHint.detect(in: codexFolderURL)
+        }
+
+        #expect(try detect(#"cli_auth_credentials_store = "file""#) == .file)
+        #expect(try detect("cli_auth_credentials_store = 'file'") == .file)
+        #expect(try detect(#"cli_auth_credentials_store = "keyring" # secure"#) == .keyring)
+        #expect(try detect("cli_auth_credentials_store = 'auto'") == .auto)
+        #expect(try detect("[profile.work]\ncli_auth_credentials_store = \"keyring\"") == .unknown)
+        #expect(try detect("cli_auth_credentials_store = keyring") == .unsupported)
+        #expect(try detect(#"cli_auth_credentials_store = "future-store""#) == .unsupported)
+    }
+
+    @Test func authFileReplacementEnforcesOwnerOnlyPermissions() throws {
+        let codexFolderURL = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: codexFolderURL) }
+        let authFileURL = codexFolderURL.appending(path: "auth.json", directoryHint: .notDirectory)
+
+        try "old".write(to: authFileURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o644))],
+            ofItemAtPath: authFileURL.path
+        )
+
+        try CodexAuthFileReplacement.replaceContents("new", at: authFileURL)
+
+        let contents = try String(contentsOf: authFileURL, encoding: .utf8)
+        let attributes = try FileManager.default.attributesOfItem(atPath: authFileURL.path)
+        let mode = try #require((attributes[.posixPermissions] as? NSNumber)?.intValue)
+        #expect(contents == "new")
+        #expect(mode & 0o777 == 0o600)
+    }
+
+    @Test func snapshotAvailabilityStoreRecoversFromCorruptCacheOnWrite() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+        let availabilityURL = temporaryDirectory.appending(
+            path: CodexSharedAppGroup.snapshotAvailabilityFilename,
+            directoryHint: .notDirectory
+        )
+        try "{not valid json".write(to: availabilityURL, atomically: true, encoding: .utf8)
+
+        let store = LocalAccountSnapshotAvailabilityStore(baseURL: temporaryDirectory)
+        #expect(store.containsSnapshot(forIdentityKey: "identity-a") == false)
+
+        store.setSnapshotAvailable(true, forIdentityKey: "identity-a")
+
+        #expect(store.containsSnapshot(forIdentityKey: "identity-a"))
+    }
+
     @Test func parsesRateLimitCredentialsFromChatGPTAuthFile() throws {
         let rawContents = makeChatGPTAuthJSON(
             accountID: "acct-credentials",
@@ -2435,7 +2491,7 @@ struct Tests {
         )
         try bookmarkStore.save(
             codexFolderURL.bookmarkData(
-                options: [],
+                options: [.withSecurityScope],
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
@@ -2465,6 +2521,81 @@ struct Tests {
         )
         #expect(persistedContents == originalContents)
         #expect(try stateStore.load().authState == .unsupportedCredentialStore)
+    }
+
+    @Test func sharedSwitchTreatsStateSaveFailureAfterAuthWriteAsSuccessfulSwitch() async throws {
+        let stateDirectory = try makeTemporaryDirectory()
+        let lockDirectory = try makeTemporaryDirectory()
+        let codexFolderURL = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: NSNumber(value: Int16(0o700))],
+                ofItemAtPath: stateDirectory.path
+            )
+            try? FileManager.default.removeItem(at: stateDirectory)
+            try? FileManager.default.removeItem(at: lockDirectory)
+            try? FileManager.default.removeItem(at: codexFolderURL)
+        }
+
+        let authFileURL = codexFolderURL.appending(path: "auth.json", directoryHint: .notDirectory)
+        let originalContents = makeChatGPTAuthJSON(accountID: "acct-original-partial")
+        try originalContents.write(to: authFileURL, atomically: true, encoding: .utf8)
+
+        let targetContents = makeChatGPTAuthJSON(accountID: "acct-target-partial")
+        let targetSnapshot = try SharedCodexAuthFile.parse(contents: targetContents)
+        let targetAccount = makeSharedAccountRecord(
+            identityKey: targetSnapshot.identityKey,
+            name: "Partial Target",
+            sortOrder: 0,
+            sevenDayLimitUsedPercent: 80,
+            fiveHourLimitUsedPercent: 80
+        )
+
+        let stateStore = CodexSharedStateStore(baseURL: stateDirectory)
+        let bookmarkStore = CodexSharedBookmarkStore(baseURL: stateDirectory)
+        let secretStore = FakeSecretStore()
+
+        try stateStore.save(
+            SharedCodexState(
+                schemaVersion: SharedCodexState.currentSchemaVersion,
+                authState: .ready,
+                linkedFolderPath: codexFolderURL.path,
+                currentAccountID: nil,
+                selectedAccountID: nil,
+                selectedAccountIsLive: false,
+                accounts: [targetAccount],
+                updatedAt: .now
+            )
+        )
+        try bookmarkStore.save(
+            codexFolderURL.bookmarkData(
+                options: [.withSecurityScope],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+        )
+        try await secretStore.saveSnapshot(targetContents, forIdentityKey: targetAccount.id)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o500))],
+            ofItemAtPath: stateDirectory.path
+        )
+
+        let service = CodexSharedAccountSwitchService(
+            stateStore: stateStore,
+            bookmarkStore: bookmarkStore,
+            snapshotStore: secretStore,
+            lock: CodexSharedProcessLock(baseURL: lockDirectory)
+        )
+
+        let outcome = try await service.switchToAccount(identityKey: targetAccount.id)
+        let persistedContents = try String(contentsOf: authFileURL, encoding: .utf8)
+
+        guard case let .switched(switchedAccount) = outcome else {
+            Issue.record("Expected a switched outcome after auth.json was written.")
+            return
+        }
+        #expect(switchedAccount.id == targetAccount.id)
+        #expect(persistedContents == targetContents)
     }
 
     @Test func sharedIntentResolverReturnsCurrentSelectedAndBestAccounts() throws {

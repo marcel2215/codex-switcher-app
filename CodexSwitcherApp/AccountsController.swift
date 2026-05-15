@@ -18,6 +18,7 @@ final class IOSAccountsController {
     private let archiveExporter: CodexAccountArchiveFileExporter
     private let syncedRateLimitCredentialStore: SyncedRateLimitCredentialStoring
     private let snapshotAvailabilityStore: LocalAccountSnapshotAvailabilityStore
+    @ObservationIgnored private var pendingArtifactCleanupIdentityKeys: Set<String> = []
 
     var searchText = ""
     var archiveAvailabilityRefreshToken = 0
@@ -407,7 +408,7 @@ final class IOSAccountsController {
                 return []
             }
 
-            try modelContext.save()
+            try await saveModelContextAndCleanUpArtifacts(modelContext)
             archiveAvailabilityRefreshToken &+= 1
 
             if !failureMessages.isEmpty {
@@ -509,16 +510,38 @@ final class IOSAccountsController {
 
         if previousIdentityKey != snapshot.identityKey,
            previousIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
-                identityKey: previousIdentityKey,
-                in: modelContext,
-                snapshotStore: snapshotStore,
-                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
-                excludingAccountIDs: [account.id]
-            )
+            queueArtifactCleanup(for: previousIdentityKey)
         }
 
         return didChange
+    }
+
+    private func queueArtifactCleanup(for identityKey: String) {
+        let normalizedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedIdentityKey.isEmpty else {
+            return
+        }
+
+        pendingArtifactCleanupIdentityKeys.insert(normalizedIdentityKey)
+    }
+
+    private func saveModelContextAndCleanUpArtifacts(_ modelContext: ModelContext) async throws {
+        try modelContext.save()
+        await cleanUpQueuedArtifactsIfUnused(in: modelContext)
+    }
+
+    private func cleanUpQueuedArtifactsIfUnused(in modelContext: ModelContext) async {
+        let identityKeys = pendingArtifactCleanupIdentityKeys
+        pendingArtifactCleanupIdentityKeys.removeAll()
+
+        for identityKey in identityKeys {
+            await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
+                identityKey: identityKey,
+                in: modelContext,
+                snapshotStore: snapshotStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore
+            )
+        }
     }
 
     private func saveImportedRateLimitCredentialIfUsable(

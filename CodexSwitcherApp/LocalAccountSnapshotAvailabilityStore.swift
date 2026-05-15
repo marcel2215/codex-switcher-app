@@ -23,7 +23,12 @@ struct LocalAccountSnapshotAvailabilityStore: Sendable {
             return false
         }
 
-        return (try? loadIdentityKeys().contains(normalizedIdentityKey)) ?? false
+        do {
+            return try loadIdentityKeys().contains(normalizedIdentityKey)
+        } catch {
+            quarantineAvailabilityFileIfPresent(reason: "load-failed")
+            return false
+        }
     }
 
     nonisolated func setSnapshotAvailable(_ isAvailable: Bool, forIdentityKey identityKey: String) {
@@ -41,7 +46,13 @@ struct LocalAccountSnapshotAvailabilityStore: Sendable {
 
             try saveIdentityKeys(identityKeys)
         } catch {
-            return
+            quarantineAvailabilityFileIfPresent(reason: "write-recovery")
+
+            do {
+                try saveIdentityKeys(isAvailable ? [normalizedIdentityKey] : [])
+            } catch {
+                return
+            }
         }
     }
 
@@ -86,5 +97,16 @@ struct LocalAccountSnapshotAvailabilityStore: Sendable {
             path: CodexSharedAppGroup.snapshotAvailabilityFilename,
             directoryHint: .notDirectory
         )
+    }
+
+    private nonisolated func quarantineAvailabilityFileIfPresent(reason: String) {
+        guard
+            let fileURL = try? fileURL(),
+            FileManager.default.fileExists(atPath: fileURL.path)
+        else {
+            return
+        }
+
+        _ = try? CodexCorruptSharedFileQuarantine.moveAside(fileURL, reason: reason)
     }
 }

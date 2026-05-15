@@ -30,12 +30,13 @@ nonisolated enum CodexCredentialStoreHint: String, Sendable, Equatable {
     case file
     case keyring
     case auto
+    case unsupported
 
     nonisolated var isSupportedForFileSwitching: Bool {
         switch self {
         case .unknown, .file:
             true
-        case .keyring, .auto:
+        case .keyring, .auto, .unsupported:
             false
         }
     }
@@ -50,6 +51,8 @@ nonisolated enum CodexCredentialStoreHint: String, Sendable, Equatable {
             "keyring"
         case .auto:
             "auto"
+        case .unsupported:
+            "unsupported"
         }
     }
 
@@ -59,20 +62,161 @@ nonisolated enum CodexCredentialStoreHint: String, Sendable, Equatable {
             return .unknown
         }
 
-        // Codex config is TOML. We only need this top-level scalar key, so keep
-        // the parser narrow instead of introducing a full TOML dependency.
-        let pattern = #"(?m)^\s*cli_auth_credentials_store\s*=\s*"([^"]+)""#
-        guard
-            let regex = try? NSRegularExpression(pattern: pattern),
-            let match = regex.firstMatch(
-                in: contents,
-                range: NSRange(contents.startIndex..., in: contents)
-            ),
-            let valueRange = Range(match.range(at: 1), in: contents)
-        else {
+        guard let parsedValue = parseRootCredentialStoreValue(from: contents) else {
             return .unknown
         }
 
-        return CodexCredentialStoreHint(rawValue: String(contents[valueRange]).lowercased()) ?? .unknown
+        guard let parsedValue else {
+            return .unsupported
+        }
+
+        return CodexCredentialStoreHint(rawValue: parsedValue.lowercased()) ?? .unsupported
+    }
+
+    private nonisolated static func parseRootCredentialStoreValue(from contents: String) -> String?? {
+        for line in contents.components(separatedBy: .newlines) {
+            let uncommentedLine = line.removingTOMLComment()
+            let trimmedLine = uncommentedLine.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard !trimmedLine.isEmpty else {
+                continue
+            }
+
+            if trimmedLine.hasPrefix("[") {
+                return nil
+            }
+
+            guard let separatorIndex = trimmedLine.firstTOMLKeyValueSeparatorIndex() else {
+                continue
+            }
+
+            let key = trimmedLine[..<separatorIndex]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard key == "cli_auth_credentials_store" else {
+                continue
+            }
+
+            let value = trimmedLine[trimmedLine.index(after: separatorIndex)...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return parseSingleLineTOMLString(value)
+        }
+
+        return nil
+    }
+
+    private nonisolated static func parseSingleLineTOMLString(_ rawValue: String) -> String? {
+        guard let delimiter = rawValue.first, delimiter == "\"" || delimiter == "'" else {
+            return nil
+        }
+
+        var value = ""
+        var index = rawValue.index(after: rawValue.startIndex)
+        var escaped = false
+
+        while index < rawValue.endIndex {
+            let character = rawValue[index]
+
+            if delimiter == "\"" {
+                if escaped {
+                    value.append(character)
+                    escaped = false
+                } else if character == "\\" {
+                    escaped = true
+                } else if character == delimiter {
+                    let remainder = rawValue[rawValue.index(after: index)...]
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    return remainder.isEmpty ? value : nil
+                } else {
+                    value.append(character)
+                }
+            } else if character == delimiter {
+                let remainder = rawValue[rawValue.index(after: index)...]
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                return remainder.isEmpty ? value : nil
+            } else {
+                value.append(character)
+            }
+
+            index = rawValue.index(after: index)
+        }
+
+        return nil
+    }
+}
+
+private extension String {
+    nonisolated func removingTOMLComment() -> String {
+        var result = ""
+        var quoteDelimiter: Character?
+        var escaped = false
+
+        for character in self {
+            if let delimiter = quoteDelimiter {
+                result.append(character)
+
+                if delimiter == "\"" {
+                    if escaped {
+                        escaped = false
+                    } else if character == "\\" {
+                        escaped = true
+                    } else if character == delimiter {
+                        quoteDelimiter = nil
+                    }
+                } else if character == delimiter {
+                    quoteDelimiter = nil
+                }
+
+                continue
+            }
+
+            if character == "#" {
+                break
+            }
+
+            result.append(character)
+
+            if character == "\"" || character == "'" {
+                quoteDelimiter = character
+                escaped = false
+            }
+        }
+
+        return result
+    }
+
+    nonisolated func firstTOMLKeyValueSeparatorIndex() -> Index? {
+        var quoteDelimiter: Character?
+        var escaped = false
+
+        for index in indices {
+            let character = self[index]
+
+            if let delimiter = quoteDelimiter {
+                if delimiter == "\"" {
+                    if escaped {
+                        escaped = false
+                    } else if character == "\\" {
+                        escaped = true
+                    } else if character == delimiter {
+                        quoteDelimiter = nil
+                    }
+                } else if character == delimiter {
+                    quoteDelimiter = nil
+                }
+
+                continue
+            }
+
+            if character == "=" {
+                return index
+            }
+
+            if character == "\"" || character == "'" {
+                quoteDelimiter = character
+                escaped = false
+            }
+        }
+
+        return nil
     }
 }

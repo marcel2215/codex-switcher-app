@@ -167,6 +167,7 @@ final class AppController {
     @ObservationIgnored private var rateLimitRefreshesInFlight: Set<String> = []
     @ObservationIgnored private var rateLimitFailureBackoffUntil: [String: Date] = [:]
     @ObservationIgnored private var rateLimitFailureBackoffDurations: [String: TimeInterval] = [:]
+    @ObservationIgnored private var pendingArtifactCleanupIdentityKeys: Set<String> = []
     @ObservationIgnored private var isApplicationActive = false
     @ObservationIgnored private var isMenuBarPresented = false
     @ObservationIgnored private var isAutopilotEnabled = false
@@ -681,6 +682,19 @@ final class AppController {
 
     private func hasLocalSnapshot(for account: StoredAccount) -> Bool {
         snapshotAvailabilityStore.containsSnapshot(forIdentityKey: account.identityKey)
+    }
+
+    private func hasUsableLocalSnapshot(for account: StoredAccount) async -> Bool {
+        if hasLocalSnapshot(for: account) {
+            return true
+        }
+
+        let hasSnapshot = await secretStore.containsSnapshot(forIdentityKey: account.identityKey)
+        if hasSnapshot {
+            snapshotAvailabilityStore.setSnapshotAvailable(true, forIdentityKey: account.identityKey)
+        }
+
+        return hasSnapshot
     }
 
     // Sort preferences are persisted by the SwiftUI app layer with AppStorage.
@@ -1322,7 +1336,7 @@ final class AppController {
                     from: accounts,
                     in: modelContext
                 )
-                try modelContext.save()
+                try await saveModelContextAndCleanUpArtifacts(modelContext)
                 requestImmediateRateLimitRefresh(for: snapshot.identityKey)
                 guard recoveredUnavailableAccount || removedUnavailableDuplicates else {
                     return false
@@ -1345,7 +1359,7 @@ final class AppController {
             activeIdentityKey = snapshot.identityKey
             authAccessState = .ready(linkedFolder: readResult.url.deletingLastPathComponent())
             searchText = ""
-            try modelContext.save()
+            try await saveModelContextAndCleanUpArtifacts(modelContext)
             publishSharedState()
             requestImmediateRateLimitRefresh(for: snapshot.identityKey)
             return true
@@ -1373,7 +1387,7 @@ final class AppController {
                     in: modelContext
                 )
                 selection = [match.account.id]
-                try modelContext.save()
+                try await saveModelContextAndCleanUpArtifacts(modelContext)
                 publishSharedState()
                 requestImmediateRateLimitRefresh(for: result.parsedAuth.identityKey)
                 if !recoveredUnavailableAccount && !removedUnavailableDuplicates {
@@ -1394,7 +1408,7 @@ final class AppController {
                 in: modelContext
             )
             searchText = ""
-            try modelContext.save()
+            try await saveModelContextAndCleanUpArtifacts(modelContext)
             publishSharedState()
             requestImmediateRateLimitRefresh(for: result.parsedAuth.identityKey)
         } catch is CancellationError {
@@ -1454,7 +1468,7 @@ final class AppController {
                 )
             }
 
-            try modelContext.save()
+            try await saveModelContextAndCleanUpArtifacts(modelContext)
             searchText = ""
             activeIdentityKey = snapshot.identityKey
             authAccessState = .ready(linkedFolder: readResult.url.deletingLastPathComponent())
@@ -1627,19 +1641,8 @@ final class AppController {
 
         let duplicateIDs = Set(duplicates.map(\.id))
         let duplicateIdentityKeys = Set(duplicates.map(\.identityKey).filter { !$0.isEmpty })
-        let remainingIdentityKeys = Set(
-            accounts
-                .filter { !duplicateIDs.contains($0.id) }
-                .map(\.identityKey)
-                .filter { !$0.isEmpty }
-        )
-
         for duplicate in duplicates {
-            if !remainingIdentityKeys.contains(duplicate.identityKey) {
-                try? await secretStore.deleteSnapshot(forIdentityKey: duplicate.identityKey)
-                try? await syncedRateLimitCredentialStore.delete(forIdentityKey: duplicate.identityKey)
-            }
-
+            queueArtifactCleanup(for: duplicate.identityKey)
             modelContext.delete(duplicate)
         }
 
@@ -1934,12 +1937,6 @@ final class AppController {
             guard !accountsToDelete.isEmpty else {
                 return true
             }
-            let remainingIdentityKeys = Set(
-                allAccounts
-                    .filter { !ids.contains($0.id) }
-                    .map(\.identityKey)
-                    .filter { !$0.isEmpty }
-            )
             let deletedIdentityKeys = Set(
                 accountsToDelete
                     .map(\.identityKey)
@@ -1947,10 +1944,7 @@ final class AppController {
             )
 
             for account in accountsToDelete {
-                if !remainingIdentityKeys.contains(account.identityKey) {
-                    try? await secretStore.deleteSnapshot(forIdentityKey: account.identityKey)
-                    try? await syncedRateLimitCredentialStore.delete(forIdentityKey: account.identityKey)
-                }
+                queueArtifactCleanup(for: account.identityKey)
                 modelContext.delete(account)
             }
 
@@ -1968,7 +1962,7 @@ final class AppController {
                 rateLimitFailureBackoffDurations.removeValue(forKey: identityKey)
             }
 
-            try modelContext.save()
+            try await saveModelContextAndCleanUpArtifacts(modelContext)
             publishSharedState()
             return true
         } catch {
@@ -2212,7 +2206,7 @@ final class AppController {
                 return false
             }
 
-            try modelContext.save()
+            try await saveModelContextAndCleanUpArtifacts(modelContext)
             searchText = ""
             if let importedAccountID {
                 selection = [importedAccountID]
@@ -2475,7 +2469,7 @@ final class AppController {
                     from: accounts,
                     in: modelContext
                 )
-                try modelContext.save()
+                try await saveModelContextAndCleanUpArtifacts(modelContext)
                 publishSharedState()
                 requestImmediateRateLimitRefresh(for: snapshot.identityKey)
                 return
@@ -2487,7 +2481,7 @@ final class AppController {
                 existingAccounts: accounts,
                 in: modelContext
             )
-            try modelContext.save()
+            try await saveModelContextAndCleanUpArtifacts(modelContext)
             publishSharedState()
             requestImmediateRateLimitRefresh(for: snapshot.identityKey)
         } catch {
@@ -2746,7 +2740,7 @@ final class AppController {
                     )
                 }
 
-                guard hasLocalSnapshot(for: account) else {
+                guard await hasUsableLocalSnapshot(for: account) else {
                     return SharedAppCommandHandlingOutcome(
                         shouldAcknowledge: true,
                         shouldTerminateAfterAcknowledgement: false,
@@ -2810,7 +2804,7 @@ final class AppController {
 
         case .switchBestAccount:
             do {
-                guard let account = bestAutopilotAccountCandidate(
+                guard let account = await bestAutopilotAccountCandidateWithUsableSnapshot(
                     from: try fetchAccounts().filter { !$0.identityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
                 ) else {
                     return SharedAppCommandHandlingOutcome(
@@ -3373,7 +3367,7 @@ final class AppController {
             }
 
             await refreshAutopilotRateLimits(
-                for: orderedAccountsForAutopilotRefresh(from: accounts),
+                for: await orderedAccountsForAutopilotRefreshWithUsableSnapshots(from: accounts),
                 relativeTo: Date(),
                 trigger: trigger
             )
@@ -3381,7 +3375,7 @@ final class AppController {
             let refreshedAccounts = try fetchAccounts()
                 .filter { !$0.identityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
-            guard let bestCandidate = bestAutopilotAccountCandidate(from: refreshedAccounts) else {
+            guard let bestCandidate = await bestAutopilotAccountCandidateWithUsableSnapshot(from: refreshedAccounts) else {
                 return
             }
 
@@ -3454,9 +3448,11 @@ final class AppController {
         return true
     }
 
-    private func orderedAccountsForAutopilotRefresh(from accounts: [StoredAccount]) -> [StoredAccount] {
+    private func orderedAccountsForAutopilotRefreshWithUsableSnapshots(
+        from accounts: [StoredAccount]
+    ) async -> [StoredAccount] {
         var prioritizedAccounts = AccountsPresentationLogic.sortedAccounts(
-            from: accounts.filter { hasLocalSnapshot(for: $0) && !$0.isUnavailable },
+            from: await accountsWithUsableLocalSnapshots(from: accounts),
             sortCriterion: .rateLimit,
             sortDirection: .descending
         )
@@ -3471,13 +3467,27 @@ final class AppController {
         return prioritizedAccounts
     }
 
-    private func bestAutopilotAccountCandidate(from accounts: [StoredAccount]) -> StoredAccount? {
+    private func bestAutopilotAccountCandidateWithUsableSnapshot(
+        from accounts: [StoredAccount]
+    ) async -> StoredAccount? {
         AccountsPresentationLogic.sortedAccounts(
-            from: accounts.filter { hasLocalSnapshot(for: $0) && !$0.isUnavailable },
+            from: await accountsWithUsableLocalSnapshots(from: accounts),
             sortCriterion: .rateLimit,
             sortDirection: .descending
         )
         .first { $0.fiveHourLimitUsedPercent != nil && $0.sevenDayLimitUsedPercent != nil }
+    }
+
+    private func accountsWithUsableLocalSnapshots(from accounts: [StoredAccount]) async -> [StoredAccount] {
+        var usableAccounts: [StoredAccount] = []
+
+        for account in accounts where !account.isUnavailable {
+            if await hasUsableLocalSnapshot(for: account) {
+                usableAccounts.append(account)
+            }
+        }
+
+        return usableAccounts
     }
 
     private func handleRemoteSwitchSignal(_ signal: CodexSharedSwitchSignal) async {
@@ -3612,7 +3622,7 @@ final class AppController {
             didChange = await reconcileDuplicateAccountsIfNeeded() || didChange
 
             if didChange {
-                try requireModelContext().save()
+                try await saveModelContextAndCleanUpArtifacts(try requireModelContext())
             }
         } catch {
             present(error, title: "Couldn't Upgrade Saved Accounts")
@@ -3762,14 +3772,16 @@ final class AppController {
         let didChange = try await storeSnapshot(snapshot, on: existingAccount)
         let availabilityChanged = AccountAvailabilityUpdater.markAvailable(existingAccount)
         if didChange || availabilityChanged {
-            try requireModelContext().save()
+            try await saveModelContextAndCleanUpArtifacts(try requireModelContext())
         }
     }
 
     private func loadStoredSnapshot(for account: StoredAccount) async throws -> String {
         let didChange = await migrateLegacySnapshotIfNeeded(for: account)
         if didChange {
-            try? requireModelContext().save()
+            if let modelContext = try? requireModelContext() {
+                try? await saveModelContextAndCleanUpArtifacts(modelContext)
+            }
             publishSharedState()
         }
 
@@ -3946,16 +3958,8 @@ final class AppController {
 
                 let normalizedPreviousIdentityKey = previousIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines)
                 if normalizedPreviousIdentityKey != migratedSnapshot.identityKey,
-                   !normalizedPreviousIdentityKey.isEmpty,
-                   let modelContext = try? requireModelContext() {
-                    await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
-                        identityKey: normalizedPreviousIdentityKey,
-                        in: modelContext,
-                        snapshotStore: secretStore,
-                        syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
-                        excludingAccountIDs: [account.id],
-                        logger: logger
-                    )
+                   !normalizedPreviousIdentityKey.isEmpty {
+                    queueArtifactCleanup(for: normalizedPreviousIdentityKey)
                 }
             } catch {
                 logger.error(
@@ -4093,6 +4097,35 @@ final class AppController {
         }
     }
 
+    private func queueArtifactCleanup(for identityKey: String) {
+        let normalizedIdentityKey = identityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedIdentityKey.isEmpty else {
+            return
+        }
+
+        pendingArtifactCleanupIdentityKeys.insert(normalizedIdentityKey)
+    }
+
+    private func saveModelContextAndCleanUpArtifacts(_ modelContext: ModelContext) async throws {
+        try modelContext.save()
+        await cleanUpQueuedArtifactsIfUnused(in: modelContext)
+    }
+
+    private func cleanUpQueuedArtifactsIfUnused(in modelContext: ModelContext) async {
+        let identityKeys = pendingArtifactCleanupIdentityKeys
+        pendingArtifactCleanupIdentityKeys.removeAll()
+
+        for identityKey in identityKeys {
+            await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
+                identityKey: identityKey,
+                in: modelContext,
+                snapshotStore: secretStore,
+                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
+                logger: logger
+            )
+        }
+    }
+
     private func storeSnapshot(
         _ snapshot: CodexAuthSnapshot,
         rateLimitObservation: CodexRateLimitObservation? = nil,
@@ -4100,7 +4133,6 @@ final class AppController {
         on account: StoredAccount,
         updatesAvailability: Bool = true
     ) async throws -> Bool {
-        let modelContext = try requireModelContext()
         let previousIdentityKey = account.identityKey
         let metadataChanged = update(account: account, from: snapshot)
         let availabilityChanged = updatesAvailability
@@ -4135,14 +4167,7 @@ final class AppController {
 
         if previousIdentityKey != snapshot.identityKey,
            previousIdentityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            await StoredAccountCloudSyncSupport.deleteArtifactsIfUnused(
-                identityKey: previousIdentityKey,
-                in: modelContext,
-                snapshotStore: secretStore,
-                syncedRateLimitCredentialStore: syncedRateLimitCredentialStore,
-                excludingAccountIDs: [account.id],
-                logger: logger
-            )
+            queueArtifactCleanup(for: previousIdentityKey)
         }
 
         var didChange = metadataChanged || availabilityChanged || rateLimitsChanged || needsSnapshotWrite

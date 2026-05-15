@@ -7,6 +7,27 @@
 
 import Foundation
 
+#if canImport(Darwin)
+import Darwin
+#endif
+
+enum CodexAuthFileReplacementError: LocalizedError, Equatable {
+    case invalidFileDescriptor
+    case posixFailure(operation: String, code: Int32)
+    case insecurePermissions(URL, mode: Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidFileDescriptor:
+            "Codex Switcher couldn't create a temporary auth file."
+        case let .posixFailure(operation, code):
+            "Codex Switcher couldn't \(operation) auth.json securely (errno \(code))."
+        case let .insecurePermissions(url, mode):
+            "Codex Switcher wrote \(url.path), but couldn't restrict it to owner-only permissions (mode \(String(mode, radix: 8)))."
+        }
+    }
+}
+
 enum CodexAuthFileReplacement {
     nonisolated static func replaceContents(
         _ contents: String,
@@ -25,26 +46,104 @@ enum CodexAuthFileReplacement {
         )
 
         do {
-            try Data(contents.utf8).write(to: temporaryURL, options: [.atomic])
+            try writeRestrictedTemporaryFile(Data(contents.utf8), to: temporaryURL, fileManager: fileManager)
 
             if fileManager.fileExists(atPath: authFileURL.path) {
                 _ = try fileManager.replaceItemAt(
                     authFileURL,
                     withItemAt: temporaryURL,
                     backupItemName: nil,
-                    options: []
+                    options: [.usingNewMetadataOnly]
                 )
             } else {
                 try fileManager.moveItem(at: temporaryURL, to: authFileURL)
             }
 
-            try? fileManager.setAttributes(
-                [.posixPermissions: NSNumber(value: Int16(0o600))],
-                ofItemAtPath: authFileURL.path
-            )
+            try enforceRestrictivePermissions(at: authFileURL, fileManager: fileManager)
         } catch {
             try? fileManager.removeItem(at: temporaryURL)
             throw error
+        }
+    }
+
+    private nonisolated static func writeRestrictedTemporaryFile(
+        _ data: Data,
+        to temporaryURL: URL,
+        fileManager: FileManager
+    ) throws {
+#if canImport(Darwin)
+        let path = temporaryURL.path
+        var fileDescriptor = open(path, O_CREAT | O_EXCL | O_WRONLY, S_IRUSR | S_IWUSR)
+        guard fileDescriptor >= 0 else {
+            throw CodexAuthFileReplacementError.posixFailure(operation: "open", code: errno)
+        }
+
+        do {
+            try data.withUnsafeBytes { rawBuffer in
+                guard let baseAddress = rawBuffer.baseAddress else {
+                    return
+                }
+
+                var remainingBytes = rawBuffer.count
+                var currentAddress = baseAddress
+
+                while remainingBytes > 0 {
+                    let writtenByteCount = write(fileDescriptor, currentAddress, remainingBytes)
+                    if writtenByteCount < 0 {
+                        if errno == EINTR {
+                            continue
+                        }
+
+                        throw CodexAuthFileReplacementError.posixFailure(operation: "write", code: errno)
+                    }
+
+                    guard writtenByteCount > 0 else {
+                        throw CodexAuthFileReplacementError.posixFailure(operation: "write", code: EIO)
+                    }
+
+                    remainingBytes -= writtenByteCount
+                    currentAddress = currentAddress.advanced(by: writtenByteCount)
+                }
+            }
+
+            if fsync(fileDescriptor) != 0 {
+                throw CodexAuthFileReplacementError.posixFailure(operation: "flush", code: errno)
+            }
+
+            if close(fileDescriptor) != 0 {
+                fileDescriptor = -1
+                throw CodexAuthFileReplacementError.posixFailure(operation: "close", code: errno)
+            }
+
+            fileDescriptor = -1
+        } catch {
+            if fileDescriptor >= 0 {
+                _ = close(fileDescriptor)
+            }
+            throw error
+        }
+#else
+        try data.write(to: temporaryURL, options: [.withoutOverwriting])
+        try fileManager.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o600))],
+            ofItemAtPath: temporaryURL.path
+        )
+#endif
+    }
+
+    private nonisolated static func enforceRestrictivePermissions(
+        at authFileURL: URL,
+        fileManager: FileManager
+    ) throws {
+        try fileManager.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o600))],
+            ofItemAtPath: authFileURL.path
+        )
+
+        let attributes = try fileManager.attributesOfItem(atPath: authFileURL.path)
+        let mode = (attributes[.posixPermissions] as? NSNumber)?.intValue ?? -1
+        guard mode & 0o777 == 0o600 else {
+            throw CodexAuthFileReplacementError.insecurePermissions(authFileURL, mode: mode)
         }
     }
 }

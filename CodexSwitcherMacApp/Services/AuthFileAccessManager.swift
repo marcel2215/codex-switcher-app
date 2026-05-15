@@ -165,7 +165,7 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
         let location = try await requireLinkedLocation()
         try ensureSupportedCredentialStore(for: location)
 
-        try withFolderAuthorization(for: location.folderURL) { [fileManager] folderURL in
+        try withFolderAuthorization(for: location.folderURL) { folderURL in
             guard directoryExists(at: folderURL) else {
                 throw AuthFileAccessError.locationUnavailable(folderURL)
             }
@@ -178,12 +178,6 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
                 throw AuthFileAccessError.verificationFailed(authFileURL)
             }
 
-            // Mirror Codex's restrictive file mode without assuming the file
-            // already existed before this write.
-            try? fileManager.setAttributes(
-                [.posixPermissions: NSNumber(value: Int16(0o600))],
-                ofItemAtPath: authFileURL.path
-            )
         }
     }
 
@@ -258,8 +252,8 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
             do {
                 return try resolveStoredBookmark(
                     sharedBookmarkData,
-                    options: [.withoutImplicitStartAccessing, .withoutUI],
-                    refreshOptions: [],
+                    options: [.withSecurityScope, .withoutImplicitStartAccessing, .withoutUI],
+                    refreshOptions: [.withSecurityScope],
                     shouldRewriteSplitStores: true
                 )
             } catch {
@@ -376,14 +370,14 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
-        let sharedImplicitBookmark = try folderURL.bookmarkData(
-            options: [],
+        let sharedScopedBookmark = try folderURL.bookmarkData(
+            options: [.withSecurityScope],
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
 
         legacyDefaults.set(appScopedBookmark, forKey: localBookmarkKey)
-        try sharedBookmarkStore.save(sharedImplicitBookmark)
+        try sharedBookmarkStore.save(sharedScopedBookmark)
         storeLinkedFolderPath(folderURL)
     }
 

@@ -105,6 +105,22 @@ struct CodexSharedAccountSwitchService: Sendable {
     private let snapshotStore: AccountSnapshotStoring
     private let lock: CodexSharedProcessLock
 
+    private nonisolated static var sharedBookmarkResolutionOptions: URL.BookmarkResolutionOptions {
+#if os(macOS)
+        [.withSecurityScope, .withoutImplicitStartAccessing, .withoutUI]
+#else
+        [.withoutImplicitStartAccessing, .withoutUI]
+#endif
+    }
+
+    private nonisolated static var sharedBookmarkRefreshOptions: URL.BookmarkCreationOptions {
+#if os(macOS)
+        [.withSecurityScope]
+#else
+        []
+#endif
+    }
+
     nonisolated init(
         stateStore: CodexSharedStateStore = CodexSharedStateStore(),
         bookmarkStore: CodexSharedBookmarkStore = CodexSharedBookmarkStore(),
@@ -131,8 +147,10 @@ struct CodexSharedAccountSwitchService: Sendable {
                 try await performSwitch(identityKey: identityKey)
             }
             return finalizeSwitchOutcome(outcome)
-        } catch let error as CodexSharedSwitchError {
-            try? persistFailureState(for: error)
+        } catch {
+            if let switchError = error as? CodexSharedSwitchError {
+                try? persistFailureState(for: switchError)
+            }
             CodexSharedSurfaceReloader.reloadAll()
             throw error
         }
@@ -142,15 +160,17 @@ struct CodexSharedAccountSwitchService: Sendable {
         do {
             let outcome = try await lock.withExclusiveAccess {
                 let state = try stateStore.load()
-                guard let bestAccount = Self.bestRateLimitCandidate(in: state.accounts) else {
+                guard let bestAccount = await bestAvailableRateLimitCandidate(in: state.accounts) else {
                     throw CodexSharedSwitchError.noBestAccountAvailable
                 }
 
                 return try await performSwitch(identityKey: bestAccount.id, initialState: state)
             }
             return finalizeSwitchOutcome(outcome)
-        } catch let error as CodexSharedSwitchError {
-            try? persistFailureState(for: error)
+        } catch {
+            if let switchError = error as? CodexSharedSwitchError {
+                try? persistFailureState(for: switchError)
+            }
             CodexSharedSurfaceReloader.reloadAll()
             throw error
         }
@@ -250,10 +270,6 @@ struct CodexSharedAccountSwitchService: Sendable {
                 throw CodexSharedSwitchError.verificationFailed(authFileURL)
             }
 
-            try? FileManager.default.setAttributes(
-                [.posixPermissions: NSNumber(value: Int16(0o600))],
-                ofItemAtPath: authFileURL.path
-            )
         }
 
         state.authState = .ready
@@ -269,9 +285,41 @@ struct CodexSharedAccountSwitchService: Sendable {
 
             return updatedAccount
         }
-        try stateStore.save(state)
+        do {
+            try stateStore.save(state)
+        } catch {
+            guard didWriteAuthFile else {
+                throw error
+            }
+        }
 
         return didWriteAuthFile ? .switched(outcomeAccount) : .alreadyCurrent(outcomeAccount)
+    }
+
+    private nonisolated func bestAvailableRateLimitCandidate(
+        in accounts: [SharedCodexAccountRecord]
+    ) async -> SharedCodexAccountRecord? {
+        let candidates = accounts
+            .filter { !$0.isUnavailable }
+            .sorted { lhs, rhs in
+                if Self.areEquivalentForRateLimitSort(lhs, rhs) {
+                    return lhs.sortOrder < rhs.sortOrder
+                }
+
+                return Self.rateLimitSortComesBefore(lhs, rhs)
+            }
+
+        for candidate in candidates where Self.rateLimitSortMetrics(for: candidate).isComplete {
+            if candidate.hasLocalSnapshot {
+                return candidate
+            }
+
+            if (try? await snapshotStore.loadSnapshot(forIdentityKey: candidate.id)) != nil {
+                return candidate
+            }
+        }
+
+        return nil
     }
 
     private nonisolated static func applyLastLogin(
@@ -323,7 +371,7 @@ struct CodexSharedAccountSwitchService: Sendable {
         do {
             folderURL = try URL(
                 resolvingBookmarkData: bookmarkData,
-                options: [.withoutImplicitStartAccessing, .withoutUI],
+                options: Self.sharedBookmarkResolutionOptions,
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             ).standardizedFileURL
@@ -336,7 +384,7 @@ struct CodexSharedAccountSwitchService: Sendable {
             // not fail the switch just because refreshing persistence failed.
             do {
                 let refreshedBookmark = try folderURL.bookmarkData(
-                    options: [],
+                    options: Self.sharedBookmarkRefreshOptions,
                     includingResourceValuesForKeys: nil,
                     relativeTo: nil
                 )

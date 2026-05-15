@@ -128,6 +128,7 @@ nonisolated final class CodexOfficialLoginCoordinator: CodexOfficialLoginCoordin
     }
 
     private let applicationSupportBaseURL: URL
+    private let codexExecutableURL: URL?
     private let directOAuthLogin: CodexDirectOAuthLoginFlowing
 
     nonisolated init(
@@ -136,7 +137,7 @@ nonisolated final class CodexOfficialLoginCoordinator: CodexOfficialLoginCoordin
         applicationSupportBaseURL: URL? = nil,
         directOAuthLogin: CodexDirectOAuthLoginFlowing = CodexDirectOAuthLoginFlow()
     ) {
-        _ = codexExecutableURL
+        self.codexExecutableURL = codexExecutableURL
         self.applicationSupportBaseURL = applicationSupportBaseURL
             ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fileManager.homeDirectoryForCurrentUser.appending(path: "Library/Application Support", directoryHint: .isDirectory)
@@ -144,7 +145,17 @@ nonisolated final class CodexOfficialLoginCoordinator: CodexOfficialLoginCoordin
     }
 
     nonisolated func login() async throws -> CodexOfficialLoginResult {
-        try await directOAuthLogin.login(applicationSupportBaseURL: applicationSupportBaseURL)
+        if let codexExecutableURL {
+            do {
+                return try await loginWithAppServer(codexExecutableURL: codexExecutableURL)
+            } catch {
+                guard Self.shouldFallBackToDirectOAuth(after: error) else {
+                    throw error
+                }
+            }
+        }
+
+        return try await directOAuthLogin.login(applicationSupportBaseURL: applicationSupportBaseURL)
     }
 
     private nonisolated func loginWithAppServer(codexExecutableURL: URL) async throws -> CodexOfficialLoginResult {
@@ -186,7 +197,7 @@ nonisolated final class CodexOfficialLoginCoordinator: CodexOfficialLoginCoordin
             }
         }
 
-        let serverURL = try await waitForServerURL(from: stdout.fileHandleForReading)
+        let serverURL = try await waitForServerURL(from: stdout.fileHandleForReading, process: process)
         let socket = URLSession.shared.webSocketTask(with: serverURL)
         socket.resume()
         defer {
@@ -247,7 +258,7 @@ nonisolated final class CodexOfficialLoginCoordinator: CodexOfficialLoginCoordin
         return environment
     }
 
-    private nonisolated func waitForServerURL(from handle: FileHandle) async throws -> URL {
+    private nonisolated func waitForServerURL(from handle: FileHandle, process: Process? = nil) async throws -> URL {
         let deadline = Date().addingTimeInterval(15)
         let buffer = ProcessOutputBuffer()
 
@@ -265,6 +276,10 @@ nonisolated final class CodexOfficialLoginCoordinator: CodexOfficialLoginCoordin
         while Date() < deadline {
             if let url = parseServerURL(from: buffer.text) {
                 return url
+            }
+
+            if let process, !process.isRunning {
+                throw CodexOfficialLoginError.serverDidNotBecomeReady
             }
 
             try await Task.sleep(for: .milliseconds(50))
@@ -540,25 +555,12 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
                 preferredPort: Constants.callbackPort
             )
         } catch {
-            await sendCancelRequest(toPort: Constants.callbackPort)
-            try? await Task.sleep(for: .milliseconds(300))
-
             return try CodexOAuthCallbackServer(
                 expectedState: expectedState,
                 timeout: timeout,
-                preferredPort: Constants.callbackPort
+                preferredPort: 0
             )
         }
-    }
-
-    private nonisolated static func sendCancelRequest(toPort port: UInt16) async {
-        guard let url = URL(string: "http://localhost:\(port)/cancel") else {
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 2
-        _ = try? await URLSession.shared.data(for: request)
     }
 
     private nonisolated static func makeAuthorizeURL(
