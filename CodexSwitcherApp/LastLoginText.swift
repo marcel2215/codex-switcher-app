@@ -17,7 +17,7 @@ struct LastLoginText: View {
             Text(min(lastLoginAt, .now), style: .relative)
                 .monospacedDigit()
         } else {
-            Text("never")
+            Text(L10n.string("time.never", defaultValue: "never"))
         }
     }
 }

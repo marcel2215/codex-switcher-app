@@ -162,7 +162,7 @@ final class IOSAccountsController {
             try StoredAccountMutations.rename(account, to: proposedName, in: modelContext)
         } catch {
             presentedError = PresentedError(
-                title: "Couldn't Rename Account",
+                title: L10n.string("error.account.rename", defaultValue: "Couldn't Rename Account"),
                 message: error.localizedDescription
             )
         }
@@ -182,7 +182,7 @@ final class IOSAccountsController {
             try StoredAccountMutations.setIcon(icon, for: account, in: modelContext)
         } catch {
             presentedError = PresentedError(
-                title: "Couldn't Change Icon",
+                title: L10n.string("error.account.changeIcon", defaultValue: "Couldn't Change Icon"),
                 message: error.localizedDescription
             )
         }
@@ -197,7 +197,9 @@ final class IOSAccountsController {
             try StoredAccountMutations.setPinned(isPinned, for: account, in: modelContext)
         } catch {
             presentedError = PresentedError(
-                title: isPinned ? "Couldn't Pin Account" : "Couldn't Unpin Account",
+                title: isPinned
+                    ? L10n.string("error.account.pin", defaultValue: "Couldn't Pin Account")
+                    : L10n.string("error.account.unpin", defaultValue: "Couldn't Unpin Account"),
                 message: error.localizedDescription
             )
         }
@@ -212,7 +214,7 @@ final class IOSAccountsController {
             try StoredAccountMutations.setNotes(notes, for: account, in: modelContext)
         } catch {
             presentedError = PresentedError(
-                title: "Couldn't Save Notes",
+                title: L10n.string("error.account.saveNotes", defaultValue: "Couldn't Save Notes"),
                 message: error.localizedDescription
             )
         }
@@ -232,7 +234,7 @@ final class IOSAccountsController {
             )
         } catch {
             presentedError = PresentedError(
-                title: "Couldn't Remove Account",
+                title: L10n.string("error.account.remove", defaultValue: "Couldn't Remove Account"),
                 message: error.localizedDescription
             )
         }
@@ -261,7 +263,7 @@ final class IOSAccountsController {
             )
         } catch {
             presentedError = PresentedError(
-                title: "Couldn't Remove Accounts",
+                title: L10n.string("error.accounts.remove", defaultValue: "Couldn't Remove Accounts"),
                 message: error.localizedDescription
             )
         }
@@ -291,8 +293,11 @@ final class IOSAccountsController {
         let accountArchiveURLs = urls.filter(Self.isAccountArchiveURL)
         guard !accountArchiveURLs.isEmpty else {
             presentedError = PresentedError(
-                title: "Couldn't Import Account",
-                message: "No supported .cxa files were provided."
+                title: L10n.string("error.account.import", defaultValue: "Couldn't Import Account"),
+                message: L10n.string(
+                    "account.import.error.noSupportedArchives",
+                    defaultValue: "No supported .cxa files were provided."
+                )
             )
             return []
         }
@@ -387,7 +392,7 @@ final class IOSAccountsController {
                         } catch {
                             let accountLabel = archivedAccount.preferredStoredName
                                 ?? archivedAccount.identityKey
-                                ?? "Account \(accountIndex + 1)"
+                                ?? L10n.string("account.generated.indexed", defaultValue: "Account %d", accountIndex + 1)
                             failureMessages.append(
                                 "\(url.lastPathComponent) • \(accountLabel): \(error.localizedDescription)"
                             )
@@ -400,9 +405,12 @@ final class IOSAccountsController {
 
             guard !importedAccountIDs.isEmpty else {
                 presentedError = PresentedError(
-                    title: "Couldn't Import Account",
+                    title: L10n.string("error.account.import", defaultValue: "Couldn't Import Account"),
                     message: failureMessages.isEmpty
-                        ? "Codex Switcher couldn't import that .cxa file."
+                        ? L10n.string(
+                            "account.import.error.couldNotImportFile",
+                            defaultValue: "Codex Switcher couldn't import that .cxa file."
+                        )
                         : failureMessages.joined(separator: "\n")
                 )
                 return []
@@ -413,7 +421,7 @@ final class IOSAccountsController {
 
             if !failureMessages.isEmpty {
                 presentedError = PresentedError(
-                    title: "Imported with Issues",
+                    title: L10n.string("account.import.issues.title", defaultValue: "Imported with Issues"),
                     message: failureMessages.joined(separator: "\n")
                 )
             }
@@ -421,7 +429,7 @@ final class IOSAccountsController {
             return importedAccountIDs
         } catch {
             presentedError = PresentedError(
-                title: "Couldn't Import Account",
+                title: L10n.string("error.account.import", defaultValue: "Couldn't Import Account"),
                 message: error.localizedDescription
             )
             return []
@@ -445,7 +453,7 @@ final class IOSAccountsController {
             try modelContext.save()
         } catch {
             presentedError = PresentedError(
-                title: "Couldn't Reorder Accounts",
+                title: L10n.string("error.accounts.reorder", defaultValue: "Couldn't Reorder Accounts"),
                 message: error.localizedDescription
             )
         }
@@ -661,15 +669,18 @@ final class IOSAccountsController {
             candidateIndex += 1
         }
 
-        return "Account \(candidateIndex)"
+        return L10n.string("account.generated.indexed", defaultValue: "Account %d", candidateIndex)
     }
 
     private static func generatedAccountIndex(from name: String) -> Int? {
-        guard name.hasPrefix("Account ") else {
-            return nil
+        for prefix in [
+            "Account ",
+            L10n.string("account.generated.prefix", defaultValue: "Account "),
+        ] where name.hasPrefix(prefix) {
+            return Int(name.dropFirst(prefix.count))
         }
 
-        return Int(name.dropFirst("Account ".count))
+        return nil
     }
 
     private static func isGeneratedAccountName(_ name: String) -> Bool {
@@ -714,9 +725,15 @@ private enum IOSAccountImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .identityMismatch:
-            "That .cxa file doesn't match the account snapshot it contains."
+            L10n.string(
+                "account.import.error.identityMismatch",
+                defaultValue: "That .cxa file doesn't match the account snapshot it contains."
+            )
         case .accountLimitReached:
-            "Codex Switcher supports up to 1000 saved accounts."
+            L10n.string(
+                "account.error.limitReached",
+                defaultValue: "Codex Switcher supports up to 1000 saved accounts."
+            )
         }
     }
 }

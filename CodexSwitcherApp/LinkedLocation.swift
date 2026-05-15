@@ -44,15 +44,15 @@ nonisolated enum CodexCredentialStoreHint: String, Sendable, Equatable {
     nonisolated var displayName: String {
         switch self {
         case .unknown:
-            "unknown"
+            L10n.string("credentialStore.unknown", defaultValue: "unknown")
         case .file:
-            "file"
+            L10n.string("credentialStore.file", defaultValue: "file")
         case .keyring:
-            "keyring"
+            L10n.string("credentialStore.keyring", defaultValue: "keyring")
         case .auto:
-            "auto"
+            L10n.string("credentialStore.auto", defaultValue: "auto")
         case .unsupported:
-            "unsupported"
+            L10n.string("credentialStore.unsupported", defaultValue: "unsupported")
         }
     }
 

@@ -117,7 +117,10 @@ nonisolated enum CodexPendingAccountOpenRequestError: LocalizedError {
     nonisolated var errorDescription: String? {
         switch self {
         case .missingIdentityKey:
-            return "Codex Switcher couldn't determine which saved account to open."
+            return L10n.string(
+                "intent.error.missingAccountToOpen",
+                defaultValue: "Codex Switcher couldn't determine which saved account to open."
+            )
         }
     }
 }

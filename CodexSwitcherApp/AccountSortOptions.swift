@@ -19,15 +19,15 @@ enum AccountSortCriterion: String, CaseIterable, Identifiable, Codable, Sendable
     var menuTitle: String {
         switch self {
         case .name:
-            "Name"
+            L10n.string("sort.criterion.name", defaultValue: "Name")
         case .dateAdded:
-            "Date Added"
+            L10n.string("sort.criterion.dateAdded", defaultValue: "Date Added")
         case .lastLogin:
-            "Last Login"
+            L10n.string("sort.criterion.lastLogin", defaultValue: "Last Login")
         case .rateLimit:
-            "Rate Limit"
+            L10n.string("sort.criterion.rateLimit", defaultValue: "Rate Limit")
         case .custom:
-            "Custom"
+            L10n.string("sort.criterion.custom", defaultValue: "Custom")
         }
     }
 }
@@ -41,9 +41,9 @@ enum SortDirection: String, CaseIterable, Identifiable, Codable, Sendable {
     var menuTitle: String {
         switch self {
         case .ascending:
-            "Ascending"
+            L10n.string("sort.direction.ascending", defaultValue: "Ascending")
         case .descending:
-            "Descending"
+            L10n.string("sort.direction.descending", defaultValue: "Descending")
         }
     }
 }

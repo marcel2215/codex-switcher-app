@@ -102,7 +102,9 @@ private struct SavedAccountWidgetView: View {
                 if entry.state.authState.canAttemptSwitch {
                     Button(intent: configuredSwitchIntent(for: selectedAccount)) {
                         Label(
-                            selectedAccount.id == entry.state.currentAccountID ? "Current" : "Log In",
+                            selectedAccount.id == entry.state.currentAccountID
+                                ? L10n.string("account.status.current", defaultValue: "Current")
+                                : L10n.string("button.logIn", defaultValue: "Log In"),
                             systemImage: selectedAccount.id == entry.state.currentAccountID ? "checkmark.circle" : "arrow.right.circle"
                         )
                     }

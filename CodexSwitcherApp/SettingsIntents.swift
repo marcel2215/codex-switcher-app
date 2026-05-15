@@ -65,7 +65,10 @@ struct SetNotificationsIntent: AppIntent {
                 )
                 CodexSharedPreferenceFeedback.postPreferencesDidChange()
                 throw CodexSettingsIntentError.notificationsUpdateFailed(
-                    "macOS returned an unknown notification authorization state."
+                    L10n.string(
+                        "settings.notifications.error.unknownAuthorizationState.mac",
+                        defaultValue: "macOS returned an unknown notification authorization state."
+                    )
                 )
             }
         }
@@ -102,13 +105,21 @@ struct SetMenuBarVisibilityIntent: AppIntent {
         if wasEnabled == isEnabled {
             return .result(
                 value: state,
-                dialog: IntentDialog(isEnabled ? "Show in Menu Bar is already on." : "Show in Menu Bar is already off.")
+                dialog: IntentDialog(
+                    stringLiteral: isEnabled
+                        ? L10n.string("intent.menuBar.alreadyOn", defaultValue: "Show in Menu Bar is already on.")
+                        : L10n.string("intent.menuBar.alreadyOff", defaultValue: "Show in Menu Bar is already off.")
+                )
             )
         }
 
         return .result(
             value: state,
-            dialog: IntentDialog(isEnabled ? "Show in Menu Bar is on." : "Show in Menu Bar is off.")
+            dialog: IntentDialog(
+                stringLiteral: isEnabled
+                    ? L10n.string("intent.menuBar.on", defaultValue: "Show in Menu Bar is on.")
+                    : L10n.string("intent.menuBar.off", defaultValue: "Show in Menu Bar is off.")
+            )
         )
     }
 }
@@ -131,7 +142,11 @@ struct SetLaunchAtLoginIntent: AppIntent {
         if currentState.isEnabled == targetState && (!targetState || currentState.requiresApproval == false) {
             return .result(
                 value: state,
-                dialog: IntentDialog(targetState ? "Launch at Login is already on." : "Launch at Login is already off.")
+                dialog: IntentDialog(
+                    stringLiteral: targetState
+                        ? L10n.string("intent.launchAtLogin.alreadyOn", defaultValue: "Launch at Login is already on.")
+                        : L10n.string("intent.launchAtLogin.alreadyOff", defaultValue: "Launch at Login is already off.")
+                )
             )
         }
 
@@ -150,7 +165,11 @@ struct SetLaunchAtLoginIntent: AppIntent {
 
             return .result(
                 value: updatedState.isEnabled ? .on : .off,
-                dialog: IntentDialog(updatedState.isEnabled ? "Launch at Login is on." : "Launch at Login is off.")
+                dialog: IntentDialog(
+                    stringLiteral: updatedState.isEnabled
+                        ? L10n.string("intent.launchAtLogin.on", defaultValue: "Launch at Login is on.")
+                        : L10n.string("intent.launchAtLogin.off", defaultValue: "Launch at Login is off.")
+                )
             )
         } catch {
             throw CodexSettingsIntentError.launchAtLoginUpdateFailed(
@@ -183,9 +202,15 @@ struct SetAutomaticSwitchAccountIntent: AppIntent {
             return .result(
                 value: state,
                 dialog: IntentDialog(
-                    isEnabled
-                        ? "The Automatically Switch Accounts setting is already on."
-                        : "The Automatically Switch Accounts setting is already off."
+                    stringLiteral: isEnabled
+                        ? L10n.string(
+                            "intent.automaticSwitch.alreadyOn",
+                            defaultValue: "The Automatically Switch Accounts setting is already on."
+                        )
+                        : L10n.string(
+                            "intent.automaticSwitch.alreadyOff",
+                            defaultValue: "The Automatically Switch Accounts setting is already off."
+                        )
                 )
             )
         }
@@ -193,9 +218,15 @@ struct SetAutomaticSwitchAccountIntent: AppIntent {
         return .result(
             value: state,
             dialog: IntentDialog(
-                isEnabled
-                    ? "The Automatically Switch Accounts setting is on."
-                    : "The Automatically Switch Accounts setting is off."
+                stringLiteral: isEnabled
+                    ? L10n.string(
+                        "intent.automaticSwitch.on",
+                        defaultValue: "The Automatically Switch Accounts setting is on."
+                    )
+                    : L10n.string(
+                        "intent.automaticSwitch.off",
+                        defaultValue: "The Automatically Switch Accounts setting is off."
+                    )
             )
         )
     }

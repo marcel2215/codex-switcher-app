@@ -45,7 +45,15 @@ struct IOSAccountRow: View {
         .padding(.vertical, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(AccountsPresentationLogic.accountListDisplayName(for: account)), \(AccountDisplayFormatter.accessibilityUsageListDescription(sevenDayRemainingPercent: account.sevenDayLimitUsedPercent, fiveHourRemainingPercent: account.fiveHourLimitUsedPercent))"
+            L10n.string(
+                "account.row.accessibilityLabel",
+                defaultValue: "%@, %@",
+                AccountsPresentationLogic.accountListDisplayName(for: account),
+                AccountDisplayFormatter.accessibilityUsageListDescription(
+                    sevenDayRemainingPercent: account.sevenDayLimitUsedPercent,
+                    fiveHourRemainingPercent: account.fiveHourLimitUsedPercent
+                )
+            )
         )
         .modifier(AccountArchiveDragModifier(transferItem: exportTransferItem, isAvailable: isArchiveExportAvailable))
         .task(id: exportAvailabilityTaskKey) {

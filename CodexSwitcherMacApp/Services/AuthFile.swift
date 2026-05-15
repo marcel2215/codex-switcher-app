@@ -16,11 +16,14 @@ enum CodexAuthFileError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidEncoding:
-            "Codex auth.json isn't encoded as valid UTF-8 text."
+            L10n.string("authFile.error.invalidEncoding", defaultValue: "Codex auth.json isn't encoded as valid UTF-8 text.")
         case .invalidJSON:
-            "Codex auth.json doesn't contain valid JSON."
+            L10n.string("authFile.error.invalidJSON", defaultValue: "Codex auth.json doesn't contain valid JSON.")
         case .missingCredentials:
-            "Codex auth.json doesn't contain a supported account payload."
+            L10n.string(
+                "authFile.error.missingCredentials",
+                defaultValue: "Codex auth.json doesn't contain a supported account payload."
+            )
         }
     }
 }

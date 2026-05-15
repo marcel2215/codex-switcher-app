@@ -62,7 +62,9 @@ struct ContentView: View {
     }
 
     private var emptyAccountsTitle: String {
-        controller.searchText.isEmpty ? "No Accounts" : "No Results"
+        controller.searchText.isEmpty
+            ? L10n.string("empty.accounts.title", defaultValue: "No Accounts")
+            : L10n.string("empty.searchResults.title", defaultValue: "No Results")
     }
 
     private var emptyAccountsSystemImage: String {
@@ -71,11 +73,14 @@ struct ContentView: View {
 
     private var emptyAccountsDescription: String {
         if !controller.searchText.isEmpty {
-            return "Try a different search term."
+            return L10n.string("empty.searchResults.description", defaultValue: "Try a different search term.")
         }
 
         return controller.canCaptureCurrentAccount
-            ? "Click the plus button to add the currently used account."
+            ? L10n.string(
+                "empty.accounts.description.addFromPlus",
+                defaultValue: "Click the plus button to add the currently used account."
+            )
             : controller.captureCurrentAccountHelpText
     }
 
@@ -130,15 +135,17 @@ struct ContentView: View {
             ToolbarItemGroup {
                 Button(action: addAccountToolbarAction) {
                     Label(
-                        controller.isCapturingCurrentAccount ? "Cancel adding account" : "Add Account",
+                        controller.isCapturingCurrentAccount
+                            ? L10n.string("button.cancelAddingAccount", defaultValue: "Cancel adding account")
+                            : L10n.string("button.addAccount", defaultValue: "Add Account"),
                         systemImage: controller.isCapturingCurrentAccount ? "xmark" : "plus"
                     )
                 }
                 .disabled(controller.isSwitching)
                 .help(
                     controller.isCapturingCurrentAccount
-                        ? "Cancel adding the account."
-                        : "Add Codex account"
+                        ? L10n.string("help.cancelAddingAccount", defaultValue: "Cancel adding the account.")
+                        : L10n.string("help.addCodexAccount", defaultValue: "Add Codex account")
                 )
 
                 Menu {
@@ -170,7 +177,7 @@ struct ContentView: View {
                 } label: {
                     Label("Sort", systemImage: "arrow.up.arrow.down")
                 }
-                .help("Change the list sort order")
+                .help(L10n.string("help.changeSortOrder", defaultValue: "Change the list sort order"))
             }
         }
         .searchable(text: $controller.searchText)
@@ -284,7 +291,7 @@ struct ContentView: View {
         }
         .alert(item: $controller.unavailableAccountRecoveryPrompt) { prompt in
             Alert(
-                title: Text("Account Unavailable"),
+                title: Text(L10n.string("account.unavailable.title", defaultValue: "Account Unavailable")),
                 message: Text(unavailableAccountMessage(for: prompt)),
                 primaryButton: .destructive(Text("Remove")) {
                     controller.removeUnavailableAccountFromPrompt(prompt)
@@ -359,7 +366,11 @@ struct ContentView: View {
     }
 
     private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
-        "The saved refresh token for “\(prompt.accountName)” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex."
+        L10n.string(
+            "account.unavailable.warning",
+            defaultValue: "The saved refresh token for “%@” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex.",
+            prompt.accountName
+        )
     }
 
     @ViewBuilder
@@ -497,13 +508,17 @@ struct ContentView: View {
             if item.isUnavailable {
                 Image(systemName: "lock.fill")
                     .foregroundStyle(.red)
-                    .help("This saved Codex account is unavailable.")
-                    .accessibilityLabel("Unavailable")
+                    .help(L10n.string("help.accountUnavailable", defaultValue: "This saved Codex account is unavailable."))
+                    .accessibilityLabel(L10n.string("account.status.unavailable", defaultValue: "Unavailable"))
             } else if item.isCurrentAccount {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(controller.selection.contains(item.id) ? Color.white : Color.accentColor)
-                    .help(item.isNone ? "Codex is locally logged out" : "Currently active in Codex")
-                    .accessibilityLabel("Current")
+                    .help(
+                        item.isNone
+                            ? L10n.string("help.codexLocallyLoggedOut", defaultValue: "Codex is locally logged out")
+                            : L10n.string("help.currentlyActiveInCodex", defaultValue: "Currently active in Codex")
+                    )
+                    .accessibilityLabel(L10n.string("account.status.current", defaultValue: "Current"))
             } else {
                 Color.clear
                     .accessibilityHidden(true)
@@ -516,7 +531,9 @@ struct ContentView: View {
     private func accountListDisplayName(for item: AccountListItem) -> some View {
         if item.isUnavailable {
             var attributedName = AttributedString(item.displayName)
-            var unavailableSuffix = AttributedString(" (Unavailable)")
+            var unavailableSuffix = AttributedString(
+                L10n.string("account.status.unavailableSuffix", defaultValue: " (Unavailable)")
+            )
             unavailableSuffix.foregroundColor = .red
             attributedName.append(unavailableSuffix)
 
@@ -562,7 +579,11 @@ struct ContentView: View {
             .frame(width: 18, alignment: .center)
             .padding(.trailing, 2)
             .contentShape(Rectangle())
-            .help(isEnabled ? "Drag to reorder" : "This row cannot be reordered")
+            .help(
+                isEnabled
+                    ? L10n.string("help.dragToReorder", defaultValue: "Drag to reorder")
+                    : L10n.string("help.rowCannotBeReordered", defaultValue: "This row cannot be reordered")
+            )
             .accessibilityHidden(true)
             .allowsHitTesting(isEnabled)
             .onHover { hovering in
@@ -726,20 +747,20 @@ struct ContentView: View {
             Button {
                 controller.captureCurrentAccount()
             } label: {
-                menuActionLabel(title: "Add Account", systemImage: "plus")
+                menuActionLabel(title: L10n.string("button.addAccount", defaultValue: "Add Account"), systemImage: "plus")
             }
 
             Button {
                 controller.pasteAccountArchivesFromContextMenu()
             } label: {
-                menuActionLabel(title: "Paste", systemImage: "clipboard")
+                menuActionLabel(title: L10n.string("button.paste", defaultValue: "Paste"), systemImage: "clipboard")
             }
             .disabled(!controller.canPasteAccountArchivesFromPasteboard)
 
             Button {
                 controller.beginAccountArchiveImport()
             } label: {
-                menuActionLabel(title: "Import", systemImage: "square.and.arrow.down")
+                menuActionLabel(title: L10n.string("button.import", defaultValue: "Import"), systemImage: "square.and.arrow.down")
             }
         } else if targetIDs.contains(AppController.noneAccountSelectionID) {
             EmptyView()
@@ -766,14 +787,14 @@ struct ContentView: View {
             controller.selection = targetIDs
             openAccountDetails(account.id)
         } label: {
-            menuActionLabel(title: "Get Info", systemImage: "info.circle")
+            menuActionLabel(title: L10n.string("button.getInfo", defaultValue: "Get Info"), systemImage: "info.circle")
         }
 
         Button {
             controller.selection = targetIDs
             controller.copyAccountsToPasteboard(withIDs: targetIDs)
         } label: {
-            menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
+            menuActionLabel(title: L10n.string("button.copy", defaultValue: "Copy"), systemImage: "doc.on.doc")
         }
 
         shareMenu(for: targetIDs)
@@ -784,21 +805,21 @@ struct ContentView: View {
             controller.selection = targetIDs
             controller.login(accountID: account.id)
         } label: {
-            menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
+            menuActionLabel(title: L10n.string("button.logIn", defaultValue: "Log In"), systemImage: "arrow.right.circle")
         }
 
         Button {
             controller.selection = targetIDs
             controller.beginRenaming(accountID: account.id)
         } label: {
-            menuActionLabel(title: "Rename", systemImage: "pencil")
+            menuActionLabel(title: L10n.string("button.rename", defaultValue: "Rename"), systemImage: "pencil")
         }
 
         Button {
             controller.selection = targetIDs
             iconPickerAccountID = account.id
         } label: {
-            menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
+            menuActionLabel(title: L10n.string("button.chooseIcon", defaultValue: "Choose Icon"), systemImage: "square.grid.2x2")
         }
 
         Button {
@@ -806,7 +827,9 @@ struct ContentView: View {
             controller.setPinned(!account.isPinned, for: account.id)
         } label: {
             menuActionLabel(
-                title: account.isPinned ? "Unpin" : "Pin",
+                title: account.isPinned
+                    ? L10n.string("button.unpin", defaultValue: "Unpin")
+                    : L10n.string("button.pin", defaultValue: "Pin"),
                 systemImage: account.isPinned ? "pin.slash" : "pin"
             )
         }
@@ -822,7 +845,7 @@ struct ContentView: View {
             controller.selection = targetIDs
             controller.copyAccountsToPasteboard(withIDs: targetIDs)
         } label: {
-            menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
+            menuActionLabel(title: L10n.string("button.copy", defaultValue: "Copy"), systemImage: "doc.on.doc")
         }
 
         shareMenu(for: targetIDs)
@@ -847,7 +870,7 @@ struct ContentView: View {
                     }
                 }
             } label: {
-                menuActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+                menuActionLabel(title: L10n.string("button.share", defaultValue: "Share"), systemImage: "square.and.arrow.up")
             }
         }
     }
@@ -868,7 +891,7 @@ struct ContentView: View {
         Button(role: .destructive) {
             controller.removeAccounts(withIDs: targetIDs)
         } label: {
-            destructiveMenuLabel(title: "Remove", systemImage: "trash")
+            destructiveMenuLabel(title: L10n.string("button.remove", defaultValue: "Remove"), systemImage: "trash")
         }
     }
 
@@ -915,8 +938,8 @@ private struct AccountListItem: Identifiable, Hashable {
         AccountListItem(
             id: AppController.noneAccountSelectionID,
             isNone: true,
-            name: "None",
-            displayName: "None",
+            name: L10n.string("account.none", defaultValue: "None"),
+            displayName: L10n.string("account.none", defaultValue: "None"),
             iconSystemName: "power",
             lastLoginAt: nil,
             sevenDayLimitUsedPercent: 0,

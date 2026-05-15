@@ -45,18 +45,18 @@ actor RateLimitResetNotificationScheduler {
         var title: String {
             switch self {
             case .fiveHour:
-                "5-Hour Rate Limit Reset"
+                L10n.string("notification.rateLimit.fiveHour.title", defaultValue: "5-Hour Rate Limit Reset")
             case .sevenDay:
-                "7-Day Rate Limit Reset"
+                L10n.string("notification.rateLimit.sevenDay.title", defaultValue: "7-Day Rate Limit Reset")
             }
         }
 
         var bodyLabel: String {
             switch self {
             case .fiveHour:
-                "5-hour"
+                L10n.string("rateLimit.fiveHour.windowName", defaultValue: "5-hour")
             case .sevenDay:
-                "7-day"
+                L10n.string("rateLimit.sevenDay.windowName", defaultValue: "7-day")
             }
         }
 
@@ -221,11 +221,18 @@ actor RateLimitResetNotificationScheduler {
         }
 
         let trimmedAccountName = account.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let accountName = trimmedAccountName.isEmpty ? "Your account" : trimmedAccountName
+        let accountName = trimmedAccountName.isEmpty
+            ? L10n.string("account.yourAccount", defaultValue: "Your account")
+            : trimmedAccountName
 
         let content = UNMutableNotificationContent()
         content.title = window.title
-        content.body = "\(accountName) is back to 100% for its \(window.bodyLabel) window."
+        content.body = L10n.string(
+            "notification.rateLimit.body",
+            defaultValue: "%@ is back to 100% for its %@ window.",
+            accountName,
+            window.bodyLabel
+        )
         content.threadIdentifier = "rate-limit-reset"
 
         return PendingResetNotification(

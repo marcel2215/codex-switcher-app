@@ -14,7 +14,10 @@ nonisolated enum SyncedRateLimitCredentialError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedCredentials:
-            "The saved account does not contain ChatGPT credentials that can fetch live rate limits."
+            L10n.string(
+                "rateLimit.error.unsupportedCredentials",
+                defaultValue: "The saved account does not contain ChatGPT credentials that can fetch live rate limits."
+            )
         }
     }
 }

@@ -134,11 +134,15 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
             return nil
         }
 
-        let menu = NSMenu(title: "Codex Switcher")
+        let menu = NSMenu(title: L10n.string("app.name", defaultValue: "Codex Switcher"))
         let accounts = dockAccountsProvider(Self.dockAccountsMenuLimit)
 
         if accounts.isEmpty {
-            let emptyStateItem = NSMenuItem(title: "No Switchable Accounts", action: nil, keyEquivalent: "")
+            let emptyStateItem = NSMenuItem(
+                title: L10n.string("dockMenu.noSwitchableAccounts", defaultValue: "No Switchable Accounts"),
+                action: nil,
+                keyEquivalent: ""
+            )
             emptyStateItem.isEnabled = false
             menu.addItem(emptyStateItem)
         } else {

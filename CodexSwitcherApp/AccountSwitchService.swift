@@ -31,48 +31,115 @@ enum CodexSharedSwitchError: LocalizedError {
     nonisolated var errorDescription: String? {
         switch self {
         case .accountSelectionRequired:
-            return "Select an account first."
+            return L10n.string("switch.error.selectAccountFirst", defaultValue: "Select an account first.")
         case let .accountNotFound(identityKey):
-            return "The saved account (\(identityKey)) is no longer available."
+            return L10n.string(
+                "switch.error.accountNotFound",
+                defaultValue: "The saved account (%@) is no longer available.",
+                identityKey
+            )
         case let .accountUnavailable(accountName):
-            return "The saved account \(accountName) is no longer available. Open Codex Switcher to remove it or capture a fresh login."
+            return L10n.string(
+                "switch.error.accountUnavailable",
+                defaultValue: "The saved account %@ is no longer available. Open Codex Switcher to remove it or capture a fresh login.",
+                accountName
+            )
         case .noBestAccountAvailable:
-            return "No saved account currently has both 5h and 7d rate limits available for ranking."
+            return L10n.string(
+                "switch.error.noBestAccountAvailable",
+                defaultValue: "No saved account currently has both 5h and 7d rate limits available for ranking."
+            )
         case let .missingStoredSnapshot(accountName):
-            return "Codex Switcher no longer has a saved auth snapshot for \(accountName)."
+            return L10n.string(
+                "switch.error.missingStoredSnapshot",
+                defaultValue: "Codex Switcher no longer has a saved auth snapshot for %@.",
+                accountName
+            )
         case let .invalidStoredSnapshot(accountName):
-            return "The saved auth snapshot for \(accountName) is no longer valid."
+            return L10n.string(
+                "switch.error.invalidStoredSnapshot",
+                defaultValue: "The saved auth snapshot for %@ is no longer valid.",
+                accountName
+            )
         case .missingBookmark:
-            return "Choose the Codex folder before switching accounts."
+            return L10n.string(
+                "folder.error.chooseBeforeSwitching",
+                defaultValue: "Choose the Codex folder before switching accounts."
+            )
         case .bookmarkRefreshRequired:
-            return "Open Codex Switcher once to refresh access to the linked Codex folder."
+            return L10n.string(
+                "folder.error.bookmarkRefreshRequired",
+                defaultValue: "Open Codex Switcher once to refresh access to the linked Codex folder."
+            )
         case let .unsupportedAuthState(authState):
             switch authState {
             case .unlinked:
-                return "Choose the Codex folder before switching accounts."
+                return L10n.string(
+                    "folder.error.chooseBeforeSwitching",
+                    defaultValue: "Choose the Codex folder before switching accounts."
+                )
             case .loggedOut, .ready:
-                return "Codex Switcher couldn't confirm the linked Codex folder."
+                return L10n.string(
+                    "folder.error.couldNotConfirm",
+                    defaultValue: "Codex Switcher couldn't confirm the linked Codex folder."
+                )
             case .locationUnavailable:
-                return "The linked Codex folder is no longer available."
+                return L10n.string(
+                    "folder.error.linkedUnavailable",
+                    defaultValue: "The linked Codex folder is no longer available."
+                )
             case .accessDenied:
-                return "Codex Switcher no longer has permission to access the linked Codex folder."
+                return L10n.string(
+                    "folder.error.linkedAccessDenied",
+                    defaultValue: "Codex Switcher no longer has permission to access the linked Codex folder."
+                )
             case .corruptAuthFile:
-                return "The linked auth.json is invalid."
+                return L10n.string("folder.error.invalidAuthFile", defaultValue: "The linked auth.json is invalid.")
             case .unsupportedCredentialStore:
-                return "The linked Codex folder uses an unsupported credential store."
+                return L10n.string(
+                    "folder.error.unsupportedCredentialStore",
+                    defaultValue: "The linked Codex folder uses an unsupported credential store."
+                )
             }
         case let .unsupportedCredentialStore(folderURL, mode):
-            return "The linked Codex folder at \(folderURL.path) is configured for \(mode.displayName) credential storage. Codex Switcher only supports file-backed auth.json switching."
+            return L10n.string(
+                "folder.error.unsupportedCredentialStoreWithPath",
+                defaultValue: "The linked Codex folder at %@ is configured for %@ credential storage. Codex Switcher only supports file-backed auth.json switching.",
+                folderURL.path,
+                mode.displayName
+            )
         case let .accessDenied(folderURL):
-            return "Codex Switcher no longer has permission to access \(folderURL.path)."
+            return L10n.string(
+                "folder.error.accessDeniedPath",
+                defaultValue: "Codex Switcher no longer has permission to access %@.",
+                folderURL.path
+            )
         case let .linkedFolderUnavailable(folderURL):
-            return "The linked Codex folder is no longer available: \(folderURL.path)."
+            return L10n.string(
+                "folder.error.linkedUnavailablePath",
+                defaultValue: "The linked Codex folder is no longer available: %@.",
+                folderURL.path
+            )
         case let .unreadable(fileURL, message):
-            return "Codex Switcher couldn't read \(fileURL.path). \(message)"
+            return L10n.string(
+                "file.error.couldNotRead",
+                defaultValue: "Codex Switcher couldn't read %@. %@",
+                fileURL.path,
+                message
+            )
         case let .unwritable(fileURL, message):
-            return "Codex Switcher couldn't write \(fileURL.path). \(message)"
+            return L10n.string(
+                "file.error.couldNotWrite",
+                defaultValue: "Codex Switcher couldn't write %@. %@",
+                fileURL.path,
+                message
+            )
         case let .verificationFailed(fileURL):
-            return "Codex Switcher wrote \(fileURL.path), but the verification readback did not match the saved account."
+            return L10n.string(
+                "file.error.verificationFailed",
+                defaultValue: "Codex Switcher wrote %@, but the verification readback did not match the saved account.",
+                fileURL.path
+            )
         }
     }
 }
@@ -479,7 +546,10 @@ struct CodexSharedAccountSwitchService: Sendable {
         guard let readContents else {
             throw CodexSharedSwitchError.unreadable(
                 authFileURL,
-                message: "The file coordinator returned no contents."
+                message: L10n.string(
+                    "file.error.coordinatorReturnedNoContents",
+                    defaultValue: "The file coordinator returned no contents."
+                )
             )
         }
 

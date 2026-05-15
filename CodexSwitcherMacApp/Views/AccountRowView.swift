@@ -91,7 +91,7 @@ struct AccountRowView: View {
             if isCurrentAccount {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(isSelected ? Color.white : Color.accentColor)
-                    .help("Currently active in Codex")
+                    .help(L10n.string("help.currentlyActiveInCodex", defaultValue: "Currently active in Codex"))
                     .allowsHitTesting(false)
             } else {
                 Color.clear

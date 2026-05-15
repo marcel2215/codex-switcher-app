@@ -40,27 +40,61 @@ nonisolated enum CodexOfficialLoginError: LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .codexExecutableNotFound:
-            "Codex Switcher couldn't find the installed Codex command-line tool."
+            L10n.string(
+                "login.error.codexExecutableNotFound",
+                defaultValue: "Codex Switcher couldn't find the installed Codex command-line tool."
+            )
         case .serverDidNotBecomeReady:
-            "Codex's official login service did not become ready."
+            L10n.string(
+                "login.error.serverDidNotBecomeReady",
+                defaultValue: "Codex's official login service did not become ready."
+            )
         case .invalidServerURL:
-            "Codex's official login service returned an invalid local URL."
+            L10n.string(
+                "login.error.invalidServerURL",
+                defaultValue: "Codex's official login service returned an invalid local URL."
+            )
         case let .loginStartFailed(message):
-            "Codex couldn't start the browser login flow. \(message)"
+            L10n.string(
+                "login.error.startFailed",
+                defaultValue: "Codex couldn't start the browser login flow. %@",
+                message
+            )
         case let .loginFailed(message):
-            "Codex login did not finish successfully. \(message)"
+            L10n.string(
+                "login.error.failed",
+                defaultValue: "Codex login did not finish successfully. %@",
+                message
+            )
         case .missingAuthFile:
-            "Codex login completed but did not produce an auth.json file."
+            L10n.string(
+                "login.error.missingAuthFile",
+                defaultValue: "Codex login completed but did not produce an auth.json file."
+            )
         case .secureRandomUnavailable:
-            "Codex Switcher couldn't create a secure OAuth challenge."
+            L10n.string(
+                "login.error.secureRandomUnavailable",
+                defaultValue: "Codex Switcher couldn't create a secure OAuth challenge."
+            )
         case let .callbackServerUnavailable(message):
-            "Codex Switcher couldn't start its local OAuth callback server. \(message)"
+            L10n.string(
+                "login.error.callbackServerUnavailable",
+                defaultValue: "Codex Switcher couldn't start its local OAuth callback server. %@",
+                message
+            )
         case .invalidOAuthCallback:
-            "Codex Switcher received an invalid OAuth callback."
+            L10n.string(
+                "login.error.invalidOAuthCallback",
+                defaultValue: "Codex Switcher received an invalid OAuth callback."
+            )
         case let .tokenExchangeFailed(message):
-            "Codex Switcher couldn't finish the OAuth token exchange. \(message)"
+            L10n.string(
+                "login.error.tokenExchangeFailed",
+                defaultValue: "Codex Switcher couldn't finish the OAuth token exchange. %@",
+                message
+            )
         case .cancelled:
-            "Codex login was cancelled."
+            L10n.string("login.error.cancelled", defaultValue: "Codex login was cancelled.")
         }
     }
 }
@@ -625,14 +659,20 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
 
         guard (200..<300).contains(httpResponse.statusCode) else {
             throw CodexOfficialLoginError.tokenExchangeFailed(
-                Self.tokenEndpointErrorMessage(from: data) ?? "Status \(httpResponse.statusCode)"
+                Self.tokenEndpointErrorMessage(from: data)
+                    ?? L10n.string("login.error.httpStatus", defaultValue: "Status %d", httpResponse.statusCode)
             )
         }
 
         do {
             return try JSONDecoder().decode(OAuthTokens.self, from: data)
         } catch {
-            throw CodexOfficialLoginError.tokenExchangeFailed("The token response was not valid JSON.")
+            throw CodexOfficialLoginError.tokenExchangeFailed(
+                L10n.string(
+                    "login.error.tokenResponseInvalidJSON",
+                    defaultValue: "The token response was not valid JSON."
+                )
+            )
         }
     }
 
@@ -908,7 +948,10 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         expectedState: String
     ) -> (response: String, outcome: CodexOAuthCallbackOutcome) {
         guard isAllowedCallbackHost(hostHeader(in: request)) else {
-            return (httpResponse(status: 400, body: "Bad Request"), .failure(CodexOfficialLoginError.invalidOAuthCallback))
+            return (
+                httpResponse(status: 400, body: L10n.string("http.badRequest", defaultValue: "Bad Request")),
+                .failure(CodexOfficialLoginError.invalidOAuthCallback)
+            )
         }
 
         guard
@@ -916,7 +959,10 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
             let target = requestLine.split(separator: " ").dropFirst().first,
             let components = URLComponents(string: "http://localhost\(target)")
         else {
-            return (httpResponse(status: 400, body: "Bad Request"), .failure(CodexOfficialLoginError.invalidOAuthCallback))
+            return (
+                httpResponse(status: 400, body: L10n.string("http.badRequest", defaultValue: "Bad Request")),
+                .failure(CodexOfficialLoginError.invalidOAuthCallback)
+            )
         }
 
         switch components.path {
@@ -924,20 +970,32 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
             let queryItems = components.queryItems ?? []
             let receivedState = queryItems.first(where: { $0.name == "state" })?.value
             guard receivedState == expectedState else {
-                return (httpResponse(status: 400, body: "State mismatch"), .failure(CodexOfficialLoginError.invalidOAuthCallback))
+                return (
+                    httpResponse(status: 400, body: L10n.string("login.browser.stateMismatch", defaultValue: "State mismatch")),
+                    .failure(CodexOfficialLoginError.invalidOAuthCallback)
+                )
             }
 
             if let error = queryItems.first(where: { $0.name == "error" })?.value {
                 let description = queryItems.first(where: { $0.name == "error_description" })?.value
                 let message = description?.isEmpty == false ? description! : error
                 return (
-                    httpResponse(status: 200, body: errorHTML(message: "Sign-in failed.")),
+                    httpResponse(
+                        status: 200,
+                        body: errorHTML(message: L10n.string("login.browser.failed.title", defaultValue: "Sign-in failed."))
+                    ),
                     .failure(CodexOfficialLoginError.loginFailed(message))
                 )
             }
 
             guard let code = queryItems.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
-                return (httpResponse(status: 400, body: "Missing authorization code"), .failure(CodexOfficialLoginError.invalidOAuthCallback))
+                return (
+                    httpResponse(
+                        status: 400,
+                        body: L10n.string("login.browser.missingAuthorizationCode", defaultValue: "Missing authorization code")
+                    ),
+                    .failure(CodexOfficialLoginError.invalidOAuthCallback)
+                )
             }
 
             return (
@@ -946,10 +1004,13 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
             )
 
         case "/cancel":
-            return (httpResponse(status: 200, body: "Login cancelled"), .failure(CodexOfficialLoginError.cancelled))
+            return (
+                httpResponse(status: 200, body: L10n.string("login.browser.cancelled", defaultValue: "Login cancelled")),
+                .failure(CodexOfficialLoginError.cancelled)
+            )
 
         default:
-            return (httpResponse(status: 404, body: "Not Found"), .none)
+            return (httpResponse(status: 404, body: L10n.string("http.notFound", defaultValue: "Not Found")), .none)
         }
     }
 
@@ -1004,25 +1065,31 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
     }
 
     private nonisolated static func successHTML() -> String {
-        """
+        let title = L10n.string("login.browser.complete.title", defaultValue: "Sign-in complete")
+        let body = L10n.string(
+            "login.browser.complete.body",
+            defaultValue: "You can close this browser window and return to Codex Switcher."
+        )
+        return """
         <!doctype html>
         <html>
         <head><meta charset="utf-8"><title>Codex Switcher</title></head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 48px;">
-        <h1>Sign-in complete</h1>
-        <p>You can close this browser window and return to Codex Switcher.</p>
+        <h1>\(title)</h1>
+        <p>\(body)</p>
         </body>
         </html>
         """
     }
 
     private nonisolated static func errorHTML(message: String) -> String {
-        """
+        let title = L10n.string("login.browser.failed.title", defaultValue: "Sign-in failed")
+        return """
         <!doctype html>
         <html>
         <head><meta charset="utf-8"><title>Codex Switcher</title></head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 48px;">
-        <h1>Sign-in failed</h1>
+        <h1>\(title)</h1>
         <p>\(message)</p>
         </body>
         </html>

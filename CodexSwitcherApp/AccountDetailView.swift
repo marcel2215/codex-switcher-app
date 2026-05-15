@@ -220,7 +220,7 @@ struct AccountDetailView: View {
         if value == nil {
             RateLimitResetText(
                 resetAt: value,
-                fallbackText: "Unavailable",
+                fallbackText: L10n.string("common.unavailable", defaultValue: "Unavailable"),
                 displayMode: resetDisplayModes[row] ?? .relative
             )
             .monospacedDigit()
@@ -232,7 +232,7 @@ struct AccountDetailView: View {
             } label: {
                 RateLimitResetText(
                     resetAt: value,
-                    fallbackText: "Unavailable",
+                    fallbackText: L10n.string("common.unavailable", defaultValue: "Unavailable"),
                     displayMode: resetDisplayModes[row] ?? .relative
                 )
                 .monospacedDigit()
@@ -382,7 +382,7 @@ struct AccountDetailView: View {
 
             if presentsErrors {
                 controller.presentedError = PresentedError(
-                    title: "Couldn't Export Account",
+                    title: L10n.string("error.account.export", defaultValue: "Couldn't Export Account"),
                     message: sharePreparationErrorMessage(for: error)
                 )
             }
@@ -392,7 +392,10 @@ struct AccountDetailView: View {
     private func sharePreparationErrorMessage(for error: Error) -> String {
         if let snapshotError = error as? AccountSnapshotStoreError,
            snapshotError == .missingSnapshot {
-            return "That saved account isn't exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
+            return L10n.string(
+                "account.export.error.missingSnapshot.ios",
+                defaultValue: "That saved account isn't exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
+            )
         }
 
         return error.localizedDescription
@@ -416,6 +419,6 @@ struct AccountDetailView: View {
         } label: {
             Image(systemName: "ellipsis")
         }
-        .accessibilityLabel("Account Actions")
+        .accessibilityLabel(L10n.string("account.actions.accessibilityLabel.titleCase", defaultValue: "Account Actions"))
     }
 }

@@ -105,183 +105,183 @@ enum AccountIconOption: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .key:
-            "Key"
+            L10n.string("accountIcon.key", defaultValue: "Key")
         case .keyCard:
-            "Key Card"
+            L10n.string("accountIcon.keyCard", defaultValue: "Key Card")
         case .person:
-            "Person"
+            L10n.string("accountIcon.person", defaultValue: "Person")
         case .personSquare:
-            "Person Square"
+            L10n.string("accountIcon.personSquare", defaultValue: "Person Square")
         case .personBadgeKey:
-            "Person Badge Key"
+            L10n.string("accountIcon.personBadgeKey", defaultValue: "Person Badge Key")
         case .people:
-            "People"
+            L10n.string("accountIcon.people", defaultValue: "People")
         case .profile:
-            "Profile"
+            L10n.string("accountIcon.profile", defaultValue: "Profile")
         case .briefcase:
-            "Briefcase"
+            L10n.string("accountIcon.briefcase", defaultValue: "Briefcase")
         case .building:
-            "Building"
+            L10n.string("accountIcon.building", defaultValue: "Building")
         case .columns:
-            "Columns"
+            L10n.string("accountIcon.columns", defaultValue: "Columns")
         case .house:
-            "House"
+            L10n.string("accountIcon.house", defaultValue: "House")
         case .terminal:
-            "Terminal"
+            L10n.string("accountIcon.terminal", defaultValue: "Terminal")
         case .shield:
-            "Shield"
+            L10n.string("accountIcon.shield", defaultValue: "Shield")
         case .lock:
-            "Lock"
+            L10n.string("accountIcon.lock", defaultValue: "Lock")
         case .bolt:
-            "Bolt"
+            L10n.string("accountIcon.bolt", defaultValue: "Bolt")
         case .star:
-            "Star"
+            L10n.string("accountIcon.star", defaultValue: "Star")
         case .sparkles:
-            "Sparkles"
+            L10n.string("accountIcon.sparkles", defaultValue: "Sparkles")
         case .heart:
-            "Heart"
+            L10n.string("accountIcon.heart", defaultValue: "Heart")
         case .flame:
-            "Flame"
+            L10n.string("accountIcon.flame", defaultValue: "Flame")
         case .leaf:
-            "Leaf"
+            L10n.string("accountIcon.leaf", defaultValue: "Leaf")
         case .crown:
-            "Crown"
+            L10n.string("accountIcon.crown", defaultValue: "Crown")
         case .diamond:
-            "Diamond"
+            L10n.string("accountIcon.diamond", defaultValue: "Diamond")
         case .trophy:
-            "Trophy"
+            L10n.string("accountIcon.trophy", defaultValue: "Trophy")
         case .medal:
-            "Medal"
+            L10n.string("accountIcon.medal", defaultValue: "Medal")
         case .globe:
-            "Globe"
+            L10n.string("accountIcon.globe", defaultValue: "Globe")
         case .cloud:
-            "Cloud"
+            L10n.string("accountIcon.cloud", defaultValue: "Cloud")
         case .moon:
-            "Moon"
+            L10n.string("accountIcon.moon", defaultValue: "Moon")
         case .sun:
-            "Sun"
+            L10n.string("accountIcon.sun", defaultValue: "Sun")
         case .bell:
-            "Bell"
+            L10n.string("accountIcon.bell", defaultValue: "Bell")
         case .flag:
-            "Flag"
+            L10n.string("accountIcon.flag", defaultValue: "Flag")
         case .checkSeal:
-            "Checkmark Seal"
+            L10n.string("accountIcon.checkmarkSeal", defaultValue: "Checkmark Seal")
         case .lightbulb:
-            "Lightbulb"
+            L10n.string("accountIcon.lightbulb", defaultValue: "Lightbulb")
         case .folder:
-            "Folder"
+            L10n.string("accountIcon.folder", defaultValue: "Folder")
         case .document:
-            "Document"
+            L10n.string("accountIcon.document", defaultValue: "Document")
         case .tray:
-            "Tray"
+            L10n.string("accountIcon.tray", defaultValue: "Tray")
         case .archiveBox:
-            "Archive Box"
+            L10n.string("accountIcon.archiveBox", defaultValue: "Archive Box")
         case .shippingBox:
-            "Shipping Box"
+            L10n.string("accountIcon.shippingBox", defaultValue: "Shipping Box")
         case .bookmark:
-            "Bookmark"
+            L10n.string("accountIcon.bookmark", defaultValue: "Bookmark")
         case .tag:
-            "Tag"
+            L10n.string("accountIcon.tag", defaultValue: "Tag")
         case .envelope:
-            "Envelope"
+            L10n.string("accountIcon.envelope", defaultValue: "Envelope")
         case .at:
-            "At"
+            L10n.string("accountIcon.at", defaultValue: "At")
         case .bubble:
-            "Messages"
+            L10n.string("accountIcon.messages", defaultValue: "Messages")
         case .paperPlane:
-            "Paper Plane"
+            L10n.string("accountIcon.paperPlane", defaultValue: "Paper Plane")
         case .link:
-            "Link"
+            L10n.string("accountIcon.link", defaultValue: "Link")
         case .calendar:
-            "Calendar"
+            L10n.string("accountIcon.calendar", defaultValue: "Calendar")
         case .clock:
-            "Clock"
+            L10n.string("accountIcon.clock", defaultValue: "Clock")
         case .timer:
-            "Timer"
+            L10n.string("accountIcon.timer", defaultValue: "Timer")
         case .hourglass:
-            "Hourglass"
+            L10n.string("accountIcon.hourglass", defaultValue: "Hourglass")
         case .phone:
-            "Phone"
+            L10n.string("accountIcon.phone", defaultValue: "Phone")
         case .mapPin:
-            "Map Pin"
+            L10n.string("accountIcon.mapPin", defaultValue: "Map Pin")
         case .map:
-            "Map"
+            L10n.string("accountIcon.map", defaultValue: "Map")
         case .airplane:
-            "Airplane"
+            L10n.string("accountIcon.airplane", defaultValue: "Airplane")
         case .car:
-            "Car"
+            L10n.string("accountIcon.car", defaultValue: "Car")
         case .tram:
-            "Tram"
+            L10n.string("accountIcon.tram", defaultValue: "Tram")
         case .bicycle:
-            "Bicycle"
+            L10n.string("accountIcon.bicycle", defaultValue: "Bicycle")
         case .server:
-            "Server"
+            L10n.string("accountIcon.server", defaultValue: "Server")
         case .drive:
-            "Drive"
+            L10n.string("accountIcon.drive", defaultValue: "Drive")
         case .laptop:
-            "Laptop"
+            L10n.string("accountIcon.laptop", defaultValue: "Laptop")
         case .tv:
-            "TV"
+            L10n.string("accountIcon.tv", defaultValue: "TV")
         case .printer:
-            "Printer"
+            L10n.string("accountIcon.printer", defaultValue: "Printer")
         case .cpu:
-            "CPU"
+            L10n.string("accountIcon.cpu", defaultValue: "CPU")
         case .network:
-            "Network"
+            L10n.string("accountIcon.network", defaultValue: "Network")
         case .wifi:
-            "Wi-Fi"
+            L10n.string("accountIcon.wifi", defaultValue: "Wi-Fi")
         case .antenna:
-            "Antenna"
+            L10n.string("accountIcon.antenna", defaultValue: "Antenna")
         case .puzzle:
-            "Puzzle"
+            L10n.string("accountIcon.puzzle", defaultValue: "Puzzle")
         case .hammer:
-            "Hammer"
+            L10n.string("accountIcon.hammer", defaultValue: "Hammer")
         case .wrench:
-            "Wrench"
+            L10n.string("accountIcon.wrench", defaultValue: "Wrench")
         case .camera:
-            "Camera"
+            L10n.string("accountIcon.camera", defaultValue: "Camera")
         case .photo:
-            "Photo"
+            L10n.string("accountIcon.photo", defaultValue: "Photo")
         case .video:
-            "Video"
+            L10n.string("accountIcon.video", defaultValue: "Video")
         case .music:
-            "Music"
+            L10n.string("accountIcon.music", defaultValue: "Music")
         case .speaker:
-            "Speaker"
+            L10n.string("accountIcon.speaker", defaultValue: "Speaker")
         case .mic:
-            "Microphone"
+            L10n.string("accountIcon.microphone", defaultValue: "Microphone")
         case .headphones:
-            "Headphones"
+            L10n.string("accountIcon.headphones", defaultValue: "Headphones")
         case .film:
-            "Film"
+            L10n.string("accountIcon.film", defaultValue: "Film")
         case .paintbrush:
-            "Paintbrush"
+            L10n.string("accountIcon.paintbrush", defaultValue: "Paintbrush")
         case .gift:
-            "Gift"
+            L10n.string("accountIcon.gift", defaultValue: "Gift")
         case .bag:
-            "Bag"
+            L10n.string("accountIcon.bag", defaultValue: "Bag")
         case .cart:
-            "Cart"
+            L10n.string("accountIcon.cart", defaultValue: "Cart")
         case .banknote:
-            "Banknote"
+            L10n.string("accountIcon.banknote", defaultValue: "Banknote")
         case .chartBar:
-            "Bar Chart"
+            L10n.string("accountIcon.barChart", defaultValue: "Bar Chart")
         case .chartPie:
-            "Pie Chart"
+            L10n.string("accountIcon.pieChart", defaultValue: "Pie Chart")
         case .book:
-            "Book"
+            L10n.string("accountIcon.book", defaultValue: "Book")
         case .graduationCap:
-            "Graduation Cap"
+            L10n.string("accountIcon.graduationCap", defaultValue: "Graduation Cap")
         case .newspaper:
-            "Newspaper"
+            L10n.string("accountIcon.newspaper", defaultValue: "Newspaper")
         case .safari:
-            "Compass"
+            L10n.string("accountIcon.compass", defaultValue: "Compass")
         case .binoculars:
-            "Binoculars"
+            L10n.string("accountIcon.binoculars", defaultValue: "Binoculars")
         case .ticket:
-            "Ticket"
+            L10n.string("accountIcon.ticket", defaultValue: "Ticket")
         case .gameController:
-            "Game Controller"
+            L10n.string("accountIcon.gameController", defaultValue: "Game Controller")
         }
     }
 

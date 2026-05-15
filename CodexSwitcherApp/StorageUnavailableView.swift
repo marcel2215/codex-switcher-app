@@ -14,7 +14,13 @@ struct StorageUnavailableView: View {
         ContentUnavailableView(
             "Storage Unavailable",
             systemImage: "externaldrive.badge.xmark",
-            description: Text("Codex Switcher couldn't open its iCloud-backed account database. \(message)")
+            description: Text(
+                L10n.string(
+                    "storage.unavailable.icloud.message",
+                    defaultValue: "Codex Switcher couldn't open its iCloud-backed account database. %@",
+                    message
+                )
+            )
         )
         .padding()
     }

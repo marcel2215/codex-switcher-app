@@ -45,11 +45,20 @@ enum LaunchAtLoginService {
         if nsError.domain == SMAppServiceErrorDomain {
             switch nsError.code {
             case kSMErrorLaunchDeniedByUser:
-                return "macOS requires approval before Codex Switcher can launch at login. Review it in System Settings > General > Login Items."
+                return L10n.string(
+                    "launchAtLogin.error.requiresApproval",
+                    defaultValue: "macOS requires approval before Codex Switcher can launch at login. Review it in System Settings > General > Login Items."
+                )
             case kSMErrorInvalidSignature:
-                return "Codex Switcher must be properly signed before macOS allows it to launch at login."
+                return L10n.string(
+                    "launchAtLogin.error.invalidSignature",
+                    defaultValue: "Codex Switcher must be properly signed before macOS allows it to launch at login."
+                )
             case kSMErrorAlreadyRegistered, kSMErrorJobNotFound:
-                return "The launch-at-login setting changed, but macOS was already in the requested state."
+                return L10n.string(
+                    "launchAtLogin.error.alreadyRequestedState.changed",
+                    defaultValue: "The launch-at-login setting changed, but macOS was already in the requested state."
+                )
             default:
                 break
             }

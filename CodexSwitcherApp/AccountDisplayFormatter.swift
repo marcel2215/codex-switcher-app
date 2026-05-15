@@ -18,7 +18,7 @@ enum AccountDisplayFormatter {
 
     static func lastLoginValueDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
         guard let lastLoginAt else {
-            return "never"
+            return L10n.string("time.never", defaultValue: "never")
         }
 
         // Manual clock changes and skew should not produce future-facing copy.
@@ -27,18 +27,30 @@ enum AccountDisplayFormatter {
         let dayInSeconds: TimeInterval = 24 * hourInSeconds
 
         if elapsedSeconds < hourInSeconds {
-            return "this hour"
+            return L10n.string("time.thisHour", defaultValue: "this hour")
         }
 
         if elapsedSeconds < dayInSeconds {
-            return "\(Int(elapsedSeconds / hourInSeconds))h ago"
+            return L10n.string(
+                "time.hoursAgo.compact",
+                defaultValue: "%dh ago",
+                Int(elapsedSeconds / hourInSeconds)
+            )
         }
 
-        return "\(max(Int(elapsedSeconds / dayInSeconds), 1))d ago"
+        return L10n.string(
+            "time.daysAgo.compact",
+            defaultValue: "%dd ago",
+            max(Int(elapsedSeconds / dayInSeconds), 1)
+        )
     }
 
     static func lastLoginListDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
-        "Last login: \(lastLoginValueDescription(from: lastLoginAt, relativeTo: now))"
+        L10n.string(
+            "account.lastLogin.list",
+            defaultValue: "Last login: %@",
+            lastLoginValueDescription(from: lastLoginAt, relativeTo: now)
+        )
     }
 
     static func listMetadataDescription(
@@ -49,9 +61,9 @@ enum AccountDisplayFormatter {
     ) -> String {
         [
             lastLoginListDescription(from: lastLoginAt, relativeTo: now),
-            "5h: \(compactPercentDescription(fiveHourRemainingPercent))",
-            "7d: \(compactPercentDescription(sevenDayRemainingPercent))",
-        ].joined(separator: " • ")
+            L10n.string("rateLimit.fiveHour.compactValue", defaultValue: "5h: %@", compactPercentDescription(fiveHourRemainingPercent)),
+            L10n.string("rateLimit.sevenDay.compactValue", defaultValue: "7d: %@", compactPercentDescription(sevenDayRemainingPercent)),
+        ].joined(separator: L10n.string("list.separator.bullet", defaultValue: " • "))
     }
 
     static func accessibilityMetadataDescription(
@@ -61,9 +73,21 @@ enum AccountDisplayFormatter {
         relativeTo now: Date = .now
     ) -> String {
         [
-            "Last login \(lastLoginValueDescription(from: lastLoginAt, relativeTo: now))",
-            "5 hour remaining \(detailedPercentDescription(fiveHourRemainingPercent))",
-            "7 day remaining \(detailedPercentDescription(sevenDayRemainingPercent))",
+            L10n.string(
+                "account.lastLogin.accessibility",
+                defaultValue: "Last login %@",
+                lastLoginValueDescription(from: lastLoginAt, relativeTo: now)
+            ),
+            L10n.string(
+                "rateLimit.fiveHour.remaining.accessibility",
+                defaultValue: "5 hour remaining %@",
+                detailedPercentDescription(fiveHourRemainingPercent)
+            ),
+            L10n.string(
+                "rateLimit.sevenDay.remaining.accessibility",
+                defaultValue: "7 day remaining %@",
+                detailedPercentDescription(sevenDayRemainingPercent)
+            ),
         ].joined(separator: ", ")
     }
 
@@ -72,9 +96,9 @@ enum AccountDisplayFormatter {
         fiveHourRemainingPercent: Int?
     ) -> String {
         [
-            "5h: \(compactPercentDescription(fiveHourRemainingPercent))",
-            "7d: \(compactPercentDescription(sevenDayRemainingPercent))",
-        ].joined(separator: " • ")
+            L10n.string("rateLimit.fiveHour.compactValue", defaultValue: "5h: %@", compactPercentDescription(fiveHourRemainingPercent)),
+            L10n.string("rateLimit.sevenDay.compactValue", defaultValue: "7d: %@", compactPercentDescription(sevenDayRemainingPercent)),
+        ].joined(separator: L10n.string("list.separator.bullet", defaultValue: " • "))
     }
 
     static func accessibilityUsageListDescription(
@@ -82,22 +106,30 @@ enum AccountDisplayFormatter {
         fiveHourRemainingPercent: Int?
     ) -> String {
         [
-            "5 hour remaining \(detailedPercentDescription(fiveHourRemainingPercent))",
-            "7 day remaining \(detailedPercentDescription(sevenDayRemainingPercent))",
+            L10n.string(
+                "rateLimit.fiveHour.remaining.accessibility",
+                defaultValue: "5 hour remaining %@",
+                detailedPercentDescription(fiveHourRemainingPercent)
+            ),
+            L10n.string(
+                "rateLimit.sevenDay.remaining.accessibility",
+                defaultValue: "7 day remaining %@",
+                detailedPercentDescription(sevenDayRemainingPercent)
+            ),
         ].joined(separator: ", ")
     }
 
     static func compactPercentDescription(_ value: Int?) -> String {
         guard let clampedPercent = clampedPercentValue(value) else {
-            return "?"
+            return L10n.string("rateLimit.percent.unknownSymbol", defaultValue: "?")
         }
 
-        return "\(clampedPercent)%"
+        return localizedPercent(clampedPercent)
     }
 
     static func compactPercentDescription(_ value: Int?, isUnavailable: Bool) -> String {
         guard !isUnavailable else {
-            return "?"
+            return L10n.string("rateLimit.percent.unknownSymbol", defaultValue: "?")
         }
 
         return compactPercentDescription(value)
@@ -105,15 +137,15 @@ enum AccountDisplayFormatter {
 
     static func detailedPercentDescription(_ value: Int?) -> String {
         guard let clampedPercent = clampedPercentValue(value) else {
-            return "Unavailable"
+            return L10n.string("common.unavailable", defaultValue: "Unavailable")
         }
 
-        return "\(clampedPercent)%"
+        return localizedPercent(clampedPercent)
     }
 
     static func detailedPercentDescription(_ value: Int?, isUnavailable: Bool) -> String {
         guard !isUnavailable else {
-            return "Unavailable"
+            return L10n.string("common.unavailable", defaultValue: "Unavailable")
         }
 
         return detailedPercentDescription(value)
@@ -124,12 +156,12 @@ enum AccountDisplayFormatter {
     /// readable inside a `LabeledContent` trailing column.
     static func resetCountdownDescription(until resetAt: Date?, relativeTo now: Date = .now) -> String {
         guard let resetAt else {
-            return "Unavailable"
+            return L10n.string("common.unavailable", defaultValue: "Unavailable")
         }
 
         let remainingSeconds = resetAt.timeIntervalSince(now)
         guard remainingSeconds > 0 else {
-            return "now"
+            return L10n.string("time.now", defaultValue: "now")
         }
 
         // Round up to the next minute so a future reset never appears as "now"
@@ -137,7 +169,7 @@ enum AccountDisplayFormatter {
         let totalMinutes = Int(ceil(remainingSeconds / 60))
 
         if totalMinutes < 60 {
-            return "\(max(totalMinutes, 1))m"
+            return L10n.string("duration.minutes.compact", defaultValue: "%dm", max(totalMinutes, 1))
         }
 
         let totalHours = totalMinutes / 60
@@ -145,20 +177,30 @@ enum AccountDisplayFormatter {
 
         if totalHours < 24 {
             if remainingMinutes == 0 {
-                return "\(totalHours)h"
+                return L10n.string("duration.hours.compact", defaultValue: "%dh", totalHours)
             }
 
-            return "\(totalHours)h \(remainingMinutes)m"
+            return L10n.string(
+                "duration.hoursMinutes.compact",
+                defaultValue: "%dh %dm",
+                totalHours,
+                remainingMinutes
+            )
         }
 
         let days = totalHours / 24
         let remainingHours = totalHours % 24
 
         if remainingHours == 0 {
-            return "\(days)d"
+            return L10n.string("duration.days.compact", defaultValue: "%dd", days)
         }
 
-        return "\(days)d \(remainingHours)h"
+        return L10n.string(
+            "duration.daysHours.compact",
+            defaultValue: "%dd %dh",
+            days,
+            remainingHours
+        )
     }
 
     static func resetTimeDescription(
@@ -171,7 +213,7 @@ enum AccountDisplayFormatter {
             return resetCountdownDescription(until: resetAt, relativeTo: now)
         case .absolute:
             guard let resetAt else {
-                return "Unavailable"
+                return L10n.string("common.unavailable", defaultValue: "Unavailable")
             }
 
             return resetAt.formatted(date: .abbreviated, time: .shortened)
@@ -229,6 +271,16 @@ enum AccountDisplayFormatter {
         }
 
         return min(max(value, 0), 100)
+    }
+
+    private static func localizedPercent(_ clampedPercent: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .percent
+        formatter.maximumFractionDigits = 0
+        formatter.minimumFractionDigits = 0
+
+        return formatter.string(from: NSNumber(value: Double(clampedPercent) / 100))
+            ?? "\(clampedPercent)%"
     }
 
     // The compact usage bars use a deterministic remaining-capacity gradient:

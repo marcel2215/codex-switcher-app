@@ -25,13 +25,13 @@ enum SyncedRateLimitCredentialStoreError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidIdentityKey:
-            "The saved account has no valid identity key."
+            L10n.string("rateLimitCredential.error.invalidIdentityKey", defaultValue: "The saved account has no valid identity key.")
         case .missingCredential:
-            "No synced rate-limit credential exists for that account."
+            L10n.string("rateLimitCredential.error.missingCredential", defaultValue: "No synced rate-limit credential exists for that account.")
         case .invalidPayload:
-            "The synced rate-limit credential payload is invalid."
+            L10n.string("rateLimitCredential.error.invalidPayload", defaultValue: "The synced rate-limit credential payload is invalid.")
         case let .unexpectedStatus(status):
-            "Keychain access failed with status \(status)."
+            L10n.string("rateLimitCredential.error.unexpectedStatus", defaultValue: "Keychain access failed with status %d.", status)
         }
     }
 }

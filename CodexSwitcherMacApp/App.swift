@@ -162,7 +162,10 @@ struct CodexSwitcherApp: App {
                     }
             } else {
                 MenuBarStorageRecoveryView(
-                    message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database."
+                    message: storageRecoveryMessage ?? L10n.string(
+                        "storage.error.couldNotOpenLocalDatabase",
+                        defaultValue: "Codex Switcher couldn't open its local database."
+                    )
                 )
                 .task {
                     await performAppStartupTasksIfNeeded()
@@ -395,7 +398,12 @@ struct CodexSwitcherApp: App {
                     .modelContainer(sharedModelContainer)
             }
         } else {
-            StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
+            StorageRecoveryView(
+                message: storageRecoveryMessage ?? L10n.string(
+                    "storage.error.couldNotOpenLocalDatabase",
+                    defaultValue: "Codex Switcher couldn't open its local database."
+                )
+            )
         }
     }
 
@@ -406,7 +414,12 @@ struct CodexSwitcherApp: App {
                 .modelContainer(sharedModelContainer)
                 .frame(minWidth: 460, minHeight: 360)
         } else {
-            StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
+            StorageRecoveryView(
+                message: storageRecoveryMessage ?? L10n.string(
+                    "storage.error.couldNotOpenLocalDatabase",
+                    defaultValue: "Codex Switcher couldn't open its local database."
+                )
+            )
                 .frame(minWidth: 460, minHeight: 360)
         }
     }
@@ -465,8 +478,12 @@ private struct AppBootstrap {
                     secretStore: secretStore,
                     notificationManager: notificationManager,
                     startupAlert: UserFacingAlert(
-                        title: "Using Temporary Storage",
-                        message: "Codex Switcher couldn't open its local database and started with temporary in-memory storage instead. \(error.localizedDescription)"
+                        title: L10n.string("storage.alert.usingTemporary.title", defaultValue: "Using Temporary Storage"),
+                        message: L10n.string(
+                            "storage.alert.usingTemporary.message",
+                            defaultValue: "Codex Switcher couldn't open its local database and started with temporary in-memory storage instead. %@",
+                            error.localizedDescription
+                        )
                     ),
                     modelContainer: fallbackContainer,
                     autopilotEnabled: autopilotEnabled
@@ -482,8 +499,12 @@ private struct AppBootstrap {
                     secretStore: secretStore,
                     notificationManager: notificationManager,
                     startupAlert: UserFacingAlert(
-                        title: "Storage Unavailable",
-                        message: "Codex Switcher couldn't start its local database. \(error.localizedDescription)"
+                        title: L10n.string("storage.alert.unavailable.title", defaultValue: "Storage Unavailable"),
+                        message: L10n.string(
+                            "storage.alert.unavailable.message",
+                            defaultValue: "Codex Switcher couldn't start its local database. %@",
+                            error.localizedDescription
+                        )
                     ),
                     autopilotEnabled: autopilotEnabled
                 )
@@ -669,7 +690,7 @@ private struct SettingsView: View {
         Form {
             Section("Codex Folder") {
                 LabeledContent("Path") {
-                    Text(controller.linkedFolderPath ?? "Not selected")
+                    Text(controller.linkedFolderPath ?? L10n.string("settings.codexFolder.notSelected", defaultValue: "Not selected"))
                         .font(.body.monospaced())
                         .textSelection(.enabled)
                         .foregroundStyle(controller.linkedFolderPath == nil ? .secondary : .primary)
@@ -730,28 +751,28 @@ private struct SettingsView: View {
 
             Section("Actions") {
                 Link(destination: AppSupportLink.contactURL) {
-                    settingsActionLabel("Contact Us", systemImage: "envelope")
+                    settingsActionLabel(L10n.string("settings.action.contactUs", defaultValue: "Contact Us"), systemImage: "envelope")
                 }
 
                 Link(destination: AppSupportLink.websiteURL) {
-                    settingsActionLabel("Visit Our Website", systemImage: "globe")
+                    settingsActionLabel(L10n.string("settings.action.visitWebsite", defaultValue: "Visit Our Website"), systemImage: "globe")
                 }
 
                 Link(destination: AppSupportLink.termsOfServiceURL) {
-                    settingsActionLabel("Terms of Service", systemImage: "doc.text")
+                    settingsActionLabel(L10n.string("settings.action.termsOfService", defaultValue: "Terms of Service"), systemImage: "doc.text")
                 }
 
                 Link(destination: AppSupportLink.privacyPolicyURL) {
-                    settingsActionLabel("Privacy Policy", systemImage: "hand.raised")
+                    settingsActionLabel(L10n.string("settings.action.privacyPolicy", defaultValue: "Privacy Policy"), systemImage: "hand.raised")
                 }
 
                 Link(destination: AppSupportLink.sourceCodeURL) {
-                    settingsActionLabel("Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
+                    settingsActionLabel(L10n.string("settings.action.sourceCode", defaultValue: "Source Code"), systemImage: "chevron.left.forwardslash.chevron.right")
                 }
 
                 if let notificationSettingsURL = CodexNotificationSettingsLink.sectionFooterURL() {
                     Link(destination: notificationSettingsURL) {
-                        settingsActionLabel("Notification Settings", systemImage: "bell.badge")
+                        settingsActionLabel(L10n.string("settings.action.notificationSettings", defaultValue: "Notification Settings"), systemImage: "bell.badge")
                     }
                 }
             }
@@ -761,7 +782,7 @@ private struct SettingsView: View {
                     presentedSettingsAlert = .confirmation(.resetSettings)
                 } label: {
                     settingsActionLabel(
-                        "Reset Settings",
+                        L10n.string("settings.confirmation.resetSettings.title", defaultValue: "Reset Settings"),
                         systemImage: "arrow.counterclockwise",
                         foregroundStyle: AnyShapeStyle(.red),
                         isEnabled: isResetSettingsEnabled
@@ -774,7 +795,7 @@ private struct SettingsView: View {
                     presentedSettingsAlert = .confirmation(.removeAllAccounts)
                 } label: {
                     settingsActionLabel(
-                        "Remove All Accounts",
+                        L10n.string("settings.confirmation.removeAllAccounts.title", defaultValue: "Remove All Accounts"),
                         systemImage: "trash",
                         foregroundStyle: AnyShapeStyle(.red),
                         isEnabled: controller.hasSavedAccounts
@@ -840,9 +861,15 @@ private struct SettingsView: View {
     @ViewBuilder
     private var notificationSettingsFooter: some View {
         if let notificationAuthorizationStatus,
-           CodexNotificationSettingsLink.shouldShowDisabledFooter(for: notificationAuthorizationStatus),
+            CodexNotificationSettingsLink.shouldShowDisabledFooter(for: notificationAuthorizationStatus),
            let destination = CodexNotificationSettingsLink.sectionFooterURL() {
-            Text(.init("Notifications are disabled in system settings. [Change](\(destination.absoluteString))"))
+            Text(.init(
+                L10n.string(
+                    "settings.notifications.disabled.footer.markdown",
+                    defaultValue: "Notifications are disabled in system settings. [Change](%@)",
+                    destination.absoluteString
+                )
+            ))
         }
     }
 
@@ -971,13 +998,16 @@ private struct SettingsView: View {
             case .denied:
                 setNotificationPreference(kind, isEnabled: false)
                 presentedSettingsAlert = .error(
-                    title: "Notifications Disabled",
-                    message: "Codex Switcher can only show notifications after you allow them in System Settings > Notifications."
+                    title: L10n.string("settings.notifications.disabled.title", defaultValue: "Notifications Disabled"),
+                    message: L10n.string(
+                        "settings.notifications.disabled.message",
+                        defaultValue: "Codex Switcher can only show notifications after you allow them in System Settings > Notifications."
+                    )
                 )
             case let .failed(message):
                 setNotificationPreference(kind, isEnabled: false)
                 presentedSettingsAlert = .error(
-                    title: "Couldn't Enable Notifications",
+                    title: L10n.string("settings.notifications.enable.error.title", defaultValue: "Couldn't Enable Notifications"),
                     message: message
                 )
             }
@@ -1020,7 +1050,7 @@ private struct SettingsView: View {
         } catch {
             launchAtLoginState = CodexSharedLaunchAtLoginService.currentState()
             presentedSettingsAlert = .error(
-                title: "Couldn't Update Launch at Login",
+                title: L10n.string("settings.launchAtLogin.update.error.title", defaultValue: "Couldn't Update Launch at Login"),
                 message: CodexSharedLaunchAtLoginService.userFacingMessage(for: error)
             )
         }
@@ -1053,27 +1083,33 @@ private enum SettingsConfirmationAction: String, Identifiable {
     var title: String {
         switch self {
         case .removeAllAccounts:
-            "Remove All Accounts"
+            L10n.string("settings.confirmation.removeAllAccounts.title", defaultValue: "Remove All Accounts")
         case .resetSettings:
-            "Reset Settings"
+            L10n.string("settings.confirmation.resetSettings.title", defaultValue: "Reset Settings")
         }
     }
 
     var message: String {
         switch self {
         case .removeAllAccounts:
-            "This removes every saved account from Codex Switcher on this device and from iCloud sync."
+            L10n.string(
+                "settings.confirmation.removeAllAccounts.message",
+                defaultValue: "This removes every saved account from Codex Switcher on this device and from iCloud sync."
+            )
         case .resetSettings:
-            "This restores the menu bar and sorting preferences to their default values."
+            L10n.string(
+                "settings.confirmation.resetSettings.message",
+                defaultValue: "This restores the menu bar and sorting preferences to their default values."
+            )
         }
     }
 
     var confirmationTitle: String {
         switch self {
         case .removeAllAccounts:
-            "Remove All"
+            L10n.string("settings.confirmation.removeAllAccounts.confirmationTitle", defaultValue: "Remove All")
         case .resetSettings:
-            "Reset"
+            L10n.string("settings.confirmation.resetSettings.confirmationTitle", defaultValue: "Reset")
         }
     }
 }

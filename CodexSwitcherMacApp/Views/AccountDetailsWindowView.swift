@@ -43,7 +43,7 @@ struct AccountDetailsWindowView: View {
         }
         .alert(item: $controller.unavailableAccountRecoveryPrompt) { prompt in
             Alert(
-                title: Text("Account Unavailable"),
+                title: Text(L10n.string("account.unavailable.title", defaultValue: "Account Unavailable")),
                 message: Text(unavailableAccountMessage(for: prompt)),
                 primaryButton: .destructive(Text("Remove")) {
                     controller.removeUnavailableAccountFromPrompt(prompt)
@@ -64,7 +64,11 @@ struct AccountDetailsWindowView: View {
     }
 
     private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
-        "The saved refresh token for \"\(prompt.accountName)\" is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the \"Log out\" button in Codex."
+        L10n.string(
+            "account.unavailable.warning",
+            defaultValue: "The saved refresh token for “%@” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex.",
+            prompt.accountName
+        )
     }
 }
 
@@ -231,7 +235,7 @@ private struct AccountDetailsWindowForm: View {
                 .font(.body)
                 .focused($isNotesEditorFocused)
                 .frame(minHeight: 132)
-                .accessibilityLabel("Account Notes")
+                .accessibilityLabel(L10n.string("account.notes.accessibilityLabel", defaultValue: "Account Notes"))
 
             if draftNotes.isEmpty {
                 Text("Add notes")
@@ -302,26 +306,31 @@ private struct AccountDetailsWindowForm: View {
         if value == nil {
             RateLimitResetText(
                 resetAt: value,
-                fallbackText: "Unavailable",
+                fallbackText: L10n.string("account.status.unavailable", defaultValue: "Unavailable"),
                 displayMode: resetDisplayModes[row] ?? .relative
             )
             .monospacedDigit()
             .foregroundStyle(.secondary)
-            .accessibilityHint("Reset time unavailable")
+            .accessibilityHint(L10n.string("rateLimit.reset.accessibilityHint.unavailable", defaultValue: "Reset time unavailable"))
         } else {
             Button {
                 toggleResetDisplayMode(for: row)
             } label: {
                 RateLimitResetText(
                     resetAt: value,
-                    fallbackText: "Unavailable",
+                    fallbackText: L10n.string("account.status.unavailable", defaultValue: "Unavailable"),
                     displayMode: resetDisplayModes[row] ?? .relative
                 )
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Click to switch between relative and absolute time")
+            .accessibilityHint(
+                L10n.string(
+                    "rateLimit.reset.accessibilityHint.toggle",
+                    defaultValue: "Click to switch between relative and absolute time"
+                )
+            )
         }
     }
 
@@ -337,8 +346,8 @@ private struct AccountDetailsWindowForm: View {
         } label: {
             Image(systemName: "key")
         }
-        .accessibilityLabel("Log In")
-        .help("Log In")
+        .accessibilityLabel(L10n.string("button.logIn", defaultValue: "Log In"))
+        .help(L10n.string("button.logIn", defaultValue: "Log In"))
     }
 
     @ViewBuilder
@@ -349,16 +358,16 @@ private struct AccountDetailsWindowForm: View {
             ShareLink(item: preparedShare.file.fileURL, preview: SharePreview(displayName)) {
                 Image(systemName: "square.and.arrow.up")
             }
-            .accessibilityLabel("Share Account Archive")
-            .help("Share Account Archive")
+            .accessibilityLabel(L10n.string("button.shareAccountArchive", defaultValue: "Share Account Archive"))
+            .help(L10n.string("button.shareAccountArchive", defaultValue: "Share Account Archive"))
         } else if isPreparingShare || shareAvailability == nil {
             Button {
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
             .disabled(true)
-            .accessibilityLabel("Share Account Archive")
-            .help("Share Account Archive")
+            .accessibilityLabel(L10n.string("button.shareAccountArchive", defaultValue: "Share Account Archive"))
+            .help(L10n.string("button.shareAccountArchive", defaultValue: "Share Account Archive"))
         } else {
             Button {
                 Task { @MainActor in
@@ -368,8 +377,8 @@ private struct AccountDetailsWindowForm: View {
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
-            .accessibilityLabel("Share Account Archive")
-            .help("Share Account Archive")
+            .accessibilityLabel(L10n.string("button.shareAccountArchive", defaultValue: "Share Account Archive"))
+            .help(L10n.string("button.shareAccountArchive", defaultValue: "Share Account Archive"))
         }
     }
 
@@ -379,8 +388,16 @@ private struct AccountDetailsWindowForm: View {
         } label: {
             Image(systemName: account.isPinned ? "pin.slash" : "pin")
         }
-        .accessibilityLabel(account.isPinned ? "Unpin Account" : "Pin Account")
-        .help(account.isPinned ? "Unpin Account" : "Pin Account")
+        .accessibilityLabel(
+            account.isPinned
+                ? L10n.string("button.unpinAccount", defaultValue: "Unpin Account")
+                : L10n.string("button.pinAccount", defaultValue: "Pin Account")
+        )
+        .help(
+            account.isPinned
+                ? L10n.string("button.unpinAccount", defaultValue: "Unpin Account")
+                : L10n.string("button.pinAccount", defaultValue: "Pin Account")
+        )
     }
 
     private var removeToolbarItem: some View {
@@ -389,8 +406,8 @@ private struct AccountDetailsWindowForm: View {
         } label: {
             Image(systemName: "trash")
         }
-        .accessibilityLabel("Remove Account")
-        .help("Remove Account")
+        .accessibilityLabel(L10n.string("button.removeAccount", defaultValue: "Remove Account"))
+        .help(L10n.string("button.removeAccount", defaultValue: "Remove Account"))
     }
 
     @MainActor
@@ -434,7 +451,7 @@ private struct AccountDetailsWindowForm: View {
 
             if presentsErrors {
                 controller.presentedAlert = UserFacingAlert(
-                    title: "Couldn't Export Account",
+                    title: L10n.string("error.title.couldNotExportAccount", defaultValue: "Couldn't Export Account"),
                     message: sharePreparationErrorMessage(for: error)
                 )
             }
@@ -444,7 +461,10 @@ private struct AccountDetailsWindowForm: View {
     private func sharePreparationErrorMessage(for error: Error) -> String {
         if let snapshotError = error as? AccountSnapshotStoreError,
            snapshotError == .missingSnapshot {
-            return "That saved account is not exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
+            return L10n.string(
+                "account.export.error.missingSnapshot",
+                defaultValue: "That saved account is not exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
+            )
         }
 
         return error.localizedDescription

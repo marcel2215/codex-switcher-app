@@ -39,9 +39,17 @@ struct SwitchAccountControlIntent: AppIntent, ControlConfigurationIntent {
 
             return .result(
                 dialog: IntentDialog(
-                    outcome.didChangeAccount
-                        ? "Now using \"\(outcome.account.name)\"."
-                        : "Already using \"\(outcome.account.name)\"."
+                    stringLiteral: outcome.didChangeAccount
+                        ? L10n.string(
+                            "switch.dialog.nowUsing",
+                            defaultValue: "Now using \"%@\".",
+                            outcome.account.name
+                        )
+                        : L10n.string(
+                            "switch.dialog.alreadyUsing",
+                            defaultValue: "Already using \"%@\".",
+                            outcome.account.name
+                        )
                 )
             )
         } catch {

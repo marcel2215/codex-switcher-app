@@ -15,7 +15,9 @@ struct WatchAccountNameEditorView: View {
 
     private var prompt: String {
         let trimmedPlaceholder = placeholder.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedPlaceholder.isEmpty ? "Account Name" : trimmedPlaceholder
+        return trimmedPlaceholder.isEmpty
+            ? L10n.string("account.name.placeholder", defaultValue: "Account Name")
+            : trimmedPlaceholder
     }
 
     var body: some View {

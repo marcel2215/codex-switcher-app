@@ -24,7 +24,7 @@ struct WatchAccountIconPickerView: View {
                 } catch {
                     onError(
                         PresentedError(
-                            title: "Couldn't Change Icon",
+                            title: L10n.string("error.title.couldNotChangeIcon", defaultValue: "Couldn't Change Icon"),
                             message: error.localizedDescription
                         )
                     )

@@ -516,7 +516,7 @@ struct AccountsRootView: View {
             accountDetailView(for: account)
         } else {
             ContentUnavailableView(
-                "Account Unavailable",
+                L10n.string("account.unavailable.title", defaultValue: "Account Unavailable"),
                 systemImage: "person.crop.circle.badge.exclamationmark",
                 description: Text("This account is no longer available.")
             )
@@ -759,8 +759,14 @@ struct AccountsRootView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(AccountsPresentationLogic.accountListDisplayName(for: account))
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-        .accessibilityHint("Double tap to toggle selection")
+        .accessibilityValue(
+            isSelected
+                ? L10n.string("selection.selected", defaultValue: "Selected")
+                : L10n.string("selection.notSelected", defaultValue: "Not selected")
+        )
+        .accessibilityHint(
+            L10n.string("selection.toggle.accessibilityHint", defaultValue: "Double tap to toggle selection")
+        )
     }
 
     private func makeAlert(for alert: ActiveAlert) -> Alert {
@@ -772,8 +778,19 @@ struct AccountsRootView: View {
             )
         case .removal(let account):
             return Alert(
-                title: Text("Remove \"\(AccountsPresentationLogic.displayName(for: account))\"?"),
-                message: Text("Are you sure you want to remove this account from Codex switcher? You will be able to add it again later."),
+                title: Text(
+                    L10n.string(
+                        "account.remove.confirmation.title",
+                        defaultValue: "Remove \"%@\"?",
+                        AccountsPresentationLogic.displayName(for: account)
+                    )
+                ),
+                message: Text(
+                    L10n.string(
+                        "account.remove.confirmation.message",
+                        defaultValue: "Are you sure you want to remove this account from Codex switcher? You will be able to add it again later."
+                    )
+                ),
                 primaryButton: .destructive(Text("Remove")) {
                     removeAccountFromDetailOrList(account)
                 },

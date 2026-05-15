@@ -86,7 +86,7 @@ struct WidgetRateLimitAccount: Identifiable, Sendable {
     let sevenDayMetric: WidgetRateLimitMetric
 
     var displayName: String {
-        isMissingAccount ? "Missing Account" : name
+        isMissingAccount ? L10n.string("account.missing", defaultValue: "Missing Account") : name
     }
 
     func metric(for window: RateLimitWindow) -> WidgetRateLimitMetric {
@@ -120,7 +120,7 @@ struct WidgetRateLimitAccount: Identifiable, Sendable {
     static func missing(id: String) -> Self {
         Self(
             id: id,
-            name: "Missing Account",
+            name: L10n.string("account.missing", defaultValue: "Missing Account"),
             iconSystemName: "questionmark.circle.fill",
             isMissingAccount: true,
             fiveHourMetric: .init(remainingPercent: nil, resetsAt: nil, status: .missing),
@@ -385,7 +385,10 @@ struct RateLimitOverviewProvider: AppIntentTimelineProvider {
         intent.account5 = suggestedAccounts[safe: 4]
 
         return [
-            AppIntentRecommendation(intent: intent, description: "Rate Limits")
+            AppIntentRecommendation(
+                intent: intent,
+                description: L10n.string("widget.rateLimits.title", defaultValue: "Rate Limits")
+            )
         ]
     }
 
@@ -563,9 +566,12 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
                 .map(WidgetCodexAccountEntity.live(from:))
 
         return entities.flatMap { entity in
-            let accountName = entity.isAutomatic ? "Automatic" : entity.name
-            let fiveHourDescription = accountName + " • 5h"
-            let sevenDayDescription = accountName + " • 7d"
+            let accountName = entity.isAutomatic
+                ? L10n.string("widget.account.automatic", defaultValue: "Automatic")
+                : entity.name
+            let separator = L10n.string("list.separator.bullet", defaultValue: " • ")
+            let fiveHourDescription = accountName + separator + "5h"
+            let sevenDayDescription = accountName + separator + "7d"
 
             let fiveHourIntent: RateLimitAccessoryConfigurationIntent = {
                 let intent = RateLimitAccessoryConfigurationIntent()
@@ -959,21 +965,34 @@ struct RateLimitCircularAccessoryView: View {
     }
 
     private var accountName: String {
-        account?.displayName ?? "Missing Account"
+        account?.displayName ?? L10n.string("account.missing", defaultValue: "Missing Account")
     }
 
     private var accessibilityLabel: String {
-        "\(accountName) \(window.shortLabel)"
+        L10n.string(
+            "rateLimit.accessibility.label",
+            defaultValue: "%@ %@",
+            accountName,
+            window.shortLabel
+        )
     }
 
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
-            return "\(metric.percentText) remaining"
+            return L10n.string(
+                "rateLimit.accessibility.remaining",
+                defaultValue: "%@ remaining",
+                metric.percentText
+            )
         case .cached:
-            return "\(metric.percentText) remaining, cached"
+            return L10n.string(
+                "rateLimit.accessibility.remainingCached",
+                defaultValue: "%@ remaining, cached",
+                metric.percentText
+            )
         case .missing, .unavailable:
-            return "Unavailable"
+            return L10n.string("common.unavailable", defaultValue: "Unavailable")
         }
     }
 }
@@ -1040,7 +1059,14 @@ struct RateLimitRectangularAccessoryView: View {
             .padding(.top, BatteryAccessoryRectangularMetrics.barTopPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .accessibilityLabel("\(account?.displayName ?? "Missing Account") \(window.shortLabel)")
+        .accessibilityLabel(
+            L10n.string(
+                "rateLimit.accessibility.label",
+                defaultValue: "%@ %@",
+                account?.displayName ?? L10n.string("account.missing", defaultValue: "Missing Account"),
+                window.shortLabel
+            )
+        )
         .accessibilityValue(accessibilityValue)
     }
 
@@ -1055,24 +1081,46 @@ struct RateLimitRectangularAccessoryView: View {
     private var subtitle: String {
         switch metric.status {
         case .exact:
-            return "\(account?.displayName ?? "Missing Account") • \(window.shortLabel)"
+            return [
+                account?.displayName ?? L10n.string("account.missing", defaultValue: "Missing Account"),
+                window.shortLabel,
+            ].joined(separator: L10n.string("list.separator.bullet", defaultValue: " • "))
         case .cached:
-            return "\(account?.displayName ?? "Missing Account") • \(window.shortLabel) • Cached"
+            return [
+                account?.displayName ?? L10n.string("account.missing", defaultValue: "Missing Account"),
+                window.shortLabel,
+                L10n.string("rateLimit.status.cached", defaultValue: "Cached"),
+            ].joined(separator: L10n.string("list.separator.bullet", defaultValue: " • "))
         case .missing:
-            return "Missing Account • \(window.shortLabel)"
+            return [
+                L10n.string("account.missing", defaultValue: "Missing Account"),
+                window.shortLabel,
+            ].joined(separator: L10n.string("list.separator.bullet", defaultValue: " • "))
         case .unavailable:
-            return "\(account?.displayName ?? "Unavailable Account") • \(window.shortLabel) • Unavailable"
+            return [
+                account?.displayName ?? L10n.string("account.status.unavailableAccount", defaultValue: "Unavailable Account"),
+                window.shortLabel,
+                L10n.string("common.unavailable", defaultValue: "Unavailable"),
+            ].joined(separator: L10n.string("list.separator.bullet", defaultValue: " • "))
         }
     }
 
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
-            return "\(metric.percentText) remaining"
+            return L10n.string(
+                "rateLimit.accessibility.remaining",
+                defaultValue: "%@ remaining",
+                metric.percentText
+            )
         case .cached:
-            return "\(metric.percentText) remaining, cached"
+            return L10n.string(
+                "rateLimit.accessibility.remainingCached",
+                defaultValue: "%@ remaining, cached",
+                metric.percentText
+            )
         case .missing, .unavailable:
-            return "Unavailable"
+            return L10n.string("common.unavailable", defaultValue: "Unavailable")
         }
     }
 }

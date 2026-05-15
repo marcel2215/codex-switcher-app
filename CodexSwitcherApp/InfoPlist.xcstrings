@@ -1,0 +1,1256 @@
+{
+  "sourceLanguage" : "en-US",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar-SA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "bn-BD" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "de-DE" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "en-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "en-US" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "es-ES" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "fr-FR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "gu-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "kn-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "ml-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "mr-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "nl-NL" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "or-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " Codex Switcher "
+          }
+        },
+        "pa-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "sl-SI" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "ta-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "te-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "ur-PK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher"
+          }
+        }
+      }
+    },
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en-US" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Codex Switcher"
+          }
+        }
+      }
+    },
+    "CFBundleTypeName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar-SA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher أرشيف الحساب"
+          }
+        },
+        "bn-BD" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher অ্যাকাউন্ট সংরক্ষণাগার"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arxiu del compte"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archiv účtu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Kontoarkiv"
+          }
+        },
+        "de-DE" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Kontoarchiv"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Αρχείο λογαριασμού"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "en-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "en-US" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "es-ES" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archivo de cuenta"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archivo de cuenta"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Tiliarkisto"
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archives de compte"
+          }
+        },
+        "fr-FR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archives de compte"
+          }
+        },
+        "gu-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher એકાઉન્ટ આર્કાઇવ"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ארכיון חשבון"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher खाता संग्रह"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arhiva računa"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Fiókarchívum"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arsip Akun"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archivio account"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher アカウント アーカイブ"
+          }
+        },
+        "kn-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ಖಾತೆ ಆರ್ಕೈವ್"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher 계정 보관함"
+          }
+        },
+        "ml-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher അക്കൗണ്ട് ആർക്കൈവ്"
+          }
+        },
+        "mr-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher खाते संग्रहण"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arkib Akaun"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher kontoarkiv"
+          }
+        },
+        "nl-NL" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Accountarchief"
+          }
+        },
+        "or-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "pa-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ਖਾਤਾ ਪੁਰਾਲੇਖ"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archiwum konta"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arquivo da conta"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Ficheiro da conta"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arhiva contului"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Архив аккаунта"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archív účtu"
+          }
+        },
+        "sl-SI" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arhiv računa"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher kontoarkiv"
+          }
+        },
+        "ta-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher கணக்கு காப்பகம்"
+          }
+        },
+        "te-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ఖాతా ఆర్కైవ్"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher การเก็บถาวรบัญชี"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Hesap Arşivi"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Архів облікового запису"
+          }
+        },
+        "ur-PK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher اکاؤنٹ آرکائیو"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Lưu trữ tài khoản"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher 帐户存档"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher 帳戶存檔"
+          }
+        }
+      }
+    },
+    "Codex Switcher Account Archive" : {
+
+    },
+    "Codex Switcher Account Archive (Legacy)" : {
+
+    },
+    "NSAppDataUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar-SA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يحتاج Codex Switcher إلى الوصول إلى بيانات التطبيق المشتركة الخاصة بالأدوات، وأهداف التطبيق، ومجلد Codex المرتبط الذي تختاره."
+          }
+        },
+        "bn-BD" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher এর উইজেট, অ্যাপ ইন্টেন্ট এবং আপনার বেছে নেওয়া লিঙ্ক করা Codex ফোল্ডারের জন্য শেয়ার করা অ্যাপ ডেটাতে অ্যাক্সেস প্রয়োজন।"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher necessita accedir a les dades de l'aplicació compartida per a widgets, App Intents i la carpeta Codex enllaçada que trieu."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher potřebuje přístup ke sdíleným datům aplikací pro widgety, objekty App Intent a propojenou složku Codex, kterou si vyberete."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher har brug for adgang til sine delte appdata for widgets, apphensigter og den linkede Codex-mappe, du vælger."
+          }
+        },
+        "de-DE" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher benötigt Zugriff auf seine freigegebenen App-Daten für Widgets, App Intents und den von Ihnen ausgewählten verknüpften Codex-Ordner."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher χρειάζεται πρόσβαση στα κοινόχρηστα δεδομένα της εφαρμογής του για γραφικά στοιχεία, Προθέσεις εφαρμογής και τον συνδεδεμένο φάκελο Codex που επιλέγετε."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher needs access to its shared app data for widgets, App Intents, and the linked Codex folder you choose."
+          }
+        },
+        "en-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher needs access to its shared app data for widgets, App Intents, and the linked Codex folder you choose."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher needs access to its shared app data for widgets, App Intents, and the linked Codex folder you choose."
+          }
+        },
+        "en-US" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher needs access to its shared app data for widgets, App Intents, and the linked Codex folder you choose."
+          }
+        },
+        "es-ES" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher necesita acceso a los datos de su aplicación compartida para widgets, App Intents y la carpeta Codex vinculada que elija."
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher necesita acceso a los datos de su aplicación compartida para widgets, App Intents y la carpeta Codex vinculada que elija."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher tarvitsee pääsyn jaettuihin sovellustietoihinsa widgettejä, App Intents -sovelluksia ja valitsemaasi linkitettyä Codex-kansiota varten."
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher a besoin d'accéder aux données de son application partagée pour les widgets, les intentions d'application et le dossier Codex lié que vous choisissez."
+          }
+        },
+        "fr-FR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher a besoin d'accéder aux données de son application partagée pour les widgets, les intentions d'application et le dossier Codex lié que vous choisissez."
+          }
+        },
+        "gu-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ને વિજેટ્સ, એપ્લિકેશન ઇન્ટેન્ટ્સ અને તમે પસંદ કરેલ લિંક કરેલ Codex ફોલ્ડર માટે તેના શેર કરેલ એપ્લિકેશન ડેટાની ઍક્સેસની જરૂર છે."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher זקוקה לגישה לנתוני האפליקציה המשותפים שלה עבור ווידג'טים, כוונות אפליקציה ולתיקיית Codex המקושרת שתבחר."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher को विजेट्स, ऐप इंटेंट्स और आपके द्वारा चुने गए लिंक किए गए Codex फ़ोल्डर के लिए अपने साझा ऐप डेटा तक पहुंच की आवश्यकता है।"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher treba pristup dijeljenim podacima aplikacije za widgete, namjere aplikacije i povezanu mapu Codex koju odaberete."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher-nak hozzá kell férnie megosztott alkalmazásadataihoz a modulok, az App Intents és az Ön által kiválasztott összekapcsolt Codex mappához."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher memerlukan akses ke data aplikasi bersama untuk widget, Intent Aplikasi, dan folder Codex tertaut yang Anda pilih."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher deve accedere ai dati dell'app condivisa per widget, intenti dell'app e la cartella Codex collegata di tua scelta."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher は、ウィジェット、アプリ インテント、および選択したリンクされた Codex フォルダーの共有アプリ データにアクセスする必要があります。"
+          }
+        },
+        "kn-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ವಿಜೆಟ್‌ಗಳು, ಅಪ್ಲಿಕೇಶನ್ ಇಂಟೆಂಟ್‌ಗಳು ಮತ್ತು ನೀವು ಆಯ್ಕೆ ಮಾಡಿದ ಲಿಂಕ್ ಮಾಡಲಾದ Codex ಫೋಲ್ಡರ್‌ಗಾಗಿ ಹಂಚಿಕೊಂಡ ಅಪ್ಲಿಕೇಶನ್ ಡೇಟಾಗೆ ಪ್ರವೇಶದ ಅಗತ್ಯವಿದೆ."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher에는 위젯, 앱 인텐트 및 선택한 연결된 Codex 폴더에 대한 공유 앱 데이터에 대한 액세스 권한이 필요합니다."
+          }
+        },
+        "ml-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher എന്നതിന് വിജറ്റുകൾ, ആപ്പ് ഇൻഡൻ്റുകൾ, നിങ്ങൾ തിരഞ്ഞെടുക്കുന്ന ലിങ്ക് ചെയ്‌ത Codex ഫോൾഡർ എന്നിവയ്‌ക്കായി അതിൻ്റെ പങ്കിട്ട അപ്ലിക്കേഷൻ ഡാറ്റയിലേക്ക് ആക്‌സസ് ആവശ്യമാണ്."
+          }
+        },
+        "mr-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ला विजेट्स, ॲप इंटेंट्स आणि तुम्ही निवडलेल्या लिंक केलेल्या Codex फोल्डरसाठी शेअर केलेल्या ॲप डेटामध्ये प्रवेश आवश्यक आहे."
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher memerlukan akses kepada data apl kongsinya untuk widget, Niat Apl dan folder Codex terpaut yang anda pilih."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher trenger tilgang til delte appdata for widgets, apphensikter og den koblede Codex-mappen du velger."
+          }
+        },
+        "nl-NL" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher heeft toegang nodig tot de gedeelde app-gegevens voor widgets, app-intenties en de gekoppelde Codex-map die je kiest."
+          }
+        },
+        "or-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " Codex Switcher ଏହାର ଅଂଶୀଦାର ଆପ୍ ତଥ୍ୟକୁ ପ୍ରବେଶ ଆବଶ୍ୟକ କରେ | "
+          }
+        },
+        "pa-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ਨੂੰ ਵਿਜੇਟਸ, ਐਪ ਇੰਟੈਂਟਸ, ਅਤੇ ਤੁਹਾਡੇ ਦੁਆਰਾ ਚੁਣੇ ਗਏ ਲਿੰਕ ਕੀਤੇ Codex ਫੋਲਡਰ ਲਈ ਇਸਦੇ ਸਾਂਝੇ ਕੀਤੇ ਐਪ ਡੇਟਾ ਤੱਕ ਪਹੁੰਚ ਦੀ ਲੋੜ ਹੈ।"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher potrzebuje dostępu do udostępnionych danych aplikacji w zakresie widżetów, zamiarów aplikacji i wybranego połączonego folderu Codex."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher precisa de acesso aos dados compartilhados do aplicativo para widgets, App Intents e à pasta Codex vinculada que você escolher."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher necessita de acesso aos dados partilhados da aplicação para widgets, App Intents e à pasta Codex ligada que escolher."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher are nevoie de acces la datele aplicației partajate pentru widget-uri, App Intents și folderul Codex conectat pe care îl alegeți."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher необходим доступ к общим данным приложения для виджетов, намерений приложения и выбранной вами связанной папки Codex."
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher potrebuje prístup k svojim zdieľaným údajom aplikácií pre miniaplikácie, zámery aplikácie a prepojený priečinok Codex, ktorý si vyberiete."
+          }
+        },
+        "sl-SI" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher potrebuje dostop do svojih podatkov aplikacije v skupni rabi za pripomočke, namene aplikacije in povezano mapo Codex, ki jo izberete."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher behöver åtkomst till sina delade appdata för widgets, appavsikter och den länkade Codex-mappen du väljer."
+          }
+        },
+        "ta-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher விட்ஜெட்டுகள், பயன்பாட்டு நோக்கங்கள் மற்றும் நீங்கள் தேர்வுசெய்த இணைக்கப்பட்ட Codex கோப்புறைக்கான பகிரப்பட்ட பயன்பாட்டுத் தரவை அணுக வேண்டும்."
+          }
+        },
+        "te-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcherకి మీరు ఎంచుకున్న విడ్జెట్‌లు, యాప్ ఇంటెంట్‌లు మరియు లింక్ చేయబడిన Codex ఫోల్డర్ కోసం దాని భాగస్వామ్య యాప్ డేటాకు యాక్సెస్ అవసరం."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ต้องการเข้าถึงข้อมูลแอปที่แชร์สำหรับวิดเจ็ต App Intents และโฟลเดอร์ Codex ที่เชื่อมโยงที่คุณเลือก"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher öğesinin widget'lar, Uygulama Amaçları ve seçtiğiniz bağlantılı Codex klasörü için paylaşılan uygulama verilerine erişmesi gerekiyor."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher потребує доступу до спільних даних програми для віджетів, намірів програми та вибраної вами пов’язаної папки Codex."
+          }
+        },
+        "ur-PK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher کو ویجٹ، ایپ انٹینٹس، اور آپ کے منتخب کردہ لنک کردہ Codex فولڈر کے لیے اپنے مشترکہ ایپ ڈیٹا تک رسائی کی ضرورت ہے۔"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher cần quyền truy cập vào dữ liệu ứng dụng dùng chung cho các tiện ích, Ý định ứng dụng và thư mục Codex được liên kết mà bạn chọn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher 需要访问其共享的小部件应用数据、应用意图以及您选择的链接的 Codex 文件夹。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher 需要存取其共享的小部件應用資料、應用意圖以及您選擇的連結的 Codex 資料夾。 "
+          }
+        }
+      }
+    },
+    "NSHumanReadableCopyright" : {
+      "comment" : "Copyright (human-readable)",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en-US" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : ""
+          }
+        }
+      }
+    },
+    "UTTypeDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar-SA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher أرشيف الحساب"
+          }
+        },
+        "bn-BD" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher অ্যাকাউন্ট সংরক্ষণাগার"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arxiu del compte"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archiv účtu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Kontoarkiv"
+          }
+        },
+        "de-DE" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Kontoarchiv"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Αρχείο λογαριασμού"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "en-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "en-US" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "es-ES" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archivo de cuenta"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archivo de cuenta"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Tiliarkisto"
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archives de compte"
+          }
+        },
+        "fr-FR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archives de compte"
+          }
+        },
+        "gu-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher એકાઉન્ટ આર્કાઇવ"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ארכיון חשבון"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher खाता संग्रह"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arhiva računa"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Fiókarchívum"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arsip Akun"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archivio account"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher アカウント アーカイブ"
+          }
+        },
+        "kn-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ಖಾತೆ ಆರ್ಕೈವ್"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher 계정 보관함"
+          }
+        },
+        "ml-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher അക്കൗണ്ട് ആർക്കൈവ്"
+          }
+        },
+        "mr-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher खाते संग्रहण"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arkib Akaun"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher kontoarkiv"
+          }
+        },
+        "nl-NL" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Accountarchief"
+          }
+        },
+        "or-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Account Archive"
+          }
+        },
+        "pa-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ਖਾਤਾ ਪੁਰਾਲੇਖ"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archiwum konta"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arquivo da conta"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Ficheiro da conta"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arhiva contului"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Архив аккаунта"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Archív účtu"
+          }
+        },
+        "sl-SI" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Arhiv računa"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher kontoarkiv"
+          }
+        },
+        "ta-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher கணக்கு காப்பகம்"
+          }
+        },
+        "te-IN" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher ఖాతా ఆర్కైవ్"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher การเก็บถาวรบัญชี"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Hesap Arşivi"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Архів облікового запису"
+          }
+        },
+        "ur-PK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher اکاؤنٹ آرکائیو"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher Lưu trữ tài khoản"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher 帐户存档"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Switcher 帳戶存檔"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

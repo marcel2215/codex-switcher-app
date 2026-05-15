@@ -42,7 +42,10 @@ enum CodexSharedIntentExecutionError: LocalizedError {
     nonisolated var errorDescription: String? {
         switch self {
         case .commandTimedOut:
-            return "Codex Switcher didn't finish the requested action in time."
+            return L10n.string(
+                "intent.error.commandTimedOut",
+                defaultValue: "Codex Switcher didn't finish the requested action in time."
+            )
         case let .commandFailed(message):
             return message
         }

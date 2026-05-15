@@ -29,7 +29,7 @@ struct AccountsCommands: Commands {
 
             Divider()
 
-            Button("Import...") {
+            Button(L10n.string("button.importEllipsis", defaultValue: "Import...")) {
                 controller.beginAccountArchiveImport()
             }
             .keyboardShortcut("o", modifiers: [.command])
@@ -150,7 +150,7 @@ struct AccountsCommands: Commands {
                 openWindow(id: AccountDetailsWindowID.details, value: selectedAccountID)
             }
         } label: {
-            menuActionLabel(title: "Get Info", systemImage: "info.circle")
+            menuActionLabel(title: L10n.string("button.getInfo", defaultValue: "Get Info"), systemImage: "info.circle")
         }
         .keyboardShortcut("i", modifiers: [.command])
         .disabled(controller.selectedAccountID == nil)
@@ -158,7 +158,7 @@ struct AccountsCommands: Commands {
         Button {
             controller.copyAccountsToPasteboard(withIDs: accountIDs)
         } label: {
-            menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
+            menuActionLabel(title: L10n.string("button.copy", defaultValue: "Copy"), systemImage: "doc.on.doc")
         }
         .disabled(accountIDs.isEmpty)
 
@@ -169,7 +169,7 @@ struct AccountsCommands: Commands {
         Button {
             controller.switchSelectedAccount()
         } label: {
-            menuActionLabel(title: "Log In", systemImage: "arrow.right.circle")
+            menuActionLabel(title: L10n.string("button.logIn", defaultValue: "Log In"), systemImage: "arrow.right.circle")
         }
         .keyboardShortcut("l", modifiers: [.command])
         .disabled(controller.selectedAccountID == nil)
@@ -177,7 +177,7 @@ struct AccountsCommands: Commands {
         Button {
             controller.beginRenamingSelectedAccount()
         } label: {
-            menuActionLabel(title: "Rename", systemImage: "pencil")
+            menuActionLabel(title: L10n.string("button.rename", defaultValue: "Rename"), systemImage: "pencil")
         }
         .keyboardShortcut(.return, modifiers: [])
         .disabled(controller.selectedAccountID == nil)
@@ -195,7 +195,7 @@ struct AccountsCommands: Commands {
                 }
             }
         } label: {
-            menuActionLabel(title: "Choose Icon", systemImage: "square.grid.2x2")
+            menuActionLabel(title: L10n.string("button.chooseIcon", defaultValue: "Choose Icon"), systemImage: "square.grid.2x2")
         }
         .disabled(controller.selectedAccountID == nil)
 
@@ -203,7 +203,9 @@ struct AccountsCommands: Commands {
             controller.setSelectedAccountPinned(controller.selectedAccountIsPinned != true)
         } label: {
             menuActionLabel(
-                title: controller.selectedAccountIsPinned == true ? "Unpin" : "Pin",
+                title: controller.selectedAccountIsPinned == true
+                    ? L10n.string("button.unpin", defaultValue: "Unpin")
+                    : L10n.string("button.pin", defaultValue: "Pin"),
                 systemImage: controller.selectedAccountIsPinned == true ? "pin.slash" : "pin"
             )
         }
@@ -221,7 +223,7 @@ struct AccountsCommands: Commands {
         Button {
             controller.copyAccountsToPasteboard(withIDs: accountIDs)
         } label: {
-            menuActionLabel(title: "Copy", systemImage: "doc.on.doc")
+            menuActionLabel(title: L10n.string("button.copy", defaultValue: "Copy"), systemImage: "doc.on.doc")
         }
         .disabled(accountIDs.isEmpty)
 
@@ -245,7 +247,7 @@ struct AccountsCommands: Commands {
                 }
             }
         } label: {
-            menuActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+            menuActionLabel(title: L10n.string("button.share", defaultValue: "Share"), systemImage: "square.and.arrow.up")
         }
         .disabled(accountIDs.isEmpty || sharingServices.isEmpty)
     }
@@ -254,7 +256,7 @@ struct AccountsCommands: Commands {
         Button(role: .destructive) {
             controller.removeAccounts(withIDs: accountIDs)
         } label: {
-            destructiveMenuLabel(title: "Remove", systemImage: "trash")
+            destructiveMenuLabel(title: L10n.string("button.remove", defaultValue: "Remove"), systemImage: "trash")
         }
     }
 

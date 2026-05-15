@@ -114,38 +114,38 @@ private struct CurrentAccountWidgetView: View {
 private func widgetTitle(for authState: SharedCodexAuthState) -> String {
     switch authState {
     case .unlinked:
-        return "Select Codex Folder"
+        return L10n.string("widget.current.title.selectCodexFolder", defaultValue: "Select Codex Folder")
     case .ready:
-        return "No Current Account"
+        return L10n.string("widget.current.title.noCurrentAccount", defaultValue: "No Current Account")
     case .loggedOut:
-        return "Logged Out"
+        return L10n.string("widget.current.title.loggedOut", defaultValue: "Logged Out")
     case .locationUnavailable:
-        return "Folder Missing"
+        return L10n.string("widget.current.title.folderMissing", defaultValue: "Folder Missing")
     case .accessDenied:
-        return "Permission Needed"
+        return L10n.string("widget.current.title.permissionNeeded", defaultValue: "Permission Needed")
     case .corruptAuthFile:
-        return "Invalid auth.json"
+        return L10n.string("widget.current.title.invalidAuthFile", defaultValue: "Invalid auth.json")
     case .unsupportedCredentialStore:
-        return "Unsupported Store"
+        return L10n.string("widget.current.title.unsupportedStore", defaultValue: "Unsupported Store")
     }
 }
 
 private func widgetMessage(for state: SharedCodexState) -> String {
     switch state.authState {
     case .unlinked:
-        return "Open Codex Switcher and choose the Codex folder."
+        return L10n.string("widget.current.message.unlinked", defaultValue: "Open Codex Switcher and choose the Codex folder.")
     case .ready:
-        return "Codex is linked, but no saved account matches the current auth.json."
+        return L10n.string("widget.current.message.ready", defaultValue: "Codex is linked, but no saved account matches the current auth.json.")
     case .loggedOut:
-        return "No auth.json was found in the linked Codex folder."
+        return L10n.string("widget.current.message.loggedOut", defaultValue: "No auth.json was found in the linked Codex folder.")
     case .locationUnavailable:
-        return "The linked folder is no longer available."
+        return L10n.string("widget.current.message.locationUnavailable", defaultValue: "The linked folder is no longer available.")
     case .accessDenied:
-        return "Codex Switcher needs permission to access the linked folder again."
+        return L10n.string("widget.current.message.accessDenied", defaultValue: "Codex Switcher needs permission to access the linked folder again.")
     case .corruptAuthFile:
-        return "The linked auth.json isn't valid."
+        return L10n.string("widget.current.message.corruptAuthFile", defaultValue: "The linked auth.json isn't valid.")
     case .unsupportedCredentialStore:
-        return "The linked folder uses an unsupported credential store."
+        return L10n.string("widget.current.message.unsupportedCredentialStore", defaultValue: "The linked folder uses an unsupported credential store.")
     }
 }
 

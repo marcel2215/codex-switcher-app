@@ -98,7 +98,7 @@ struct AccountMetadataText: View {
     }
 
     private static func lastLoginFragment(_ lastLoginAt: Date?) -> AttributedString {
-        var result = AttributedString("Last login: ")
+        var result = AttributedString(L10n.string("metadata.lastLogin.prefix", defaultValue: "Last login: "))
         var value = AttributedString(AccountDisplayFormatter.lastLoginValueDescription(from: lastLoginAt))
         value.foregroundColor = .primary
         result.append(value)
@@ -106,17 +106,19 @@ struct AccountMetadataText: View {
     }
 
     private static func limitFragment(label: String, value: Int?) -> AttributedString {
-        var result = AttributedString("\(label): ")
+        var result = AttributedString(
+            L10n.string("metadata.limit.prefix", defaultValue: "%@: ", label)
+        )
         result.append(percentFragment(value))
         return result
     }
 
     private static func percentFragment(_ value: Int?) -> AttributedString {
         guard let clampedValue = AccountDisplayFormatter.clampedPercentValue(value) else {
-            return AttributedString("?")
+            return AttributedString(L10n.string("rateLimit.percent.unknownSymbol", defaultValue: "?"))
         }
 
-        return AttributedString("\(clampedValue)%")
+        return AttributedString(AccountDisplayFormatter.compactPercentDescription(clampedValue))
     }
 
     private func progressLabel(fallbackTitle: String, resetAt: Date?) -> String {

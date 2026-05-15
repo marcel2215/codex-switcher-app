@@ -55,17 +55,22 @@ struct WatchRateLimitCircularComplicationView: View {
     }
 
     private var accessibilityLabel: String {
-        "\(account?.displayName ?? "Missing Account") \(window.shortLabel)"
+        L10n.string(
+            "widget.rateLimit.accessibilityLabel",
+            defaultValue: "%@ %@",
+            account?.displayName ?? L10n.string("widget.rateLimit.missingAccount", defaultValue: "Missing Account"),
+            window.shortLabel
+        )
     }
 
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
-            return "\(metric.percentText) remaining"
+            return L10n.string("widget.rateLimit.accessibilityValue.remaining", defaultValue: "%@ remaining", metric.percentText)
         case .cached:
-            return "\(metric.percentText) remaining, cached"
+            return L10n.string("widget.rateLimit.accessibilityValue.cached", defaultValue: "%@ remaining, cached", metric.percentText)
         case .missing, .unavailable:
-            return "Unavailable"
+            return L10n.string("account.status.unavailable", defaultValue: "Unavailable")
         }
     }
 }
@@ -116,17 +121,22 @@ struct WatchRateLimitCornerComplicationView: View {
     }
 
     private var accessibilityLabel: String {
-        "\(account?.displayName ?? "Missing Account") \(window.shortLabel)"
+        L10n.string(
+            "widget.rateLimit.accessibilityLabel",
+            defaultValue: "%@ %@",
+            account?.displayName ?? L10n.string("widget.rateLimit.missingAccount", defaultValue: "Missing Account"),
+            window.shortLabel
+        )
     }
 
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
-            return "\(metric.percentText) remaining"
+            return L10n.string("widget.rateLimit.accessibilityValue.remaining", defaultValue: "%@ remaining", metric.percentText)
         case .cached:
-            return "\(metric.percentText) remaining, cached"
+            return L10n.string("widget.rateLimit.accessibilityValue.cached", defaultValue: "%@ remaining, cached", metric.percentText)
         case .missing, .unavailable:
-            return "Unavailable"
+            return L10n.string("account.status.unavailable", defaultValue: "Unavailable")
         }
     }
 }
@@ -140,9 +150,9 @@ private extension WidgetRateLimitMetric {
 
     var complicationPercentText: String {
         guard let clampedPercent else {
-            return "?"
+            return L10n.string("rateLimit.percent.unknownSymbol", defaultValue: "?")
         }
 
-        return "\(clampedPercent)%"
+        return AccountDisplayFormatter.compactPercentDescription(clampedPercent)
     }
 }

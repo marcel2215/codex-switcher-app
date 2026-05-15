@@ -161,7 +161,7 @@ struct WatchAccountDetailView: View {
             )
         }
         .confirmationDialog(
-            "Remove \"\(displayName)\"?",
+            L10n.string("account.remove.confirmation.title.named", defaultValue: "Remove \"%@\"?", displayName),
             isPresented: $showingRemoveConfirmation
         ) {
             Button("Remove", role: .destructive) {
@@ -177,7 +177,7 @@ struct WatchAccountDetailView: View {
                 } label: {
                     Image(systemName: "trash")
                 }
-                .accessibilityLabel("Account actions")
+                .accessibilityLabel(L10n.string("account.actions.accessibilityLabel", defaultValue: "Account actions"))
             }
         }
     }
@@ -199,7 +199,7 @@ struct WatchAccountDetailView: View {
         TextField("Add notes", text: $draftNotes, axis: .vertical)
             .focused($isNotesEditorFocused)
             .lineLimit(4...8)
-            .accessibilityLabel("Account Notes")
+            .accessibilityLabel(L10n.string("account.notes.accessibilityLabel", defaultValue: "Account Notes"))
     }
 
     private func usageValueText(_ value: Int?, isUnavailable: Bool) -> some View {
@@ -219,26 +219,31 @@ struct WatchAccountDetailView: View {
         if displayedValue == nil {
             RateLimitResetText(
                 resetAt: displayedValue,
-                fallbackText: "Unavailable",
+                fallbackText: L10n.string("account.status.unavailable", defaultValue: "Unavailable"),
                 displayMode: resetDisplayModes[row] ?? .relative
             )
             .monospacedDigit()
             .foregroundStyle(.secondary)
-            .accessibilityHint("Reset time unavailable")
+            .accessibilityHint(L10n.string("rateLimit.reset.accessibilityHint.unavailable", defaultValue: "Reset time unavailable"))
         } else {
             Button {
                 toggleResetDisplayMode(for: row)
             } label: {
                 RateLimitResetText(
                     resetAt: displayedValue,
-                    fallbackText: "Unavailable",
+                    fallbackText: L10n.string("account.status.unavailable", defaultValue: "Unavailable"),
                     displayMode: resetDisplayModes[row] ?? .relative
                 )
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Double tap to switch between relative and absolute time")
+            .accessibilityHint(
+                L10n.string(
+                    "rateLimit.reset.accessibilityHint.watchToggle",
+                    defaultValue: "Double tap to switch between relative and absolute time"
+                )
+            )
         }
     }
 
@@ -263,7 +268,7 @@ struct WatchAccountDetailView: View {
         } catch {
             onError(
                 PresentedError(
-                    title: "Couldn't Rename Account",
+                    title: L10n.string("error.title.couldNotRenameAccount", defaultValue: "Couldn't Rename Account"),
                     message: error.localizedDescription
                 )
             )
@@ -308,7 +313,7 @@ struct WatchAccountDetailView: View {
         } catch {
             onError(
                 PresentedError(
-                    title: "Couldn't Save Notes",
+                    title: L10n.string("error.title.couldNotSaveNotes", defaultValue: "Couldn't Save Notes"),
                     message: error.localizedDescription
                 )
             )
@@ -344,10 +349,10 @@ struct WatchAccountDetailView: View {
                 try await StoredAccountMutations.remove(account, in: modelContext)
             } catch {
                 onError(
-                    PresentedError(
-                        title: "Couldn't Remove Account",
-                        message: error.localizedDescription
-                    )
+                PresentedError(
+                    title: L10n.string("error.title.couldNotRemoveAccount", defaultValue: "Couldn't Remove Account"),
+                    message: error.localizedDescription
+                )
                 )
             }
         }

@@ -19,11 +19,21 @@ enum CodexAuthFileReplacementError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidFileDescriptor:
-            "Codex Switcher couldn't create a temporary auth file."
+            L10n.string("authFileReplacement.error.invalidFileDescriptor", defaultValue: "Codex Switcher couldn't create a temporary auth file.")
         case let .posixFailure(operation, code):
-            "Codex Switcher couldn't \(operation) auth.json securely (errno \(code))."
+            L10n.string(
+                "authFileReplacement.error.posixFailure",
+                defaultValue: "Codex Switcher couldn't %@ auth.json securely (errno %d).",
+                operation,
+                code
+            )
         case let .insecurePermissions(url, mode):
-            "Codex Switcher wrote \(url.path), but couldn't restrict it to owner-only permissions (mode \(String(mode, radix: 8)))."
+            L10n.string(
+                "authFileReplacement.error.insecurePermissions",
+                defaultValue: "Codex Switcher wrote %@, but couldn't restrict it to owner-only permissions (mode %@).",
+                url.path,
+                String(mode, radix: 8)
+            )
         }
     }
 }

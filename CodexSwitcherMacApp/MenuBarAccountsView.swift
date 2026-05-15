@@ -98,7 +98,7 @@ struct MenuBarAccountsView: View {
         }
         .alert(item: $controller.unavailableAccountRecoveryPrompt) { prompt in
             Alert(
-                title: Text("Account Unavailable"),
+                title: Text(L10n.string("account.unavailable.title", defaultValue: "Account Unavailable")),
                 message: Text(unavailableAccountMessage(for: prompt)),
                 primaryButton: .destructive(Text("Remove")) {
                     controller.removeUnavailableAccountFromPrompt(prompt)
@@ -117,7 +117,13 @@ struct MenuBarAccountsView: View {
                     .font(.headline)
 
                 if let currentAccount = displayedAccounts.first(where: { $0.identityKey == controller.activeIdentityKey }) {
-                    Text("Current: \(currentAccount.name)")
+                    Text(
+                        L10n.string(
+                            "menuBar.currentAccount",
+                            defaultValue: "Current: %@",
+                            currentAccount.name
+                        )
+                    )
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if case .missingAuthFile = controller.authAccessState {
@@ -133,14 +139,24 @@ struct MenuBarAccountsView: View {
                 chromeButton(
                     systemImage: controller.isCapturingCurrentAccount ? "xmark" : "plus",
                     helpText: controller.isCapturingCurrentAccount
-                        ? "Cancel adding the account."
-                        : "Add Codex account",
-                    accessibilityLabel: controller.isCapturingCurrentAccount ? "Cancel adding account" : "Add Codex account",
+                        ? L10n.string("help.cancelAddingAccount", defaultValue: "Cancel adding the account.")
+                        : L10n.string("help.addCodexAccount", defaultValue: "Add Codex account"),
+                    accessibilityLabel: controller.isCapturingCurrentAccount
+                        ? L10n.string("button.cancelAddingAccount", defaultValue: "Cancel adding account")
+                        : L10n.string("help.addCodexAccount", defaultValue: "Add Codex account"),
                     isDisabled: controller.isSwitching,
                     action: addAccountChromeAction
                 )
-                chromeButton(systemImage: "rectangle.on.rectangle", helpText: "Open App", action: openMainWindow)
-                chromeButton(systemImage: "rectangle.portrait.and.arrow.right", helpText: "Quit", action: quitApp)
+                chromeButton(
+                    systemImage: "rectangle.on.rectangle",
+                    helpText: L10n.string("button.openApp", defaultValue: "Open App"),
+                    action: openMainWindow
+                )
+                chromeButton(
+                    systemImage: "rectangle.portrait.and.arrow.right",
+                    helpText: L10n.string("button.quit", defaultValue: "Quit"),
+                    action: quitApp
+                )
             }
         }
     }
@@ -219,7 +235,7 @@ struct MenuBarAccountsView: View {
                                     if item.isUnavailable {
                                         Image(systemName: "lock.fill")
                                             .foregroundStyle(.red)
-                                            .help("This saved Codex account is unavailable.")
+                                            .help(L10n.string("help.accountUnavailable", defaultValue: "This saved Codex account is unavailable."))
                                     } else if item.isCurrentAccount {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundStyle(.accent)
@@ -289,12 +305,19 @@ struct MenuBarAccountsView: View {
 
     private var emptyAccountDescription: String {
         controller.canCaptureCurrentAccount
-            ? "Add the currently used account from the menu bar or the main window."
+            ? L10n.string(
+                "empty.accounts.description.addFromMenuBar",
+                defaultValue: "Add the currently used account from the menu bar or the main window."
+            )
             : controller.captureCurrentAccountHelpText
     }
 
     private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
-        "The saved refresh token for “\(prompt.accountName)” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex."
+        L10n.string(
+            "account.unavailable.warning",
+            defaultValue: "The saved refresh token for “%@” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex.",
+            prompt.accountName
+        )
     }
 
     private func openMainWindow() {
@@ -373,7 +396,7 @@ private struct AccountListHeightPreferenceKey: PreferenceKey {
         MenuBarAccountRowItem(
             id: AppController.noneAccountSelectionID,
             identityKey: nil,
-            displayName: "None",
+            displayName: L10n.string("account.none", defaultValue: "None"),
             iconSystemName: "power",
             lastLoginAt: nil,
             sevenDayLimitUsedPercent: 0,
@@ -415,7 +438,9 @@ private struct AccountListHeightPreferenceKey: PreferenceKey {
 private func accountListDisplayName(for item: MenuBarAccountRowItem) -> some View {
     if item.isUnavailable {
         var attributedName = AttributedString(item.displayName)
-        var unavailableSuffix = AttributedString(" (Unavailable)")
+        var unavailableSuffix = AttributedString(
+            L10n.string("account.status.unavailableSuffix", defaultValue: " (Unavailable)")
+        )
         unavailableSuffix.foregroundColor = .red
         attributedName.append(unavailableSuffix)
 

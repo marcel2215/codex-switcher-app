@@ -33,7 +33,7 @@ enum MenuBarIconOption: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .switcher:
-            "Switch"
+            L10n.string("menuBarIcon.switch", defaultValue: "Switch")
         default:
             AccountIconOption.resolve(from: rawValue).title
         }

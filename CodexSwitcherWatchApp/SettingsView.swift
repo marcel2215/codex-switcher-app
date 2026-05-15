@@ -33,7 +33,7 @@ struct WatchSettingsView: View {
                     showingRemoveAllConfirmation = true
                 } label: {
                     dangerZoneLabel(
-                        "Remove All Accounts",
+                        L10n.string("settings.confirmation.removeAllAccounts.title", defaultValue: "Remove All Accounts"),
                         systemImage: "trash",
                         isEnabled: hasSavedAccounts
                     )
@@ -84,7 +84,7 @@ struct WatchSettingsView: View {
                 try await StoredAccountMutations.removeAll(accounts, in: modelContext)
             } catch {
                 presentedSettingsAlert = PresentedSettingsAlert(
-                    title: "Couldn't Remove Accounts",
+                    title: L10n.string("error.title.couldNotRemoveAccounts", defaultValue: "Couldn't Remove Accounts"),
                     message: error.localizedDescription
                 )
             }

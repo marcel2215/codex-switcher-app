@@ -25,27 +25,33 @@ struct IOSSettingsView: View {
         var title: String {
             switch self {
             case .resetSettings:
-                "Reset Settings"
+                L10n.string("settings.reset.title", defaultValue: "Reset Settings")
             case .removeAllAccounts:
-                "Remove All Accounts"
+                L10n.string("settings.removeAllAccounts.title", defaultValue: "Remove All Accounts")
             }
         }
 
         var message: String {
             switch self {
             case .resetSettings:
-                "Reset notification preferences on this iPhone?"
+                L10n.string(
+                    "settings.reset.ios.message",
+                    defaultValue: "Reset notification preferences on this iPhone?"
+                )
             case .removeAllAccounts:
-                "Remove every account from this iPhone? You can add them again later."
+                L10n.string(
+                    "settings.removeAllAccounts.ios.message",
+                    defaultValue: "Remove every account from this iPhone? You can add them again later."
+                )
             }
         }
 
         var confirmationTitle: String {
             switch self {
             case .resetSettings:
-                "Reset"
+                L10n.string("common.reset", defaultValue: "Reset")
             case .removeAllAccounts:
-                "Remove All"
+                L10n.string("common.removeAll", defaultValue: "Remove All")
             }
         }
     }
@@ -230,7 +236,15 @@ struct IOSSettingsView: View {
         if let notificationAuthorizationStatus,
            CodexNotificationSettingsLink.shouldShowDisabledFooter(for: notificationAuthorizationStatus),
            let destination = CodexNotificationSettingsLink.sectionFooterURL() {
-            Text(.init("Notifications are disabled in system settings. [Change](\(destination.absoluteString))"))
+            Text(
+                .init(
+                    L10n.string(
+                        "settings.notifications.disabled.footer.markdown",
+                        defaultValue: "Notifications are disabled in system settings. [Change](%@)",
+                        destination.absoluteString
+                    )
+                )
+            )
         }
     }
 
@@ -283,13 +297,19 @@ struct IOSSettingsView: View {
             case .denied:
                 setNotificationPreference(kind, isEnabled: false)
                 presentedSettingsAlert = .error(
-                    title: "Notifications Disabled",
-                    message: "Codex Switcher can only show notifications after you allow them in Settings > Notifications."
+                    title: L10n.string("settings.notifications.disabled.title", defaultValue: "Notifications Disabled"),
+                    message: L10n.string(
+                        "settings.notifications.disabled.ios.message",
+                        defaultValue: "Codex Switcher can only show notifications after you allow them in Settings > Notifications."
+                    )
                 )
             case let .failed(message):
                 setNotificationPreference(kind, isEnabled: false)
                 presentedSettingsAlert = .error(
-                    title: "Couldn't Enable Notifications",
+                    title: L10n.string(
+                        "settings.notifications.enable.error.title",
+                        defaultValue: "Couldn't Enable Notifications"
+                    ),
                     message: message
                 )
             }
@@ -344,7 +364,7 @@ struct IOSSettingsView: View {
                 try await StoredAccountMutations.removeAll(accounts, in: modelContext)
             } catch {
                 presentedSettingsAlert = .error(
-                    title: "Couldn't Remove Accounts",
+                    title: L10n.string("error.accounts.remove", defaultValue: "Couldn't Remove Accounts"),
                     message: error.localizedDescription
                 )
             }

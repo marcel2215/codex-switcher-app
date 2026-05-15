@@ -38,25 +38,46 @@ enum AuthFileAccessError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .accessRequired:
-            "Choose the Codex folder before switching accounts."
+            L10n.string("folder.error.chooseBeforeSwitching", defaultValue: "Choose the Codex folder before switching accounts.")
         case .invalidSelection:
-            "Choose the Codex folder that contains auth.json."
+            L10n.string("folder.picker.message", defaultValue: "Choose the .codex folder that contains auth.json.")
         case .cancelled:
-            "The file access request was cancelled."
+            L10n.string("folder.error.cancelled", defaultValue: "The file access request was cancelled.")
         case let .missingAuthFile(url, _):
-            "No auth.json was found in \(url.deletingLastPathComponent().path)."
+            L10n.string(
+                "authFile.error.missingInFolder",
+                defaultValue: "No auth.json was found in %@.",
+                url.deletingLastPathComponent().path
+            )
         case let .locationUnavailable(url):
-            "The linked Codex folder is no longer available: \(url.path)."
+            L10n.string(
+                "folder.error.linkedUnavailablePath",
+                defaultValue: "The linked Codex folder is no longer available: %@.",
+                url.path
+            )
         case let .accessDenied(url):
-            "Codex Switcher no longer has permission to access \(url.path)."
+            L10n.string(
+                "folder.error.accessDeniedPath",
+                defaultValue: "Codex Switcher no longer has permission to access %@.",
+                url.path
+            )
         case let .unsupportedCredentialStore(url, mode):
-            "The linked Codex folder at \(url.path) is configured for \(mode.displayName) credential storage. Codex Switcher only supports file-backed auth.json switching."
+            L10n.string(
+                "folder.error.unsupportedCredentialStoreWithPath",
+                defaultValue: "The linked Codex folder at %@ is configured for %@ credential storage. Codex Switcher only supports file-backed auth.json switching.",
+                url.path,
+                mode.displayName
+            )
         case let .unreadable(url, message):
-            "Codex Switcher couldn't read \(url.path). \(message)"
+            L10n.string("file.error.couldNotRead", defaultValue: "Codex Switcher couldn't read %@. %@", url.path, message)
         case let .unwritable(url, message):
-            "Codex Switcher couldn't write \(url.path). \(message)"
+            L10n.string("file.error.couldNotWrite", defaultValue: "Codex Switcher couldn't write %@. %@", url.path, message)
         case let .verificationFailed(url):
-            "Codex Switcher wrote \(url.path), but the verification readback did not match the saved account."
+            L10n.string(
+                "file.error.verificationFailed",
+                defaultValue: "Codex Switcher wrote %@, but the verification readback did not match the saved account.",
+                url.path
+            )
         }
     }
 
@@ -455,7 +476,13 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
         }
 
         guard let readContents else {
-            throw AuthFileAccessError.unreadable(authFileURL, message: "The file coordinator returned no contents.")
+            throw AuthFileAccessError.unreadable(
+                authFileURL,
+                message: L10n.string(
+                    "file.error.coordinatorReturnedNoContents",
+                    defaultValue: "The file coordinator returned no contents."
+                )
+            )
         }
 
         return AuthFileReadResult(url: authFileURL, contents: readContents)

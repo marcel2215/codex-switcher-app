@@ -70,9 +70,12 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
 
     nonisolated var displayRepresentation: DisplayRepresentation {
         let subtitleParts = [
-            isCurrent ? "Current" : nil,
-            isPinned ? "Pinned" : nil,
-            hasLocalSnapshot ? nil : "Needs local capture on this Mac",
+            isCurrent ? L10n.string("account.status.current", defaultValue: "Current") : nil,
+            isPinned ? L10n.string("account.status.pinned", defaultValue: "Pinned") : nil,
+            hasLocalSnapshot ? nil : L10n.string(
+                "account.status.needsLocalCapture",
+                defaultValue: "Needs local capture on this Mac"
+            ),
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
         ]
@@ -91,9 +94,12 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
         let attributeSet = defaultAttributeSet
         attributeSet.displayName = name
         attributeSet.contentDescription = [
-            isCurrent ? "Current account" : nil,
-            isPinned ? "Pinned account" : nil,
-            hasLocalSnapshot ? nil : "Needs local capture on this Mac",
+            isCurrent ? L10n.string("account.spotlight.currentAccount", defaultValue: "Current account") : nil,
+            isPinned ? L10n.string("account.spotlight.pinnedAccount", defaultValue: "Pinned account") : nil,
+            hasLocalSnapshot ? nil : L10n.string(
+                "account.status.needsLocalCapture",
+                defaultValue: "Needs local capture on this Mac"
+            ),
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
         ]
@@ -103,11 +109,13 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
             name,
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
-            isCurrent ? "Current" : nil,
-            isPinned ? "Pinned" : nil,
-            hasLocalSnapshot ? "Available" : "Needs local capture",
+            isCurrent ? L10n.string("account.status.current", defaultValue: "Current") : nil,
+            isPinned ? L10n.string("account.status.pinned", defaultValue: "Pinned") : nil,
+            hasLocalSnapshot
+                ? L10n.string("account.status.available", defaultValue: "Available")
+                : L10n.string("account.status.needsLocalCapture.short", defaultValue: "Needs local capture"),
             "Codex",
-            "Account",
+            L10n.string("account.entity", defaultValue: "Account"),
         ]
         .compactMap { $0 }
 
@@ -154,17 +162,37 @@ enum CodexSharedIntentLookupError: LocalizedError {
     nonisolated var errorDescription: String? {
         switch self {
         case .noSavedAccounts:
-            return "Codex Switcher doesn't have any saved accounts yet."
+            return L10n.string(
+                "intent.error.noSavedAccounts",
+                defaultValue: "Codex Switcher doesn't have any saved accounts yet."
+            )
         case .noCurrentAccount:
-            return "Codex Switcher couldn't determine the current account."
+            return L10n.string(
+                "intent.error.noCurrentAccount",
+                defaultValue: "Codex Switcher couldn't determine the current account."
+            )
         case .noSelectedAccount:
-            return "No live account selection is currently available in Codex Switcher."
+            return L10n.string(
+                "intent.error.noSelectedAccount",
+                defaultValue: "No live account selection is currently available in Codex Switcher."
+            )
         case .emptySearchQuery:
-            return "Enter an account name, email, or identifier to search."
+            return L10n.string(
+                "intent.error.emptySearchQuery",
+                defaultValue: "Enter an account name, email, or identifier to search."
+            )
         case let .noMatchingAccount(query):
-            return "No saved account matched “\(query)”."
+            return L10n.string(
+                "intent.error.noMatchingAccount",
+                defaultValue: "No saved account matched “%@”.",
+                query
+            )
         case let .noMatchingAccounts(query):
-            return "No saved accounts matched “\(query)”."
+            return L10n.string(
+                "intent.error.noMatchingAccounts",
+                defaultValue: "No saved accounts matched “%@”.",
+                query
+            )
         }
     }
 }

@@ -37,11 +37,15 @@ nonisolated enum CodexAccountArchiveError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidData:
-            "That .cxa file isn't a valid Codex account archive."
+            L10n.string("accountArchive.error.invalidData", defaultValue: "That .cxa file isn't a valid Codex account archive.")
         case .unsupportedVersion(let version):
-            "This .cxa file uses unsupported archive version \(version)."
+            L10n.string(
+                "accountArchive.error.unsupportedVersion",
+                defaultValue: "This .cxa file uses unsupported archive version %d.",
+                version
+            )
         case .missingSnapshotContents:
-            "That .cxa file doesn't contain an account snapshot."
+            L10n.string("accountArchive.error.missingSnapshotContents", defaultValue: "That .cxa file doesn't contain an account snapshot.")
         }
     }
 }
@@ -353,7 +357,9 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             return primaryAccount.suggestedFilename
         }
 
-        return Self.sanitizedFilenameComponent("\(accounts.count) Codex Accounts")
+        return Self.sanitizedFilenameComponent(
+            L10n.string("accountArchive.filename.multiple", defaultValue: "%d Codex Accounts", accounts.count)
+        )
     }
 
     var name: String? {
@@ -496,7 +502,9 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             .replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: CharacterSet(charactersIn: ". ").union(.whitespacesAndNewlines))
 
-        return cleaned.isEmpty ? "Codex Account" : cleaned
+        return cleaned.isEmpty
+            ? L10n.string("account.archive.defaultFilename", defaultValue: "Codex Account")
+            : cleaned
     }
 
     private static func compressedArchivePayload(from propertyListData: Data) throws -> Data {
@@ -643,7 +651,9 @@ nonisolated struct CodexAccountArchiveBatchExportRequest: Sendable, Equatable {
             return firstAccount.resolvedSuggestedFilename
         }
 
-        return CodexAccountArchive.normalizedExportFilenameStem(from: "\(accounts.count) Codex Accounts")
+        return CodexAccountArchive.normalizedExportFilenameStem(
+            from: L10n.string("accountArchive.filename.multiple", defaultValue: "%d Codex Accounts", accounts.count)
+        )
     }
 
     var availabilityKey: String {
