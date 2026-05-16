@@ -292,7 +292,10 @@ final class IOSAccountsController {
         guard !accountArchiveURLs.isEmpty else {
             presentedError = PresentedError(
                 title: "Couldn't Import Account",
-                message: "No supported .cxa files were provided."
+                message: L10n.string(
+                    "No supported .cxa files were provided.",
+                    comment: "Import error shown when no selected files are account archives."
+                )
             )
             return []
         }
@@ -387,7 +390,11 @@ final class IOSAccountsController {
                         } catch {
                             let accountLabel = archivedAccount.preferredStoredName
                                 ?? archivedAccount.identityKey
-                                ?? "Account \(accountIndex + 1)"
+                                ?? L10n.format(
+                                    "Account %lld",
+                                    Int64(accountIndex + 1),
+                                    comment: "Generated account label. The argument is a one-based account index."
+                                )
                             failureMessages.append(
                                 "\(url.lastPathComponent) • \(accountLabel): \(error.localizedDescription)"
                             )
@@ -402,7 +409,10 @@ final class IOSAccountsController {
                 presentedError = PresentedError(
                     title: "Couldn't Import Account",
                     message: failureMessages.isEmpty
-                        ? "Codex Switcher couldn't import that .cxa file."
+                        ? L10n.string(
+                            "Codex Switcher couldn't import that .cxa file.",
+                            comment: "Import error shown when a Codex account archive cannot be imported."
+                        )
                         : failureMessages.joined(separator: "\n")
                 )
                 return []
@@ -714,9 +724,15 @@ private enum IOSAccountImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .identityMismatch:
-            "That .cxa file doesn't match the account snapshot it contains."
+            L10n.string(
+                "That .cxa file doesn't match the account snapshot it contains.",
+                comment: "Import error shown when archive metadata does not match the credential payload."
+            )
         case .accountLimitReached:
-            "Codex Switcher supports up to 1000 saved accounts."
+            L10n.string(
+                "Codex Switcher supports up to 1000 saved accounts.",
+                comment: "Import error shown when the account limit is reached."
+            )
         }
     }
 }

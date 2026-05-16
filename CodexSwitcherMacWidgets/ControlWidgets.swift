@@ -43,7 +43,7 @@ private struct QuickSwitchControlValueProvider: AppIntentControlValueProvider {
 
         return QuickSwitchControlValue(
             accountIdentityKey: account?.id,
-            accountName: account?.name ?? "Select Account",
+            accountName: account?.name ?? L10n.string("Select Account", comment: "Control widget fallback title before an account is selected."),
             iconSystemName: account?.iconSystemName ?? "arrow.left.arrow.right.circle",
             isCurrent: isPreview ? false : account?.id == currentAccountID,
             isAvailable: account != nil && (account?.hasLocalSnapshot ?? false)

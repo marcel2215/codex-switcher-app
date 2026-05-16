@@ -469,12 +469,17 @@ struct AccountsRootView: View {
     private var emptyState: some View {
         let trimmedSearchText = AccountsPresentationLogic.normalizedSearchText(controller.searchText)
         return ContentUnavailableView(
-            trimmedSearchText.isEmpty ? "No Accounts" : "No Results",
+            trimmedSearchText.isEmpty
+                ? L10n.string("No Accounts", comment: "Empty account list title.")
+                : L10n.string("No Results", comment: "Empty account search results title."),
             systemImage: trimmedSearchText.isEmpty ? "person.crop.rectangle.stack" : "magnifyingglass",
             description: Text(
                 trimmedSearchText.isEmpty
-                    ? "Accounts added in Codex Switcher on your Mac will appear here."
-                    : "Try a different search term."
+                    ? L10n.string(
+                        "Accounts added in Codex Switcher on your Mac will appear here.",
+                        comment: "Empty iOS account list description."
+                    )
+                    : L10n.string("Try a different search term.", comment: "Empty search results description.")
             )
         )
     }
@@ -727,7 +732,10 @@ struct AccountsRootView: View {
         Button {
             controller.setPinned(!account.isPinned, for: account, in: modelContext)
         } label: {
-            Label(account.isPinned ? "Unpin" : "Pin", systemImage: account.isPinned ? "pin.slash" : "pin")
+            Label(
+                L10n.string(account.isPinned ? "Unpin" : "Pin", comment: "Account context menu pin action title."),
+                systemImage: account.isPinned ? "pin.slash" : "pin"
+            )
         }
 
         Button(role: .destructive) {
@@ -759,8 +767,12 @@ struct AccountsRootView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(AccountsPresentationLogic.accountListDisplayName(for: account))
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-        .accessibilityHint("Double tap to toggle selection")
+        .accessibilityValue(
+            isSelected
+                ? L10n.string("Selected", comment: "Accessibility value for a selected account row.")
+                : L10n.string("Not selected", comment: "Accessibility value for an unselected account row.")
+        )
+        .accessibilityHint(L10n.string("Double tap to toggle selection", comment: "Accessibility hint for edit-mode account rows."))
     }
 
     private func makeAlert(for alert: ActiveAlert) -> Alert {
@@ -772,8 +784,19 @@ struct AccountsRootView: View {
             )
         case .removal(let account):
             return Alert(
-                title: Text("Remove \"\(AccountsPresentationLogic.displayName(for: account))\"?"),
-                message: Text("Are you sure you want to remove this account from Codex switcher? You will be able to add it again later."),
+                title: Text(
+                    L10n.format(
+                        "Remove \"%@\"?",
+                        AccountsPresentationLogic.displayName(for: account),
+                        comment: "Confirmation title before removing one account."
+                    )
+                ),
+                message: Text(
+                    L10n.string(
+                        "Are you sure you want to remove this account from Codex Switcher? You will be able to add it again later.",
+                        comment: "Confirmation message before removing one account."
+                    )
+                ),
                 primaryButton: .destructive(Text("Remove")) {
                     removeAccountFromDetailOrList(account)
                 },

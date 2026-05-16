@@ -11,4 +11,9 @@ struct PresentedError: Identifiable, Equatable {
     let id = UUID()
     let title: String
     let message: String
+
+    init(title: String, message: String) {
+        self.title = L10n.string(title, comment: "Alert title.")
+        self.message = L10n.string(message, comment: "Alert message.")
+    }
 }

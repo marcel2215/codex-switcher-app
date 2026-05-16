@@ -166,11 +166,15 @@ final class StoredAccount {
 
     func unavailableWarningMessage(accountName: String) -> String {
         let sanitizedName = accountName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let displayName = sanitizedName.isEmpty ? "Unknown Account" : sanitizedName
+        let displayName = sanitizedName.isEmpty
+            ? L10n.string("Unknown Account", comment: "Fallback account name in an unavailable-account warning.")
+            : sanitizedName
 
-        return """
-        The saved refresh token for “\(displayName)” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex.
-        """
+        return L10n.format(
+            "The saved refresh token for \"%@\" is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the \"Log out\" button in Codex.",
+            displayName,
+            comment: "Warning for a saved Codex account whose refresh token is no longer valid."
+        )
     }
 
     /// Older synced rows may predate explicit data-status tracking. In that

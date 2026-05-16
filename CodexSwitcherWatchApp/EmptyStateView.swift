@@ -16,12 +16,17 @@ struct WatchEmptyStateView: View {
 
     var body: some View {
         ContentUnavailableView(
-            normalizedSearchText.isEmpty ? "No Accounts" : "No Results",
+            normalizedSearchText.isEmpty
+                ? L10n.string("No Accounts", comment: "Empty account list title.")
+                : L10n.string("No Results", comment: "Empty account search results title."),
             systemImage: normalizedSearchText.isEmpty ? "person.crop.rectangle.stack" : "magnifyingglass",
             description: Text(
                 normalizedSearchText.isEmpty
-                    ? "Accounts captured in Codex Switcher on your Mac appear here through iCloud."
-                    : "Try a different search term."
+                    ? L10n.string(
+                        "Accounts captured in Codex Switcher on your Mac appear here through iCloud.",
+                        comment: "Empty watch account list description."
+                    )
+                    : L10n.string("Try a different search term.", comment: "Empty search results description.")
             )
         )
     }

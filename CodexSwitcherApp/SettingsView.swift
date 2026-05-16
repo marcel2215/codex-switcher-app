@@ -25,33 +25,40 @@ struct IOSSettingsView: View {
         var title: String {
             switch self {
             case .resetSettings:
-                "Reset Settings"
+                L10n.string("Reset Settings", comment: "Danger zone action title.")
             case .removeAllAccounts:
-                "Remove All Accounts"
+                L10n.string("Remove All Accounts", comment: "Danger zone action title.")
             }
         }
 
         var message: String {
             switch self {
             case .resetSettings:
-                "Reset notification preferences on this iPhone?"
+                L10n.string("Reset notification preferences on this iPhone?", comment: "Reset settings confirmation message.")
             case .removeAllAccounts:
-                "Remove every account from this iPhone? You can add them again later."
+                L10n.string("Remove every account from this iPhone? You can add them again later.", comment: "Remove all iPhone accounts confirmation message.")
             }
         }
 
         var confirmationTitle: String {
             switch self {
             case .resetSettings:
-                "Reset"
+                L10n.string("Reset", comment: "Reset settings confirmation button title.")
             case .removeAllAccounts:
-                "Remove All"
+                L10n.string("Remove All", comment: "Remove all accounts confirmation button title.")
             }
         }
     }
 
     private enum PresentedSettingsAlert: Identifiable {
         case error(title: String, message: String)
+
+        static func localizedError(title: String, message: String) -> Self {
+            .error(
+                title: L10n.string(title, comment: "Settings alert title."),
+                message: L10n.string(message, comment: "Settings alert message.")
+            )
+        }
 
         var id: String {
             switch self {
@@ -230,7 +237,15 @@ struct IOSSettingsView: View {
         if let notificationAuthorizationStatus,
            CodexNotificationSettingsLink.shouldShowDisabledFooter(for: notificationAuthorizationStatus),
            let destination = CodexNotificationSettingsLink.sectionFooterURL() {
-            Text(.init("Notifications are disabled in system settings. [Change](\(destination.absoluteString))"))
+            Text(
+                .init(
+                    L10n.format(
+                        "Notifications are disabled in system settings. [Change](%@)",
+                        destination.absoluteString,
+                        comment: "Settings footer markdown with a link to app notification settings."
+                    )
+                )
+            )
         }
     }
 
@@ -282,13 +297,13 @@ struct IOSSettingsView: View {
                 setNotificationPreference(kind, isEnabled: true)
             case .denied:
                 setNotificationPreference(kind, isEnabled: false)
-                presentedSettingsAlert = .error(
+                presentedSettingsAlert = .localizedError(
                     title: "Notifications Disabled",
                     message: "Codex Switcher can only show notifications after you allow them in Settings > Notifications."
                 )
             case let .failed(message):
                 setNotificationPreference(kind, isEnabled: false)
-                presentedSettingsAlert = .error(
+                presentedSettingsAlert = .localizedError(
                     title: "Couldn't Enable Notifications",
                     message: message
                 )
@@ -315,7 +330,7 @@ struct IOSSettingsView: View {
         systemImage: String,
         isEnabled: Bool
     ) -> some View {
-        Label(title, systemImage: systemImage)
+        Label(L10n.string(title, comment: "Danger zone action title."), systemImage: systemImage)
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(isEnabled ? .red : .secondary)
             .contentShape(Rectangle())
@@ -343,7 +358,7 @@ struct IOSSettingsView: View {
             do {
                 try await StoredAccountMutations.removeAll(accounts, in: modelContext)
             } catch {
-                presentedSettingsAlert = .error(
+                presentedSettingsAlert = .localizedError(
                     title: "Couldn't Remove Accounts",
                     message: error.localizedDescription
                 )

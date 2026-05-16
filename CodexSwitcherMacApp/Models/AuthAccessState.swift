@@ -46,19 +46,19 @@ enum AuthAccessState: Equatable {
     var title: String {
         switch self {
         case .unlinked:
-            "Link Codex Folder"
+            L10n.string("Link Codex Folder", comment: "Authentication status title.")
         case .ready:
-            "Codex Linked"
+            L10n.string("Codex Linked", comment: "Authentication status title.")
         case .missingAuthFile:
-            "No auth.json"
+            L10n.string("No auth.json", comment: "Authentication status title.")
         case .locationUnavailable:
-            "Codex Folder Missing"
+            L10n.string("Codex Folder Missing", comment: "Authentication status title.")
         case .accessDenied:
-            "Permission Needed"
+            L10n.string("Permission Needed", comment: "Authentication status title.")
         case .corruptAuthFile:
-            "Invalid auth.json"
+            L10n.string("Invalid auth.json", comment: "Authentication status title.")
         case .unsupportedCredentialStore:
-            "Unsupported Credential Store"
+            L10n.string("Unsupported Credential Store", comment: "Authentication status title.")
         }
     }
 
@@ -84,23 +84,55 @@ enum AuthAccessState: Equatable {
     var message: String {
         switch self {
         case .unlinked:
-            return "Choose the Codex folder that contains auth.json."
+            return L10n.string(
+                "Choose the Codex folder that contains auth.json.",
+                comment: "Authentication status message shown before a Codex folder is linked."
+            )
         case let .ready(linkedFolder):
-            return "Linked to \(linkedFolder.path)."
+            return L10n.format(
+                "Linked to %@.",
+                linkedFolder.path,
+                comment: "Authentication status message. The argument is the linked folder path."
+            )
         case let .missingAuthFile(linkedFolder, credentialStoreHint):
             if credentialStoreHint == .file {
-                return "No auth.json was found in \(linkedFolder.path). Codex may be logged out."
+                return L10n.format(
+                    "No auth.json was found in %@. Codex may be logged out.",
+                    linkedFolder.path,
+                    comment: "Authentication status message. The argument is the linked folder path."
+                )
             }
 
-            return "No auth.json was found in \(linkedFolder.path). Codex may be logged out, may be using a different CODEX_HOME, or may be using keyring or auto credential storage."
+            return L10n.format(
+                "No auth.json was found in %@. Codex may be logged out, may be using a different CODEX_HOME, or may be using keyring or auto credential storage.",
+                linkedFolder.path,
+                comment: "Authentication status message. The argument is the linked folder path."
+            )
         case let .locationUnavailable(linkedFolder):
-            return "The linked Codex folder is no longer available: \(linkedFolder.path)."
+            return L10n.format(
+                "The linked Codex folder is no longer available: %@.",
+                linkedFolder.path,
+                comment: "Authentication status message. The argument is the linked folder path."
+            )
         case let .accessDenied(linkedFolder):
-            return "Codex Switcher no longer has permission to access \(linkedFolder.path). Relink the folder to continue."
+            return L10n.format(
+                "Codex Switcher no longer has permission to access %@. Relink the folder to continue.",
+                linkedFolder.path,
+                comment: "Authentication status message. The argument is the linked folder path."
+            )
         case let .corruptAuthFile(linkedFolder):
-            return "auth.json in \(linkedFolder.path) isn't valid JSON or doesn't contain a supported Codex account payload."
+            return L10n.format(
+                "auth.json in %@ isn't valid JSON or doesn't contain a supported Codex account payload.",
+                linkedFolder.path,
+                comment: "Authentication status message. The argument is the linked folder path."
+            )
         case let .unsupportedCredentialStore(linkedFolder, mode):
-            return "The linked Codex folder at \(linkedFolder.path) is configured for \(mode.displayName) credential storage. Codex Switcher only supports file-backed auth.json switching."
+            return L10n.format(
+                "The linked Codex folder at %1$@ is configured for %2$@ credential storage. Codex Switcher only supports file-backed auth.json switching.",
+                linkedFolder.path,
+                mode.displayName,
+                comment: "Authentication status message. Arguments are folder path and credential store mode."
+            )
         }
     }
 }

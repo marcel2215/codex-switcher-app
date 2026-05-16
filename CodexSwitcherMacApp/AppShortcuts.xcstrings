@@ -1,0 +1,2796 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Add the current Codex account to ${applicationName}": {
+      "comment": "Localized user-facing text.",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "أضف حساب Codex الحالي إلى ${applicationName}",
+              "احفظ حساب Codex الحالي في ${applicationName}"
+            ]
+          }
+        },
+        "bn-BD": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "বর্তমান Codex অ্যাকাউন্টটি ${applicationName} এ যোগ করুন",
+              "বর্তমান Codex অ্যাকাউন্টটি ${applicationName} এ সংরক্ষণ করুন"
+            ]
+          }
+        },
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Afegeix el compte actual Codex a ${applicationName}",
+              "Desa el compte actual Codex a ${applicationName}"
+            ]
+          }
+        },
+        "cs": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Přidat aktuální účet Codex do ${applicationName}",
+              "Uložit aktuální účet Codex do ${applicationName}"
+            ]
+          }
+        },
+        "da": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Tilføj den nuværende Codex konto til ${applicationName}",
+              "Gem den aktuelle Codex konto i ${applicationName}"
+            ]
+          }
+        },
+        "de-DE": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Fügen Sie das aktuelle Konto Codex zu ${applicationName} hinzu.",
+              "Speichern Sie das aktuelle Codex-Konto in ${applicationName}"
+            ]
+          }
+        },
+        "el": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Προσθέστε τον τρέχοντα λογαριασμό Codex στο ${applicationName}",
+              "Αποθηκεύστε τον τρέχοντα λογαριασμό Codex στο ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Add the current Codex account to ${applicationName}",
+              "Save the current Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-AU": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Add the current Codex account to ${applicationName}",
+              "Save the current Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Add the current Codex account to ${applicationName}",
+              "Save the current Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-GB": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Add the current Codex account to ${applicationName}",
+              "Save the current Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-US": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Add the current Codex account to ${applicationName}",
+              "Save the current Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "es-ES": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Agregue la cuenta actual Codex a ${applicationName}",
+              "Guarde la cuenta Codex actual en ${applicationName}"
+            ]
+          }
+        },
+        "es-MX": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Agregue la cuenta actual Codex a ${applicationName}",
+              "Guarde la cuenta Codex actual en ${applicationName}"
+            ]
+          }
+        },
+        "fi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Lisää nykyinen Codex-tili tiliin ${applicationName}",
+              "Tallenna nykyinen Codex-tili kansioon ${applicationName}"
+            ]
+          }
+        },
+        "fr-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ajoutez le compte Codex actuel à ${applicationName}",
+              "Sauvegardez le compte Codex actuel dans ${applicationName}"
+            ]
+          }
+        },
+        "fr-FR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ajoutez le compte Codex actuel à ${applicationName}",
+              "Enregistrez le compte Codex actuel dans ${applicationName}"
+            ]
+          }
+        },
+        "gu-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "વર્તમાન Codex એકાઉન્ટને ${applicationName} માં ઉમેરો",
+              "વર્તમાન Codex એકાઉન્ટને ${applicationName} માં સાચવો"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "הוסף את חשבון Codex הנוכחי ל-${applicationName}",
+              "שמור את חשבון Codex הנוכחי ב-${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "वर्तमान Codex खाते को ${applicationName} में जोड़ें",
+              "वर्तमान Codex खाते को ${applicationName} में सहेजें"
+            ]
+          }
+        },
+        "hr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Dodaj trenutni Codex račun u ${applicationName}",
+              "Spremi trenutni Codex račun u ${applicationName}"
+            ]
+          }
+        },
+        "hu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Adja hozzá a jelenlegi Codex fiókot a ${applicationName} fiókhoz",
+              "Mentse el az aktuális Codex fiókot a ${applicationName} mappába"
+            ]
+          }
+        },
+        "id": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Tambahkan akun Codex saat ini ke ${applicationName}",
+              "Simpan akun Codex saat ini di ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Aggiungi l'account Codex corrente a ${applicationName}",
+              "Salva l'account Codex corrente in ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "現在の Codex アカウントを ${applicationName} に追加します",
+              "現在の Codex アカウントを ${applicationName} に保存します"
+            ]
+          }
+        },
+        "kn-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "ಪ್ರಸ್ತುತ Codex ಖಾತೆಯನ್ನು ${applicationName} ಗೆ ಸೇರಿಸಿ",
+              "ಪ್ರಸ್ತುತ Codex ಖಾತೆಯನ್ನು ${applicationName} ನಲ್ಲಿ ಉಳಿಸಿ"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "현재 Codex 계정을 ${applicationName}에 추가하세요.",
+              "현재 Codex 계정을 ${applicationName}에 저장합니다."
+            ]
+          }
+        },
+        "ml-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "നിലവിലെ Codex അക്കൗണ്ട് ${applicationName} എന്നതിലേക്ക് ചേർക്കുക",
+              "നിലവിലെ Codex അക്കൗണ്ട് ${applicationName} എന്നതിൽ സംരക്ഷിക്കുക"
+            ]
+          }
+        },
+        "mr-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "वर्तमान Codex खाते ${applicationName} मध्ये जोडा",
+              "वर्तमान Codex खाते ${applicationName} मध्ये जतन करा"
+            ]
+          }
+        },
+        "ms": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Tambahkan akaun Codex semasa ke ${applicationName}",
+              "Simpan akaun Codex semasa dalam ${applicationName}"
+            ]
+          }
+        },
+        "nl-NL": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Voeg het huidige Codex-account toe aan ${applicationName}",
+              "Sla het huidige Codex-account op in ${applicationName}"
+            ]
+          }
+        },
+        "no": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Legg til gjeldende Codex-konto til ${applicationName}",
+              "Lagre den nåværende Codex-kontoen i ${applicationName}"
+            ]
+          }
+        },
+        "or-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "ସାମ୍ପ୍ରତିକ Codex ଖାତାକୁ ${applicationName} ରେ ଯୋଡନ୍ତୁ",
+              "ସାମ୍ପ୍ରତିକ Codex ଖାତାକୁ ${applicationName} ରେ ସେଭ୍ କରନ୍ତୁ"
+            ]
+          }
+        },
+        "pa-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "ਮੌਜੂਦਾ Codex ਖਾਤੇ ਨੂੰ ${applicationName} ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ",
+              "ਮੌਜੂਦਾ Codex ਖਾਤੇ ਨੂੰ ${applicationName} ਵਿੱਚ ਸੁਰੱਖਿਅਤ ਕਰੋ"
+            ]
+          }
+        },
+        "pl": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Dodaj bieżące konto Codex do ${applicationName}",
+              "Zapisz bieżące konto Codex w ${applicationName}"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Adicione a conta Codex atual a ${applicationName}",
+              "Salve a conta Codex atual em ${applicationName}"
+            ]
+          }
+        },
+        "pt-PT": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Adicione a conta Codex atual a ${applicationName}",
+              "Guarde a conta Codex atual em ${applicationName}"
+            ]
+          }
+        },
+        "ro": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Adăugați contul curent Codex la ${applicationName}",
+              "Salvați contul curent Codex în ${applicationName}"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Добавьте текущую учетную запись Codex в ${applicationName}.",
+              "Сохраните текущую учетную запись Codex в ${applicationName}."
+            ]
+          }
+        },
+        "sk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Pridať aktuálny účet Codex do ${applicationName}",
+              "Uložte aktuálny účet Codex v ${applicationName}"
+            ]
+          }
+        },
+        "sl-SI": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Dodajte trenutni račun Codex v ${applicationName}",
+              "Shranite trenutni račun Codex v ${applicationName}"
+            ]
+          }
+        },
+        "sv": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Lägg till det nuvarande Codex-kontot till ${applicationName}",
+              "Spara det aktuella Codex-kontot i ${applicationName}"
+            ]
+          }
+        },
+        "ta-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "தற்போதைய Codex கணக்கை ${applicationName} இல் சேர்க்கவும்",
+              "தற்போதைய Codex கணக்கை ${applicationName} இல் சேமிக்கவும்"
+            ]
+          }
+        },
+        "te-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "ప్రస్తుత Codex ఖాతాను ${applicationName}కి జోడించండి",
+              "ప్రస్తుత Codex ఖాతాను ${applicationName}లో సేవ్ చేయండి"
+            ]
+          }
+        },
+        "th": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "เพิ่มบัญชี Codex ปัจจุบันไปที่ ${applicationName}",
+              "บันทึกบัญชี Codex ปัจจุบันใน ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mevcut Codex hesabını ${applicationName} hesabına ekleyin",
+              "Mevcut Codex hesabını ${applicationName} içine kaydedin"
+            ]
+          }
+        },
+        "uk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Додайте поточний обліковий запис Codex до ${applicationName}",
+              "Зберегти поточний обліковий запис Codex у ${applicationName}"
+            ]
+          }
+        },
+        "ur-PK": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "موجودہ Codex اکاؤنٹ کو ${applicationName} میں شامل کریں",
+              "موجودہ Codex اکاؤنٹ کو ${applicationName} میں محفوظ کریں"
+            ]
+          }
+        },
+        "vi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Thêm tài khoản Codex hiện tại vào ${applicationName}",
+              "Lưu tài khoản Codex hiện tại trong ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "将当前 Codex 账户添加到 ${applicationName}",
+              "将当前 Codex 帐户保存在 ${applicationName} 中"
+            ]
+          }
+        },
+        "zh-Hant": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "將目前 Codex 帳戶新增至 ${applicationName}",
+              "將目前 Codex 帳戶儲存在 ${applicationName} 中"
+            ]
+          }
+        }
+      }
+    },
+    "Get the current account in ${applicationName}": {
+      "comment": "Localized user-facing text.",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "احصل على الحساب الجاري في ${applicationName}",
+              "ما الحساب النشط في ${applicationName}"
+            ]
+          }
+        },
+        "bn-BD": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} এ বর্তমান অ্যাকাউন্ট পান",
+              "${applicationName} এ কোন অ্যাকাউন্ট সক্রিয় আছে"
+            ]
+          }
+        },
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obteniu el compte actual a ${applicationName}",
+              "Quin compte està actiu a ${applicationName}"
+            ]
+          }
+        },
+        "cs": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Získejte aktuální účet v ${applicationName}",
+              "Jaký účet je aktivní v ${applicationName}"
+            ]
+          }
+        },
+        "da": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Hent den aktuelle konto i ${applicationName}",
+              "Hvilken konto er aktiv i ${applicationName}"
+            ]
+          }
+        },
+        "de-DE": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Holen Sie sich das aktuelle Konto in ${applicationName}",
+              "Welches Konto ist in ${applicationName} aktiv?"
+            ]
+          }
+        },
+        "el": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Λάβετε τον τρέχοντα λογαριασμό στο ${applicationName}",
+              "Ποιος λογαριασμός είναι ενεργός στο ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Get the current account in ${applicationName}",
+              "What account is active in ${applicationName}"
+            ]
+          }
+        },
+        "en-AU": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Get the current account in ${applicationName}",
+              "What account is active in ${applicationName}"
+            ]
+          }
+        },
+        "en-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Get the current account in ${applicationName}",
+              "What account is active in ${applicationName}"
+            ]
+          }
+        },
+        "en-GB": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Get the current account in ${applicationName}",
+              "What account is active in ${applicationName}"
+            ]
+          }
+        },
+        "en-US": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Get the current account in ${applicationName}",
+              "What account is active in ${applicationName}"
+            ]
+          }
+        },
+        "es-ES": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obtener la cuenta corriente en ${applicationName}",
+              "¿Qué cuenta está activa en ${applicationName}?"
+            ]
+          }
+        },
+        "es-MX": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obtener la cuenta corriente en ${applicationName}",
+              "¿Qué cuenta está activa en ${applicationName}?"
+            ]
+          }
+        },
+        "fi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Hanki nykyinen tili ${applicationName}",
+              "Mikä tili on aktiivinen kohteessa ${applicationName}"
+            ]
+          }
+        },
+        "fr-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obtenez le compte courant en ${applicationName}",
+              "Quel compte est actif dans ${applicationName}"
+            ]
+          }
+        },
+        "fr-FR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obtenez le compte courant en ${applicationName}",
+              "Quel compte est actif dans ${applicationName}"
+            ]
+          }
+        },
+        "gu-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} માં ચાલુ ખાતું મેળવો",
+              "${applicationName} માં કયું ખાતું સક્રિય છે"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "קבל את החשבון הנוכחי ב-${applicationName}",
+              "איזה חשבון פעיל ב${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} में चालू खाता प्राप्त करें",
+              "${applicationName} में कौन सा खाता सक्रिय है"
+            ]
+          }
+        },
+        "hr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Dobijte tekući račun u ${applicationName}",
+              "Koji je račun aktivan u ${applicationName}"
+            ]
+          }
+        },
+        "hu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Szerezze be az aktuális fiókot a ${applicationName}-ban",
+              "Melyik fiók aktív itt: ${applicationName}"
+            ]
+          }
+        },
+        "id": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Dapatkan akun saat ini di ${applicationName}",
+              "Akun apa yang aktif di ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ottieni il conto corrente in ${applicationName}",
+              "Quale account è attivo in ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} で現在のアカウントを取得します",
+              "${applicationName} でアクティブなアカウントは何ですか"
+            ]
+          }
+        },
+        "kn-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ನಲ್ಲಿ ಪ್ರಸ್ತುತ ಖಾತೆಯನ್ನು ಪಡೆಯಿರಿ",
+              "${applicationName} ನಲ್ಲಿ ಯಾವ ಖಾತೆ ಸಕ್ರಿಯವಾಗಿದೆ"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}에서 현재 계정을 가져옵니다.",
+              "${applicationName}에서 어떤 계정이 활성화되어 있나요?"
+            ]
+          }
+        },
+        "ml-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} എന്നതിൽ കറൻ്റ് അക്കൗണ്ട് നേടുക",
+              "${applicationName} എന്നതിൽ ഏത് അക്കൗണ്ട് സജീവമാണ്"
+            ]
+          }
+        },
+        "mr-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} मध्ये चालू खाते मिळवा",
+              "${applicationName} मध्ये कोणते खाते सक्रिय आहे"
+            ]
+          }
+        },
+        "ms": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Dapatkan akaun semasa dalam ${applicationName}",
+              "Akaun apakah yang aktif dalam ${applicationName}"
+            ]
+          }
+        },
+        "nl-NL": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Verkrijg het huidige account in ${applicationName}",
+              "Welk account is actief in ${applicationName}"
+            ]
+          }
+        },
+        "no": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Få gjeldende konto i ${applicationName}",
+              "Hvilken konto er aktiv i ${applicationName}"
+            ]
+          }
+        },
+        "or-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ରେ ସାମ୍ପ୍ରତିକ ଖାତା ପାଆନ୍ତୁ",
+              "କେଉଁ ଖାତା ${applicationName} ରେ ସକ୍ରିୟ ଅଛି"
+            ]
+          }
+        },
+        "pa-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ਵਿੱਚ ਮੌਜੂਦਾ ਖਾਤਾ ਪ੍ਰਾਪਤ ਕਰੋ",
+              "${applicationName} ਵਿੱਚ ਕਿਹੜਾ ਖਾਤਾ ਕਿਰਿਆਸ਼ੀਲ ਹੈ"
+            ]
+          }
+        },
+        "pl": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Uzyskaj konto bieżące w ${applicationName}",
+              "Jakie konto jest aktywne w ${applicationName}"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obtenha a conta corrente em ${applicationName}",
+              "Qual conta está ativa em ${applicationName}"
+            ]
+          }
+        },
+        "pt-PT": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obtenha a conta à ordem em ${applicationName}",
+              "Qual a conta ativa em ${applicationName}"
+            ]
+          }
+        },
+        "ro": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obțineți contul curent în ${applicationName}",
+              "Ce cont este activ în ${applicationName}"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Получите текущий аккаунт в ${applicationName}",
+              "Какая учетная запись активна в ${applicationName}"
+            ]
+          }
+        },
+        "sk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Získajte aktuálny účet v ${applicationName}",
+              "Aký účet je aktívny v ${applicationName}"
+            ]
+          }
+        },
+        "sl-SI": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Pridobite trenutni račun v ${applicationName}",
+              "Kateri račun je aktiven v ${applicationName}"
+            ]
+          }
+        },
+        "sv": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Skaffa det aktuella kontot i ${applicationName}",
+              "Vilket konto är aktivt i ${applicationName}"
+            ]
+          }
+        },
+        "ta-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} இல் நடப்புக் கணக்கைப் பெறவும்",
+              "${applicationName} இல் என்ன கணக்கு செயலில் உள்ளது"
+            ]
+          }
+        },
+        "te-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}లో ప్రస్తుత ఖాతాను పొందండి",
+              "${applicationName}లో ఏ ఖాతా సక్రియంగా ఉంది"
+            ]
+          }
+        },
+        "th": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "รับบัญชีปัจจุบันใน ${applicationName}",
+              "บัญชีใดที่ใช้งานอยู่ใน ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} içindeki cari hesabı alın",
+              "${applicationName}'da hangi hesap aktif?"
+            ]
+          }
+        },
+        "uk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Отримати поточний рахунок у ${applicationName}",
+              "Який обліковий запис активний у ${applicationName}"
+            ]
+          }
+        },
+        "ur-PK": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} میں کرنٹ اکاؤنٹ حاصل کریں",
+              "${applicationName} میں کون سا اکاؤنٹ فعال ہے"
+            ]
+          }
+        },
+        "vi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Nhận tài khoản hiện tại trong ${applicationName}",
+              "Tài khoản nào đang hoạt động trong ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "获取当前账户${applicationName}",
+              "${applicationName} 中哪个帐户处于活动状态"
+            ]
+          }
+        },
+        "zh-Hant": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "取得目前帳戶${applicationName}",
+              "${applicationName} 中哪個帳戶處於活動狀態"
+            ]
+          }
+        }
+      }
+    },
+    "Open ${applicationName}": {
+      "comment": "Localized user-facing text.",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "افتح ${applicationName}",
+              "افتح Codex Switcher في ${applicationName}"
+            ]
+          }
+        },
+        "bn-BD": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "খুলুন ${applicationName}",
+              "${applicationName} এ Codex Switcher খুলুন"
+            ]
+          }
+        },
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obre ${applicationName}",
+              "Obre Codex Switcher a ${applicationName}"
+            ]
+          }
+        },
+        "cs": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Otevřít ${applicationName}",
+              "Otevřít Codex Switcher v ${applicationName}"
+            ]
+          }
+        },
+        "da": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Åbn ${applicationName}",
+              "Åbn Codex Switcher i ${applicationName}"
+            ]
+          }
+        },
+        "de-DE": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Öffnen Sie ${applicationName}",
+              "Öffnen Sie Codex Switcher in ${applicationName}"
+            ]
+          }
+        },
+        "el": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Άνοιγμα ${applicationName}",
+              "Άνοιγμα Codex Switcher σε ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Open ${applicationName}",
+              "Open Codex Switcher in ${applicationName}"
+            ]
+          }
+        },
+        "en-AU": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${applicationName}",
+              "Open Codex Switcher in ${applicationName}"
+            ]
+          }
+        },
+        "en-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${applicationName}",
+              "Open Codex Switcher in ${applicationName}"
+            ]
+          }
+        },
+        "en-GB": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${applicationName}",
+              "Open Codex Switcher in ${applicationName}"
+            ]
+          }
+        },
+        "en-US": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${applicationName}",
+              "Open Codex Switcher in ${applicationName}"
+            ]
+          }
+        },
+        "es-ES": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Abrir ${applicationName}",
+              "Abra Codex Switcher en ${applicationName}"
+            ]
+          }
+        },
+        "es-MX": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Abrir ${applicationName}",
+              "Abra Codex Switcher en ${applicationName}"
+            ]
+          }
+        },
+        "fi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Avaa ${applicationName}",
+              "Avaa Codex Switcher kohteessa ${applicationName}"
+            ]
+          }
+        },
+        "fr-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ouvrez ${applicationName}",
+              "Ouvrez Codex Switcher dans ${applicationName}"
+            ]
+          }
+        },
+        "fr-FR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ouvrez ${applicationName}",
+              "Ouvrez Codex Switcher dans ${applicationName}"
+            ]
+          }
+        },
+        "gu-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ખોલો",
+              "${applicationName} માં Codex Switcher ખોલો"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "פתח את ${applicationName}",
+              "פתח את Codex Switcher ב-${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} खोलें",
+              "${applicationName} में Codex Switcher खोलें"
+            ]
+          }
+        },
+        "hr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Otvori ${applicationName}",
+              "Otvori Codex Switcher u ${applicationName}"
+            ]
+          }
+        },
+        "hu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Megnyitás ${applicationName}",
+              "A Codex Switcher megnyitása itt: ${applicationName}"
+            ]
+          }
+        },
+        "id": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Buka ${applicationName}",
+              "Buka Codex Switcher di ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Apri ${applicationName}",
+              "Apri Codex Switcher in ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} を開く",
+              "${applicationName} で Codex Switcher を開きます"
+            ]
+          }
+        },
+        "kn-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ತೆರೆಯಿರಿ",
+              "Codex Switcher ರಲ್ಲಿ ${applicationName} ತೆರೆಯಿರಿ"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} 열기",
+              "${applicationName}에서 Codex Switcher을 엽니다."
+            ]
+          }
+        },
+        "ml-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} തുറക്കുക",
+              "Codex Switcher ൽ ${applicationName} തുറക്കുക"
+            ]
+          }
+        },
+        "mr-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "उघडा ${applicationName}",
+              "${applicationName} मध्ये Codex Switcher उघडा"
+            ]
+          }
+        },
+        "ms": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Buka ${applicationName}",
+              "Buka Codex Switcher dalam ${applicationName}"
+            ]
+          }
+        },
+        "nl-NL": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${applicationName}",
+              "Open Codex Switcher in ${applicationName}"
+            ]
+          }
+        },
+        "no": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Åpne ${applicationName}",
+              "Åpne Codex Switcher i ${applicationName}"
+            ]
+          }
+        },
+        "or-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ଖୋଲନ୍ତୁ",
+              "${applicationName} ରେ Codex Switcher ଖୋଲନ୍ତୁ"
+            ]
+          }
+        },
+        "pa-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "ਖੋਲ੍ਹੋ ${applicationName}",
+              "${applicationName} ਵਿੱਚ Codex Switcher ਖੋਲ੍ਹੋ"
+            ]
+          }
+        },
+        "pl": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Otwórz ${applicationName}",
+              "Otwórz Codex Switcher w ${applicationName}"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Abra ${applicationName}",
+              "Abra Codex Switcher em ${applicationName}"
+            ]
+          }
+        },
+        "pt-PT": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Abra ${applicationName}",
+              "Abra Codex Switcher em ${applicationName}"
+            ]
+          }
+        },
+        "ro": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Deschide ${applicationName}",
+              "Deschide Codex Switcher în ${applicationName}"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Откройте ${applicationName}",
+              "Откройте Codex Switcher в ${applicationName}."
+            ]
+          }
+        },
+        "sk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Otvoriť ${applicationName}",
+              "Otvoriť Codex Switcher v ${applicationName}"
+            ]
+          }
+        },
+        "sl-SI": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Odpri ${applicationName}",
+              "Odpri Codex Switcher v ${applicationName}"
+            ]
+          }
+        },
+        "sv": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Öppna ${applicationName}",
+              "Öppna Codex Switcher i ${applicationName}"
+            ]
+          }
+        },
+        "ta-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "திற ${applicationName}",
+              "Codex Switcher இல் ${applicationName} இல் திற"
+            ]
+          }
+        },
+        "te-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} తెరవండి",
+              "Codex Switcherని ${applicationName}లో తెరవండి"
+            ]
+          }
+        },
+        "th": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "เปิด ${applicationName}",
+              "เปิด Codex Switcher ใน ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}'yi açın",
+              "Codex Switcher'yi ${applicationName}'da açın"
+            ]
+          }
+        },
+        "uk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Відкрити ${applicationName}",
+              "Відкрити Codex Switcher у ${applicationName}"
+            ]
+          }
+        },
+        "ur-PK": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "کھولیں ${applicationName}",
+              "Codex Switcher کو ${applicationName} میں کھولیں"
+            ]
+          }
+        },
+        "vi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mở ${applicationName}",
+              "Mở Codex Switcher trong ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "打开${applicationName}",
+              "在 ${applicationName} 中打开 Codex Switcher"
+            ]
+          }
+        },
+        "zh-Hant": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "打開${applicationName}",
+              "在 ${applicationName} 中開啟 Codex Switcher"
+            ]
+          }
+        }
+      }
+    },
+    "Open ${target} in ${applicationName}": {
+      "comment": "Localized user-facing text.",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "افتح ${target} في ${applicationName}",
+              "إظهار ${target} في ${applicationName}"
+            ]
+          }
+        },
+        "bn-BD": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} এ ${target} খুলুন",
+              "${applicationName} এ ${target} দেখান"
+            ]
+          }
+        },
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Obre ${target} a ${applicationName}",
+              "Mostra ${target} a ${applicationName}"
+            ]
+          }
+        },
+        "cs": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Otevřít ${target} v ${applicationName}",
+              "Zobrazit ${target} v ${applicationName}"
+            ]
+          }
+        },
+        "da": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Åbn ${target} i ${applicationName}",
+              "Vis ${target} i ${applicationName}"
+            ]
+          }
+        },
+        "de-DE": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Öffnen Sie ${target} in ${applicationName}",
+              "${target} in ${applicationName} anzeigen"
+            ]
+          }
+        },
+        "el": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Άνοιγμα ${target} σε ${applicationName}",
+              "Εμφάνιση ${target} σε ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Open ${target} in ${applicationName}",
+              "Show ${target} in ${applicationName}"
+            ]
+          }
+        },
+        "en-AU": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${target} in ${applicationName}",
+              "Show ${target} in ${applicationName}"
+            ]
+          }
+        },
+        "en-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${target} in ${applicationName}",
+              "Show ${target} in ${applicationName}"
+            ]
+          }
+        },
+        "en-GB": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${target} in ${applicationName}",
+              "Show ${target} in ${applicationName}"
+            ]
+          }
+        },
+        "en-US": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${target} in ${applicationName}",
+              "Show ${target} in ${applicationName}"
+            ]
+          }
+        },
+        "es-ES": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Abra ${target} en ${applicationName}",
+              "Mostrar ${target} en ${applicationName}"
+            ]
+          }
+        },
+        "es-MX": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Abra ${target} en ${applicationName}",
+              "Mostrar ${target} en ${applicationName}"
+            ]
+          }
+        },
+        "fi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Avaa ${target} kohteessa ${applicationName}",
+              "Näytä ${target} kielessä ${applicationName}"
+            ]
+          }
+        },
+        "fr-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ouvrez ${target} dans ${applicationName}",
+              "Afficher ${target} dans ${applicationName}"
+            ]
+          }
+        },
+        "fr-FR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ouvrez ${target} dans ${applicationName}",
+              "Afficher ${target} dans ${applicationName}"
+            ]
+          }
+        },
+        "gu-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} માં ${target} ખોલો",
+              "${applicationName} માં ${target} બતાવો"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "פתח את ${target} ב-${applicationName}",
+              "הצג את ${target} ב-${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} में ${target} खोलें",
+              "${applicationName} में ${target} दिखाएँ"
+            ]
+          }
+        },
+        "hr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Otvori ${target} u ${applicationName}",
+              "Prikaži ${target} u ${applicationName}"
+            ]
+          }
+        },
+        "hu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${target} megnyitása itt: ${applicationName}",
+              "${target} megjelenítése ${applicationName}"
+            ]
+          }
+        },
+        "id": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Buka ${target} di ${applicationName}",
+              "Tampilkan ${target} di ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Apri ${target} in ${applicationName}",
+              "Mostra ${target} in ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} で ${target} を開きます",
+              "${applicationName} で ${target} を表示"
+            ]
+          }
+        },
+        "kn-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ನಲ್ಲಿ ${target} ತೆರೆಯಿರಿ",
+              "${applicationName} ರಲ್ಲಿ ${target} ತೋರಿಸಿ"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}에서 ${target}을 엽니다.",
+              "${applicationName}에 ${target} 표시"
+            ]
+          }
+        },
+        "ml-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}-ൽ ${target} തുറക്കുക",
+              "${applicationName} എന്നതിൽ ${target} കാണിക്കുക"
+            ]
+          }
+        },
+        "mr-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} मध्ये ${target} उघडा",
+              "${applicationName} मध्ये ${target} दर्शवा"
+            ]
+          }
+        },
+        "ms": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Buka ${target} dalam ${applicationName}",
+              "Tunjukkan ${target} dalam ${applicationName}"
+            ]
+          }
+        },
+        "nl-NL": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open ${target} in ${applicationName}",
+              "Toon ${target} in ${applicationName}"
+            ]
+          }
+        },
+        "no": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Åpne ${target} i ${applicationName}",
+              "Vis ${target} i ${applicationName}"
+            ]
+          }
+        },
+        "or-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ରେ ${target} ଖୋଲନ୍ତୁ",
+              "${target} ${applicationName} ରେ ଦେଖାନ୍ତୁ"
+            ]
+          }
+        },
+        "pa-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ਵਿੱਚ ${target} ਖੋਲ੍ਹੋ",
+              "${applicationName} ਵਿੱਚ ${target} ਦਿਖਾਓ"
+            ]
+          }
+        },
+        "pl": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Otwórz ${target} w ${applicationName}",
+              "Pokaż ${target} w ${applicationName}"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Abra ${target} em ${applicationName}",
+              "Mostrar ${target} em ${applicationName}"
+            ]
+          }
+        },
+        "pt-PT": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Abra ${target} em ${applicationName}",
+              "Mostrar ${target} em ${applicationName}"
+            ]
+          }
+        },
+        "ro": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Deschide ${target} în ${applicationName}",
+              "Afișați ${target} în ${applicationName}"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Откройте ${target} в ${applicationName}.",
+              "Показать ${target} в ${applicationName}"
+            ]
+          }
+        },
+        "sk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Otvoriť ${target} v ${applicationName}",
+              "Zobraziť ${target} v ${applicationName}"
+            ]
+          }
+        },
+        "sl-SI": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Odpri ${target} v ${applicationName}",
+              "Pokaži ${target} v ${applicationName}"
+            ]
+          }
+        },
+        "sv": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Öppna ${target} i ${applicationName}",
+              "Visa ${target} i ${applicationName}"
+            ]
+          }
+        },
+        "ta-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} இல் ${target}ஐத் திற",
+              "${applicationName} இல் ${target} ஐக் காட்டு"
+            ]
+          }
+        },
+        "te-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}లో ${target}ని తెరవండి",
+              "${applicationName}లో ${target}ని చూపు"
+            ]
+          }
+        },
+        "th": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "เปิด ${target} ใน ${applicationName}",
+              "แสดง ${target} ใน ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${target}'yi ${applicationName}'de açın",
+              "${target}'yi ${applicationName}'de göster"
+            ]
+          }
+        },
+        "uk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Відкрити ${target} в ${applicationName}",
+              "Показати ${target} у ${applicationName}"
+            ]
+          }
+        },
+        "ur-PK": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${target} کو ${applicationName} میں کھولیں",
+              "${target} کو ${applicationName} میں دکھائیں"
+            ]
+          }
+        },
+        "vi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mở ${target} trong ${applicationName}",
+              "Hiển thị ${target} trong ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "在 ${applicationName} 中打开 ${target}",
+              "在 ${applicationName} 中显示 ${target}"
+            ]
+          }
+        },
+        "zh-Hant": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "在 ${applicationName} 中開啟 ${target}",
+              "在 ${applicationName} 中顯示 ${target}"
+            ]
+          }
+        }
+      }
+    },
+    "Switch Codex account in ${applicationName}": {
+      "comment": "Localized user-facing text.",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "تبديل حساب Codex إلى ${applicationName}",
+              "استخدم حساب Codex محفوظ في ${applicationName}"
+            ]
+          }
+        },
+        "bn-BD": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} এ Codex অ্যাকাউন্ট পাল্টান",
+              "${applicationName} এ একটি সংরক্ষিত Codex অ্যাকাউন্ট ব্যবহার করুন"
+            ]
+          }
+        },
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Canvia el compte Codex a ${applicationName}",
+              "Utilitzeu un compte Codex desat a ${applicationName}"
+            ]
+          }
+        },
+        "cs": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Přepnout účet Codex v ${applicationName}",
+              "Použijte uložený účet Codex v ${applicationName}"
+            ]
+          }
+        },
+        "da": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Skift Codex konto i ${applicationName}",
+              "Brug en gemt Codex konto i ${applicationName}"
+            ]
+          }
+        },
+        "de-DE": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Wechseln Sie das Konto Codex in ${applicationName}",
+              "Verwenden Sie ein gespeichertes Codex-Konto in ${applicationName}"
+            ]
+          }
+        },
+        "el": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Εναλλαγή λογαριασμού Codex σε ${applicationName}",
+              "Χρησιμοποιήστε έναν αποθηκευμένο λογαριασμό Codex στο ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Switch Codex account in ${applicationName}",
+              "Use a saved Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-AU": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Switch Codex account in ${applicationName}",
+              "Use a saved Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Switch Codex account in ${applicationName}",
+              "Use a saved Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-GB": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Switch Codex account in ${applicationName}",
+              "Use a saved Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-US": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Switch Codex account in ${applicationName}",
+              "Use a saved Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "es-ES": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Cambiar cuenta Codex en ${applicationName}",
+              "Utilice una cuenta Codex guardada en ${applicationName}"
+            ]
+          }
+        },
+        "es-MX": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Cambiar cuenta Codex en ${applicationName}",
+              "Utilice una cuenta Codex guardada en ${applicationName}"
+            ]
+          }
+        },
+        "fi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Vaihda Codex-tiliä kohteessa ${applicationName}",
+              "Käytä tallennettua Codex tiliä ${applicationName}"
+            ]
+          }
+        },
+        "fr-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Changer de compte Codex en ${applicationName}",
+              "Utiliser un compte Codex enregistré dans ${applicationName}"
+            ]
+          }
+        },
+        "fr-FR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Changer de compte Codex en ${applicationName}",
+              "Utiliser un compte Codex enregistré dans ${applicationName}"
+            ]
+          }
+        },
+        "gu-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} માં Codex એકાઉન્ટ સ્વિચ કરો",
+              "${applicationName} માં સાચવેલ Codex એકાઉન્ટનો ઉપયોગ કરો"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "החלף חשבון Codex ב-${applicationName}",
+              "השתמש בחשבון Codex שמור ב-${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Codex खाते को ${applicationName} में स्विच करें",
+              "${applicationName} में सहेजे गए Codex खाते का उपयोग करें"
+            ]
+          }
+        },
+        "hr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Promijenite Codex račun u ${applicationName}",
+              "Koristite spremljeni Codex račun u ${applicationName}"
+            ]
+          }
+        },
+        "hu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Váltson Codex fiókot itt: ${applicationName}",
+              "Használjon mentett Codex fiókot a ${applicationName}"
+            ]
+          }
+        },
+        "id": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ganti akun Codex di ${applicationName}",
+              "Gunakan akun Codex yang disimpan di ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Cambia account Codex in ${applicationName}",
+              "Utilizza un account Codex salvato in ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} で Codex アカウントを切り替える",
+              "保存された Codex アカウントを ${applicationName} で使用する"
+            ]
+          }
+        },
+        "kn-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Codex ಖಾತೆಯನ್ನು ${applicationName} ನಲ್ಲಿ ಬದಲಾಯಿಸಿ",
+              "${applicationName} ನಲ್ಲಿ ಉಳಿಸಿದ Codex ಖಾತೆಯನ್ನು ಬಳಸಿ"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}에서 Codex 계정 전환",
+              "${applicationName}에 저장된 Codex 계정을 사용하세요."
+            ]
+          }
+        },
+        "ml-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Codex അക്കൗണ്ട് ${applicationName} എന്നതിൽ മാറ്റുക",
+              "${applicationName} എന്നതിൽ സംരക്ഷിച്ച Codex അക്കൗണ്ട് ഉപയോഗിക്കുക"
+            ]
+          }
+        },
+        "mr-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} मध्ये Codex खाते स्विच करा",
+              "${applicationName} मध्ये सेव्ह केलेले Codex खाते वापरा"
+            ]
+          }
+        },
+        "ms": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Tukar akaun Codex dalam ${applicationName}",
+              "Gunakan akaun Codex yang disimpan dalam ${applicationName}"
+            ]
+          }
+        },
+        "nl-NL": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Verander Codex account in ${applicationName}",
+              "Gebruik een opgeslagen Codex-account in ${applicationName}"
+            ]
+          }
+        },
+        "no": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Bytt Codex konto i ${applicationName}",
+              "Bruk en lagret Codex-konto i ${applicationName}"
+            ]
+          }
+        },
+        "or-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Codex ଖାତାକୁ ${applicationName} ରେ ସୁଇଚ୍ କରନ୍ତୁ",
+              "Codex ଖାତାକୁ ${applicationName} ରେ ସୁଇଚ୍ କରନ୍ତୁ"
+            ]
+          }
+        },
+        "pa-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Codex ਖਾਤੇ ਨੂੰ ${applicationName} ਵਿੱਚ ਬਦਲੋ",
+              "${applicationName} ਵਿੱਚ ਇੱਕ ਸੁਰੱਖਿਅਤ ਕੀਤੇ Codex ਖਾਤੇ ਦੀ ਵਰਤੋਂ ਕਰੋ"
+            ]
+          }
+        },
+        "pl": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Zmień konto Codex w ${applicationName}",
+              "Użyj zapisanego konta Codex w ${applicationName}"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mude a conta Codex para ${applicationName}",
+              "Use uma conta Codex salva em ${applicationName}"
+            ]
+          }
+        },
+        "pt-PT": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Altere a conta Codex para ${applicationName}",
+              "Utilize uma conta Codex guardada em ${applicationName}"
+            ]
+          }
+        },
+        "ro": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Schimbați contul Codex în ${applicationName}",
+              "Utilizați un cont Codex salvat în ${applicationName}"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Переключить учетную запись Codex в ${applicationName}",
+              "Используйте сохраненную учетную запись Codex в ${applicationName}."
+            ]
+          }
+        },
+        "sk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Prepnúť účet Codex v ${applicationName}",
+              "Použite uložený účet Codex v ${applicationName}"
+            ]
+          }
+        },
+        "sl-SI": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Preklopite račun Codex v ${applicationName}",
+              "Uporabi shranjen račun Codex v ${applicationName}"
+            ]
+          }
+        },
+        "sv": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Byt Codex konto i ${applicationName}",
+              "Använd ett sparat Codex-konto i ${applicationName}"
+            ]
+          }
+        },
+        "ta-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Codex கணக்கை ${applicationName} இல் மாற்றவும்",
+              "${applicationName} இல் சேமிக்கப்பட்ட Codex கணக்கைப் பயன்படுத்தவும்"
+            ]
+          }
+        },
+        "te-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Codex ఖాతాను ${applicationName}లో మార్చండి",
+              "${applicationName}లో సేవ్ చేయబడిన Codex ఖాతాను ఉపయోగించండి"
+            ]
+          }
+        },
+        "th": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "สลับบัญชี Codex ใน ${applicationName}",
+              "ใช้บัญชี Codex ที่บันทึกไว้ใน ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}'da Codex hesabını değiştirin",
+              "${applicationName}'da kayıtlı bir Codex hesabını kullanın"
+            ]
+          }
+        },
+        "uk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Змінити обліковий запис Codex у ${applicationName}",
+              "Використовуйте збережений обліковий запис Codex у ${applicationName}"
+            ]
+          }
+        },
+        "ur-PK": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Codex اکاؤنٹ کو ${applicationName} میں سوئچ کریں",
+              "${applicationName} میں محفوظ کردہ Codex اکاؤنٹ استعمال کریں"
+            ]
+          }
+        },
+        "vi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Chuyển tài khoản Codex trong ${applicationName}",
+              "Sử dụng tài khoản Codex đã lưu trong ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "在 ${applicationName} 中切换 Codex 账户",
+              "使用 ${applicationName} 中保存的 Codex 帐户"
+            ]
+          }
+        },
+        "zh-Hant": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "在 ${applicationName} 中切換 Codex 帳戶",
+              "使用 ${applicationName} 中儲存的 Codex 帳戶"
+            ]
+          }
+        }
+      }
+    },
+    "Switch to the best account in ${applicationName}": {
+      "comment": "Localized user-facing text.",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "قم بالتبديل إلى أفضل حساب في ${applicationName}",
+              "استخدم أفضل حساب Codex في ${applicationName}"
+            ]
+          }
+        },
+        "bn-BD": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} এ সেরা অ্যাকাউন্টে স্যুইচ করুন",
+              "${applicationName} এ সেরা Codex অ্যাকাউন্টটি ব্যবহার করুন"
+            ]
+          }
+        },
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Canvia al millor compte a ${applicationName}",
+              "Utilitzeu el millor compte Codex a ${applicationName}"
+            ]
+          }
+        },
+        "cs": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Přepnout na nejlepší účet v ${applicationName}",
+              "Použijte nejlepší Codex účet v ${applicationName}"
+            ]
+          }
+        },
+        "da": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Skift til den bedste konto i ${applicationName}",
+              "Brug den bedste Codex konto i ${applicationName}"
+            ]
+          }
+        },
+        "de-DE": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Wechseln Sie zum besten Konto in ${applicationName}",
+              "Verwenden Sie das beste Codex-Konto in ${applicationName}"
+            ]
+          }
+        },
+        "el": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Εναλλαγή στον καλύτερο λογαριασμό στο ${applicationName}",
+              "Χρησιμοποιήστε τον καλύτερο λογαριασμό Codex στο ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Switch to the best account in ${applicationName}",
+              "Use the best Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-AU": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Switch to the best account in ${applicationName}",
+              "Use the best Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Switch to the best account in ${applicationName}",
+              "Use the best Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-GB": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Switch to the best account in ${applicationName}",
+              "Use the best Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "en-US": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Switch to the best account in ${applicationName}",
+              "Use the best Codex account in ${applicationName}"
+            ]
+          }
+        },
+        "es-ES": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Cambie a la mejor cuenta en ${applicationName}",
+              "Utilice la mejor cuenta Codex en ${applicationName}"
+            ]
+          }
+        },
+        "es-MX": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Cambie a la mejor cuenta en ${applicationName}",
+              "Utilice la mejor cuenta Codex en ${applicationName}"
+            ]
+          }
+        },
+        "fi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Vaihda parhaaseen tiliin ${applicationName}",
+              "Käytä parasta Codex -tiliä kohteessa ${applicationName}"
+            ]
+          }
+        },
+        "fr-CA": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Passez au meilleur compte dans ${applicationName}",
+              "Utilisez le meilleur compte Codex dans ${applicationName}"
+            ]
+          }
+        },
+        "fr-FR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Basculez vers le meilleur compte dans ${applicationName}",
+              "Utilisez le meilleur compte Codex dans ${applicationName}"
+            ]
+          }
+        },
+        "gu-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} માં શ્રેષ્ઠ એકાઉન્ટ પર સ્વિચ કરો",
+              "${applicationName} માં શ્રેષ્ઠ Codex એકાઉન્ટનો ઉપયોગ કરો"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "עבור לחשבון הטוב ביותר ב${applicationName}",
+              "השתמש בחשבון Codex הטוב ביותר ב-${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} में सर्वश्रेष्ठ खाते पर स्विच करें",
+              "${applicationName} में सर्वोत्तम Codex खाते का उपयोग करें"
+            ]
+          }
+        },
+        "hr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Prebacite se na najbolji račun u ${applicationName}",
+              "Koristite najbolji Codex račun u ${applicationName}"
+            ]
+          }
+        },
+        "hu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Váltson a legjobb fiókra itt: ${applicationName}",
+              "Használja a legjobb Codex fiókot a ${applicationName}-ban"
+            ]
+          }
+        },
+        "id": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Beralih ke akun terbaik di ${applicationName}",
+              "Gunakan akun Codex terbaik di ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Passa al miglior account in ${applicationName}",
+              "Utilizza il miglior account Codex in ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} で最適なアカウントに切り替えます",
+              "${applicationName} で最適な Codex アカウントを使用する"
+            ]
+          }
+        },
+        "kn-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ನಲ್ಲಿ ಉತ್ತಮ ಖಾತೆಗೆ ಬದಲಿಸಿ",
+              "${applicationName} ನಲ್ಲಿ ಅತ್ಯುತ್ತಮ Codex ಖಾತೆಯನ್ನು ಬಳಸಿ"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}에서 가장 좋은 계정으로 전환하세요.",
+              "${applicationName}에서 가장 좋은 Codex 계정을 사용하세요."
+            ]
+          }
+        },
+        "ml-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} എന്നതിലെ മികച്ച അക്കൗണ്ടിലേക്ക് മാറുക",
+              "${applicationName} എന്നതിൽ മികച്ച Codex അക്കൗണ്ട് ഉപയോഗിക്കുക"
+            ]
+          }
+        },
+        "mr-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} मधील सर्वोत्तम खात्यावर स्विच करा",
+              "${applicationName} मधील सर्वोत्तम Codex खाते वापरा"
+            ]
+          }
+        },
+        "ms": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Beralih kepada akaun terbaik di ${applicationName}",
+              "Gunakan akaun Codex terbaik dalam ${applicationName}"
+            ]
+          }
+        },
+        "nl-NL": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Schakel over naar het beste account in ${applicationName}",
+              "Gebruik het beste Codex-account in ${applicationName}"
+            ]
+          }
+        },
+        "no": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Bytt til den beste kontoen i ${applicationName}",
+              "Bruk den beste Codex-kontoen i ${applicationName}"
+            ]
+          }
+        },
+        "or-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ରେ ସର୍ବୋତ୍ତମ ଖାତାକୁ ସୁଇଚ୍ କରନ୍ତୁ",
+              "${applicationName} ରେ ସର୍ବୋତ୍ତମ Codex ଖାତା ବ୍ୟବହାର କରନ୍ତୁ"
+            ]
+          }
+        },
+        "pa-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ਵਿੱਚ ਸਭ ਤੋਂ ਵਧੀਆ ਖਾਤੇ 'ਤੇ ਜਾਓ",
+              "${applicationName} ਵਿੱਚ ਸਭ ਤੋਂ ਵਧੀਆ Codex ਖਾਤੇ ਦੀ ਵਰਤੋਂ ਕਰੋ"
+            ]
+          }
+        },
+        "pl": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Przełącz na najlepsze konto w ${applicationName}",
+              "Użyj najlepszego konta Codex w ${applicationName}"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mude para a melhor conta em ${applicationName}",
+              "Use a melhor conta Codex em ${applicationName}"
+            ]
+          }
+        },
+        "pt-PT": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mude para a melhor conta em ${applicationName}",
+              "Utilize a melhor conta Codex em ${applicationName}"
+            ]
+          }
+        },
+        "ro": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Comutați la cel mai bun cont în ${applicationName}",
+              "Utilizați cel mai bun cont Codex din ${applicationName}"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Переключитесь на лучший аккаунт в ${applicationName}",
+              "Используйте лучшую учетную запись Codex в ${applicationName}."
+            ]
+          }
+        },
+        "sk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Prepnúť na najlepší účet v ${applicationName}",
+              "Použite najlepší Codex účet v ${applicationName}"
+            ]
+          }
+        },
+        "sl-SI": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Preklopite na najboljši račun v ${applicationName}",
+              "Uporabite najboljši račun Codex v ${applicationName}"
+            ]
+          }
+        },
+        "sv": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Byt till det bästa kontot i ${applicationName}",
+              "Använd det bästa Codex-kontot i ${applicationName}"
+            ]
+          }
+        },
+        "ta-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} இல் உள்ள சிறந்த கணக்கிற்கு மாறவும்",
+              "${applicationName} இல் சிறந்த Codex கணக்கைப் பயன்படுத்தவும்"
+            ]
+          }
+        },
+        "te-IN": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}లో అత్యుత్తమ ఖాతాకు మారండి",
+              "${applicationName}లో ఉత్తమ Codex ఖాతాను ఉపయోగించండి"
+            ]
+          }
+        },
+        "th": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "เปลี่ยนไปใช้บัญชีที่ดีที่สุดใน ${applicationName}",
+              "ใช้บัญชี Codex ที่ดีที่สุดใน ${applicationName}"
+            ]
+          }
+        },
+        "tr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} içindeki en iyi hesaba geçin",
+              "${applicationName} içindeki en iyi Codex hesabını kullanın"
+            ]
+          }
+        },
+        "uk": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Перейдіть на найкращий обліковий запис у ${applicationName}",
+              "Використовуйте найкращий обліковий запис Codex у ${applicationName}"
+            ]
+          }
+        },
+        "ur-PK": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} میں بہترین اکاؤنٹ پر سوئچ کریں",
+              "${applicationName} میں بہترین Codex اکاؤنٹ استعمال کریں"
+            ]
+          }
+        },
+        "vi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Chuyển sang tài khoản tốt nhất trong ${applicationName}",
+              "Sử dụng tài khoản Codex tốt nhất trong ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "切换到${applicationName}中最好的账户",
+              "使用 ${applicationName} 中最好的 Codex 帐户"
+            ]
+          }
+        },
+        "zh-Hant": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "切換到${applicationName}中最好的帳戶",
+              "使用 ${applicationName} 中最好的 Codex 帳戶"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version": "1.2"
+}

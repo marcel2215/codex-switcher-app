@@ -35,9 +35,19 @@ enum AppSupportLink {
     static let privacyPolicyURL = URL(string: "https://codexswitcher.marcel2215.com/privacy-policy")!
 
     private static let supportEmailAddress = "marcel2215@icloud.com"
-    private static let supportEmailSubject = "Codex Switcher Support"
-    private static let supportEmailFooterFormat = "[Please keep the following: Settings · %@ · %@ · v%@ · iOS %@ · %@]"
-    private static let unknownValue = "Unknown"
+    private static var supportEmailSubject: String {
+        L10n.string("Codex Switcher Support", comment: "Default subject for the support email.")
+    }
+
+    private static var supportEmailFooterFormat: String {
+        L10n.string(
+            "[Please keep the following: Settings · %@ · %@ · v%@ · iOS %@ · %@]",
+            comment: "Diagnostic footer for support email. Preserve the bracketed format and all placeholders."
+        )
+    }
+    private static var unknownValue: String {
+        L10n.string("Unknown", comment: "Fallback diagnostic value when device metadata is unavailable.")
+    }
 
     @MainActor
     private static var diagnosticEmailBody: String {

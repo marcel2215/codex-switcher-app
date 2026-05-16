@@ -34,9 +34,16 @@ enum CodexSharedDataStoreError: LocalizedError {
     nonisolated var errorDescription: String? {
         switch self {
         case let .containerUnavailable(identifier):
-            "Codex Switcher couldn't open its shared App Group container (\(identifier))."
+            L10n.format(
+                "Codex Switcher couldn't open its shared App Group container (%@).",
+                identifier,
+                comment: "Shared storage error. The argument is the App Group identifier."
+            )
         case .keychainAccessGroupUnavailable:
-            "Codex Switcher couldn't determine its shared keychain access group."
+            L10n.string(
+                "Codex Switcher couldn't determine its shared keychain access group.",
+                comment: "Shared storage error shown when the keychain access group is unavailable."
+            )
         }
     }
 }

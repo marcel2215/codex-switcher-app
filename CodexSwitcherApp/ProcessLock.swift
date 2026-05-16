@@ -17,7 +17,10 @@ enum CodexSharedProcessLockError: LocalizedError, Equatable {
     nonisolated var errorDescription: String? {
         switch self {
         case .timedOut:
-            "Timed out waiting for Codex Switcher shared storage."
+            L10n.string(
+                "Timed out waiting for Codex Switcher shared storage.",
+                comment: "Shared storage error shown when the app cannot acquire its lock."
+            )
         }
     }
 }

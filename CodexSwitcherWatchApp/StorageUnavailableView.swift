@@ -16,7 +16,13 @@ struct WatchStorageUnavailableView: View {
             ContentUnavailableView(
                 "Storage Unavailable",
                 systemImage: "externaldrive.badge.xmark",
-                description: Text("Codex Switcher couldn't open its iCloud-backed account database. \(message)")
+                description: Text(
+                    L10n.format(
+                        "Codex Switcher couldn't open its iCloud-backed account database. %@",
+                        message,
+                        comment: "Watch storage unavailable description with the underlying error message."
+                    )
+                )
             )
 
             Button("Retry", action: onRetry)

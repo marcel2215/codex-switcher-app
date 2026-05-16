@@ -38,25 +38,65 @@ enum AuthFileAccessError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .accessRequired:
-            "Choose the Codex folder before switching accounts."
+            L10n.string(
+                "Choose the Codex folder before switching accounts.",
+                comment: "File access error shown when the Codex folder is not linked."
+            )
         case .invalidSelection:
-            "Choose the Codex folder that contains auth.json."
+            L10n.string(
+                "Choose the Codex folder that contains auth.json.",
+                comment: "File access error shown when the selected folder is not valid."
+            )
         case .cancelled:
-            "The file access request was cancelled."
+            L10n.string(
+                "The file access request was cancelled.",
+                comment: "File access error shown when the picker is cancelled."
+            )
         case let .missingAuthFile(url, _):
-            "No auth.json was found in \(url.deletingLastPathComponent().path)."
+            L10n.format(
+                "No auth.json was found in %@.",
+                url.deletingLastPathComponent().path,
+                comment: "File access error. The argument is the linked folder path."
+            )
         case let .locationUnavailable(url):
-            "The linked Codex folder is no longer available: \(url.path)."
+            L10n.format(
+                "The linked Codex folder is no longer available: %@.",
+                url.path,
+                comment: "File access error. The argument is the linked folder path."
+            )
         case let .accessDenied(url):
-            "Codex Switcher no longer has permission to access \(url.path)."
+            L10n.format(
+                "Codex Switcher no longer has permission to access %@.",
+                url.path,
+                comment: "File access error. The argument is the linked folder path."
+            )
         case let .unsupportedCredentialStore(url, mode):
-            "The linked Codex folder at \(url.path) is configured for \(mode.displayName) credential storage. Codex Switcher only supports file-backed auth.json switching."
+            L10n.format(
+                "The linked Codex folder at %1$@ is configured for %2$@ credential storage. Codex Switcher only supports file-backed auth.json switching.",
+                url.path,
+                mode.displayName,
+                comment: "File access error. Arguments are folder path and credential store mode."
+            )
         case let .unreadable(url, message):
-            "Codex Switcher couldn't read \(url.path). \(message)"
+            L10n.format(
+                "Codex Switcher couldn't read %1$@. %2$@",
+                url.path,
+                message,
+                comment: "File access error. Arguments are file path and system error."
+            )
         case let .unwritable(url, message):
-            "Codex Switcher couldn't write \(url.path). \(message)"
+            L10n.format(
+                "Codex Switcher couldn't write %1$@. %2$@",
+                url.path,
+                message,
+                comment: "File access error. Arguments are file path and system error."
+            )
         case let .verificationFailed(url):
-            "Codex Switcher wrote \(url.path), but the verification readback did not match the saved account."
+            L10n.format(
+                "Codex Switcher wrote %@, but the verification readback did not match the saved account.",
+                url.path,
+                comment: "File access error. The argument is a file path."
+            )
         }
     }
 
@@ -455,7 +495,13 @@ actor SecurityScopedAuthFileManager: AuthFileManaging {
         }
 
         guard let readContents else {
-            throw AuthFileAccessError.unreadable(authFileURL, message: "The file coordinator returned no contents.")
+            throw AuthFileAccessError.unreadable(
+                authFileURL,
+                message: L10n.string(
+                    "The file coordinator returned no contents.",
+                    comment: "File coordination error shown when a coordinated read yields no data."
+                )
+            )
         }
 
         return AuthFileReadResult(url: authFileURL, contents: readContents)

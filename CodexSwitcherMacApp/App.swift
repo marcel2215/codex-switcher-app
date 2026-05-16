@@ -162,7 +162,10 @@ struct CodexSwitcherApp: App {
                     }
             } else {
                 MenuBarStorageRecoveryView(
-                    message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database."
+                    message: storageRecoveryMessage ?? L10n.string(
+                        "Codex Switcher couldn't open its local database.",
+                        comment: "Storage recovery fallback message."
+                    )
                 )
                 .task {
                     await performAppStartupTasksIfNeeded()
@@ -395,7 +398,12 @@ struct CodexSwitcherApp: App {
                     .modelContainer(sharedModelContainer)
             }
         } else {
-            StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
+            StorageRecoveryView(
+                message: storageRecoveryMessage ?? L10n.string(
+                    "Codex Switcher couldn't open its local database.",
+                    comment: "Storage recovery fallback message."
+                )
+            )
         }
     }
 
@@ -406,7 +414,12 @@ struct CodexSwitcherApp: App {
                 .modelContainer(sharedModelContainer)
                 .frame(minWidth: 460, minHeight: 360)
         } else {
-            StorageRecoveryView(message: storageRecoveryMessage ?? "Codex Switcher couldn't open its local database.")
+            StorageRecoveryView(
+                message: storageRecoveryMessage ?? L10n.string(
+                    "Codex Switcher couldn't open its local database.",
+                    comment: "Storage recovery fallback message."
+                )
+            )
                 .frame(minWidth: 460, minHeight: 360)
         }
     }
@@ -466,7 +479,11 @@ private struct AppBootstrap {
                     notificationManager: notificationManager,
                     startupAlert: UserFacingAlert(
                         title: "Using Temporary Storage",
-                        message: "Codex Switcher couldn't open its local database and started with temporary in-memory storage instead. \(error.localizedDescription)"
+                        message: L10n.format(
+                            "Codex Switcher couldn't open its local database and started with temporary in-memory storage instead. %@",
+                            error.localizedDescription,
+                            comment: "Storage fallback alert. The argument is the system error."
+                        )
                     ),
                     modelContainer: fallbackContainer,
                     autopilotEnabled: autopilotEnabled
@@ -483,7 +500,11 @@ private struct AppBootstrap {
                     notificationManager: notificationManager,
                     startupAlert: UserFacingAlert(
                         title: "Storage Unavailable",
-                        message: "Codex Switcher couldn't start its local database. \(error.localizedDescription)"
+                        message: L10n.format(
+                            "Codex Switcher couldn't start its local database. %@",
+                            error.localizedDescription,
+                            comment: "Storage unavailable alert. The argument is the system error."
+                        )
                     ),
                     autopilotEnabled: autopilotEnabled
                 )
@@ -825,8 +846,8 @@ private struct SettingsView: View {
                 )
             case let .error(title, message):
                 Alert(
-                    title: Text(title),
-                    message: Text(message),
+                    title: Text(L10n.string(title, comment: "Settings alert title.")),
+                    message: Text(L10n.string(message, comment: "Settings alert message.")),
                     dismissButton: .default(Text("OK"))
                 )
             }
@@ -842,7 +863,13 @@ private struct SettingsView: View {
         if let notificationAuthorizationStatus,
            CodexNotificationSettingsLink.shouldShowDisabledFooter(for: notificationAuthorizationStatus),
            let destination = CodexNotificationSettingsLink.sectionFooterURL() {
-            Text(.init("Notifications are disabled in system settings. [Change](\(destination.absoluteString))"))
+            Text(.init(
+                L10n.format(
+                    "Notifications are disabled in system settings. [Change](%@)",
+                    destination.absoluteString,
+                    comment: "Settings footer with a Markdown link. The argument is the System Settings URL."
+                )
+            ))
         }
     }
 
@@ -932,7 +959,7 @@ private struct SettingsView: View {
         foregroundStyle: AnyShapeStyle = AnyShapeStyle(.tint),
         isEnabled: Bool = true
     ) -> some View {
-        Label(title, systemImage: systemImage)
+        Label(L10n.string(title, comment: "Settings action label."), systemImage: systemImage)
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(isEnabled ? foregroundStyle : AnyShapeStyle(.secondary))
             .contentShape(Rectangle())
@@ -972,7 +999,10 @@ private struct SettingsView: View {
                 setNotificationPreference(kind, isEnabled: false)
                 presentedSettingsAlert = .error(
                     title: "Notifications Disabled",
-                    message: "Codex Switcher can only show notifications after you allow them in System Settings > Notifications."
+                    message: L10n.string(
+                        "Codex Switcher can only show notifications after you allow them in System Settings > Notifications.",
+                        comment: "Settings alert shown when notification permission is denied."
+                    )
                 )
             case let .failed(message):
                 setNotificationPreference(kind, isEnabled: false)
@@ -1053,27 +1083,33 @@ private enum SettingsConfirmationAction: String, Identifiable {
     var title: String {
         switch self {
         case .removeAllAccounts:
-            "Remove All Accounts"
+            L10n.string("Remove All Accounts", comment: "Settings confirmation title.")
         case .resetSettings:
-            "Reset Settings"
+            L10n.string("Reset Settings", comment: "Settings confirmation title.")
         }
     }
 
     var message: String {
         switch self {
         case .removeAllAccounts:
-            "This removes every saved account from Codex Switcher on this device and from iCloud sync."
+            L10n.string(
+                "This removes every saved account from Codex Switcher on this device and from iCloud sync.",
+                comment: "Settings confirmation message for removing all accounts."
+            )
         case .resetSettings:
-            "This restores the menu bar and sorting preferences to their default values."
+            L10n.string(
+                "This restores the menu bar and sorting preferences to their default values.",
+                comment: "Settings confirmation message for resetting app settings."
+            )
         }
     }
 
     var confirmationTitle: String {
         switch self {
         case .removeAllAccounts:
-            "Remove All"
+            L10n.string("Remove All", comment: "Destructive confirmation button title.")
         case .resetSettings:
-            "Reset"
+            L10n.string("Reset", comment: "Destructive confirmation button title.")
         }
     }
 }

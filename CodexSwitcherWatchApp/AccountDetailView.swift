@@ -108,9 +108,19 @@ struct WatchAccountDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     switch liveRefreshStatus {
                     case .waitingForCredential:
-                        Text("Waiting for iCloud Keychain to sync this account.")
+                        Text(
+                            L10n.string(
+                                "Waiting for iCloud Keychain to sync this account.",
+                                comment: "Watch account detail footer shown while credentials are syncing."
+                            )
+                        )
                     case .unavailableForAPIKey:
-                        Text("Live refresh isn't available for API-key accounts.")
+                        Text(
+                            L10n.string(
+                                "Live refresh isn't available for API-key accounts.",
+                                comment: "Watch account detail footer shown for API-key accounts."
+                            )
+                        )
                     case .checking, .available:
                         EmptyView()
                     }
@@ -161,14 +171,23 @@ struct WatchAccountDetailView: View {
             )
         }
         .confirmationDialog(
-            "Remove \"\(displayName)\"?",
+            L10n.format(
+                "Remove \"%@\"?",
+                displayName,
+                comment: "Confirmation title before removing one account."
+            ),
             isPresented: $showingRemoveConfirmation
         ) {
             Button("Remove", role: .destructive) {
                 dismissAndRemoveAccount()
             }
         } message: {
-            Text("Are you sure you want to remove this account from Codex switcher? You will be able to add it again later.")
+            Text(
+                L10n.string(
+                    "Are you sure you want to remove this account from Codex Switcher? You will be able to add it again later.",
+                    comment: "Confirmation message before removing one account."
+                )
+            )
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -219,26 +238,31 @@ struct WatchAccountDetailView: View {
         if displayedValue == nil {
             RateLimitResetText(
                 resetAt: displayedValue,
-                fallbackText: "Unavailable",
+                fallbackText: L10n.string("Unavailable", comment: "Fallback text when a rate-limit reset time is unavailable."),
                 displayMode: resetDisplayModes[row] ?? .relative
             )
             .monospacedDigit()
             .foregroundStyle(.secondary)
-            .accessibilityHint("Reset time unavailable")
+            .accessibilityHint(L10n.string("Reset time unavailable", comment: "Accessibility hint for an unavailable reset time."))
         } else {
             Button {
                 toggleResetDisplayMode(for: row)
             } label: {
                 RateLimitResetText(
                     resetAt: displayedValue,
-                    fallbackText: "Unavailable",
+                    fallbackText: L10n.string("Unavailable", comment: "Fallback text when a rate-limit reset time is unavailable."),
                     displayMode: resetDisplayModes[row] ?? .relative
                 )
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Double tap to switch between relative and absolute time")
+            .accessibilityHint(
+                L10n.string(
+                    "Double tap to switch between relative and absolute time",
+                    comment: "Accessibility hint for toggling a reset-time label."
+                )
+            )
         }
     }
 

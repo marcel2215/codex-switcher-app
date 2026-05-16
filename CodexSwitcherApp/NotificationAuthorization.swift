@@ -31,7 +31,12 @@ enum CodexNotificationAuthorization {
         case .notDetermined:
             return await requestAuthorization(center: center)
         @unknown default:
-            return .failed("The system returned an unknown notification authorization state.")
+            return .failed(
+                L10n.string(
+                    "The system returned an unknown notification authorization state.",
+                    comment: "Notification permission error shown for an unknown system status."
+                )
+            )
         }
     }
 

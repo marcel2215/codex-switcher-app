@@ -220,26 +220,31 @@ struct AccountDetailView: View {
         if value == nil {
             RateLimitResetText(
                 resetAt: value,
-                fallbackText: "Unavailable",
+                fallbackText: L10n.string("Unavailable", comment: "Fallback text when a rate-limit reset time is unavailable."),
                 displayMode: resetDisplayModes[row] ?? .relative
             )
             .monospacedDigit()
             .foregroundStyle(.secondary)
-            .accessibilityHint("Reset time unavailable")
+            .accessibilityHint(L10n.string("Reset time unavailable", comment: "Accessibility hint for an unavailable reset time."))
         } else {
             Button {
                 toggleResetDisplayMode(for: row)
             } label: {
                 RateLimitResetText(
                     resetAt: value,
-                    fallbackText: "Unavailable",
+                    fallbackText: L10n.string("Unavailable", comment: "Fallback text when a rate-limit reset time is unavailable."),
                     displayMode: resetDisplayModes[row] ?? .relative
                 )
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Double tap to switch between relative and absolute time")
+            .accessibilityHint(
+                L10n.string(
+                    "Double tap to switch between relative and absolute time",
+                    comment: "Accessibility hint for toggling a reset-time label."
+                )
+            )
         }
     }
 
@@ -392,7 +397,10 @@ struct AccountDetailView: View {
     private func sharePreparationErrorMessage(for error: Error) -> String {
         if let snapshotError = error as? AccountSnapshotStoreError,
            snapshotError == .missingSnapshot {
-            return "That saved account isn't exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
+            return L10n.string(
+                "That saved account isn't exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here.",
+                comment: "Error shown when an account archive cannot be exported because local credentials are not synced."
+            )
         }
 
         return error.localizedDescription

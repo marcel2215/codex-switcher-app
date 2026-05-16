@@ -25,9 +25,12 @@ final class CodexFolderLocationPicker: CodexFolderLocationPicking {
 
         return await withCheckedContinuation { continuation in
             let panel = NSOpenPanel()
-            panel.title = "Select Codex Folder"
-            panel.message = "Choose the .codex folder that contains auth.json."
-            panel.prompt = "Link Folder"
+            panel.title = L10n.string("Select Codex Folder", comment: "Folder picker title.")
+            panel.message = L10n.string(
+                "Choose the .codex folder that contains auth.json.",
+                comment: "Folder picker explanatory text."
+            )
+            panel.prompt = L10n.string("Link Folder", comment: "Folder picker confirmation button title.")
             panel.canChooseFiles = false
             panel.canChooseDirectories = true
             panel.allowsMultipleSelection = false

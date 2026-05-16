@@ -8,7 +8,9 @@
 import Foundation
 
 enum AccountsPresentationLogic {
-    private nonisolated static let unavailableSuffix = " (Unavailable)"
+    private nonisolated static var unavailableSuffix: String {
+        L10n.string(" (Unavailable)", comment: "Suffix appended to an account name when the account cannot be used.")
+    }
     typealias AccountListDisplayNameParts = (name: String, unavailableSuffix: String?)
 
     nonisolated static func normalizedSearchText(_ searchText: String) -> String {
@@ -34,7 +36,7 @@ enum AccountsPresentationLogic {
             ?? normalizedDisplayText(emailHint)
             ?? normalizedDisplayText(accountIdentifier)
             ?? normalizedDisplayText(identityKey)
-            ?? "Unnamed Account"
+            ?? L10n.string("Unnamed Account", comment: "Fallback display name for an account without user-visible metadata.")
     }
 
     nonisolated static func accountListDisplayName(for account: StoredAccount) -> String {

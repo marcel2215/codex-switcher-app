@@ -37,11 +37,21 @@ nonisolated enum CodexAccountArchiveError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidData:
-            "That .cxa file isn't a valid Codex account archive."
+            L10n.string(
+                "That .cxa file isn't a valid Codex account archive.",
+                comment: "Import error for an invalid Codex account archive file."
+            )
         case .unsupportedVersion(let version):
-            "This .cxa file uses unsupported archive version \(version)."
+            L10n.format(
+                "This .cxa file uses unsupported archive version %lld.",
+                Int64(version),
+                comment: "Import error. The argument is the unsupported archive version."
+            )
         case .missingSnapshotContents:
-            "That .cxa file doesn't contain an account snapshot."
+            L10n.string(
+                "That .cxa file doesn't contain an account snapshot.",
+                comment: "Import error for an archive missing account credentials."
+            )
         }
     }
 }
@@ -353,7 +363,13 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             return primaryAccount.suggestedFilename
         }
 
-        return Self.sanitizedFilenameComponent("\(accounts.count) Codex Accounts")
+        return Self.sanitizedFilenameComponent(
+            L10n.format(
+                "%lld Codex Accounts",
+                Int64(accounts.count),
+                comment: "Suggested filename for a multi-account archive. The argument is the account count."
+            )
+        )
     }
 
     var name: String? {
@@ -496,7 +512,9 @@ nonisolated struct CodexAccountArchive: Codable, Sendable, Equatable {
             .replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: CharacterSet(charactersIn: ". ").union(.whitespacesAndNewlines))
 
-        return cleaned.isEmpty ? "Codex Account" : cleaned
+        return cleaned.isEmpty
+            ? L10n.string("Codex Account", comment: "Fallback filename for a single account archive.")
+            : cleaned
     }
 
     private static func compressedArchivePayload(from propertyListData: Data) throws -> Data {
@@ -643,7 +661,13 @@ nonisolated struct CodexAccountArchiveBatchExportRequest: Sendable, Equatable {
             return firstAccount.resolvedSuggestedFilename
         }
 
-        return CodexAccountArchive.normalizedExportFilenameStem(from: "\(accounts.count) Codex Accounts")
+        return CodexAccountArchive.normalizedExportFilenameStem(
+            from: L10n.format(
+                "%lld Codex Accounts",
+                Int64(accounts.count),
+                comment: "Suggested filename for a multi-account archive. The argument is the account count."
+            )
+        )
     }
 
     var availabilityKey: String {

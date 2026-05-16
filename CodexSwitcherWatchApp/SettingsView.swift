@@ -13,6 +13,11 @@ struct WatchSettingsView: View {
         let id = UUID()
         let title: String
         let message: String
+
+        init(title: String, message: String) {
+            self.title = L10n.string(title, comment: "Settings alert title.")
+            self.message = L10n.string(message, comment: "Settings alert message.")
+        }
     }
 
     @Environment(\.modelContext) private var modelContext
@@ -72,7 +77,7 @@ struct WatchSettingsView: View {
         systemImage: String,
         isEnabled: Bool
     ) -> some View {
-        Label(title, systemImage: systemImage)
+        Label(L10n.string(title, comment: "Danger zone action title."), systemImage: systemImage)
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(isEnabled ? .red : .secondary)
             .contentShape(Rectangle())

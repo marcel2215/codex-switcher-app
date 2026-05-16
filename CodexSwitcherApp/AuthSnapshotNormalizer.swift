@@ -97,7 +97,10 @@ enum CodexAuthSnapshotNormalizationError: LocalizedError {
     nonisolated var errorDescription: String? {
         switch self {
         case .invalidEncoding:
-            return "Codex auth.json isn't encoded as valid UTF-8 text."
+            return L10n.string(
+                "Codex auth.json isn't encoded as valid UTF-8 text.",
+                comment: "Error shown when the Codex auth file cannot be decoded."
+            )
         }
     }
 }

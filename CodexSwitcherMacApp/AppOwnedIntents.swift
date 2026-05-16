@@ -97,7 +97,10 @@ struct AddCurrentAccountIntent: AppIntent {
 
         guard result.status == .success else {
             throw CodexSharedIntentExecutionError.commandFailed(
-                result.message ?? "Codex Switcher couldn't save the current account."
+                result.message ?? L10n.string(
+                    "Codex Switcher couldn't save the current account.",
+                    comment: "App Intent error when saving the current account fails."
+                )
             )
         }
 
@@ -109,7 +112,11 @@ struct AddCurrentAccountIntent: AppIntent {
         } else {
             account = try CodexSharedAccountIntentResolver.currentEntity(in: state)
         }
-        let dialogMessage = result.message ?? "Saved \"\(account.name)\"."
+        let dialogMessage = result.message ?? L10n.format(
+            "Saved \"%@\".",
+            account.name,
+            comment: "App Intent dialog after saving the current account."
+        )
 
         return .result(
             value: account,
@@ -131,7 +138,13 @@ struct GetSelectedAccountIntent: AppIntent {
 
         return .result(
             value: account,
-            dialog: IntentDialog("Selected account: \"\(account.name)\".")
+            dialog: IntentDialog(
+                stringLiteral: L10n.format(
+                    "Selected account: \"%@\".",
+                    account.name,
+                    comment: "App Intent dialog naming the selected account."
+                )
+            )
         )
     }
 }
@@ -147,7 +160,13 @@ struct GetCurrentAccountIntent: AppIntent {
 
         return .result(
             value: account,
-            dialog: IntentDialog("Current account: \"\(account.name)\".")
+            dialog: IntentDialog(
+                stringLiteral: L10n.format(
+                    "Current account: \"%@\".",
+                    account.name,
+                    comment: "App Intent dialog naming the current account."
+                )
+            )
         )
     }
 }
@@ -165,7 +184,10 @@ struct GetCurrentCodexRateLimitsIntent: AppIntent {
 
         return .result(
             value: account,
-            dialog: rateLimitDialog(for: account, prefix: "Current account")
+            dialog: rateLimitDialog(
+                for: account,
+                prefix: L10n.string("Current account", comment: "App Intent rate-limit dialog prefix for the current account.")
+            )
         )
     }
 }
@@ -199,7 +221,10 @@ struct GetCodexAccountRateLimitsIntent: AppIntent {
 
         return .result(
             value: refreshedAccount,
-            dialog: rateLimitDialog(for: refreshedAccount, prefix: "Rate limits")
+            dialog: rateLimitDialog(
+                for: refreshedAccount,
+                prefix: L10n.string("Rate limits", comment: "App Intent rate-limit dialog prefix.")
+            )
         )
     }
 }
@@ -217,7 +242,10 @@ struct GetBestCodexRateLimitsIntent: AppIntent {
 
         return .result(
             value: account,
-            dialog: rateLimitDialog(for: account, prefix: "Best available account")
+            dialog: rateLimitDialog(
+                for: account,
+                prefix: L10n.string("Best available account", comment: "App Intent rate-limit dialog prefix for the best available account.")
+            )
         )
     }
 }
@@ -233,7 +261,13 @@ struct GetAllAccountsIntent: AppIntent {
 
         return .result(
             value: accounts,
-            dialog: IntentDialog("Found \(accounts.count) saved Codex account(s).")
+            dialog: IntentDialog(
+                stringLiteral: L10n.format(
+                    "Found %lld saved Codex account(s).",
+                    Int64(accounts.count),
+                    comment: "App Intent dialog with the number of saved accounts."
+                )
+            )
         )
     }
 }
@@ -251,7 +285,13 @@ struct GetBestAccountIntent: AppIntent {
 
         return .result(
             value: account,
-            dialog: IntentDialog("Best account: \"\(account.name)\".")
+            dialog: IntentDialog(
+                stringLiteral: L10n.format(
+                    "Best account: \"%@\".",
+                    account.name,
+                    comment: "App Intent dialog naming the best account."
+                )
+            )
         )
     }
 }
@@ -286,7 +326,13 @@ struct FindAccountIntent: AppIntent {
 
         return .result(
             value: account,
-            dialog: IntentDialog("Matched \"\(account.name)\".")
+            dialog: IntentDialog(
+                stringLiteral: L10n.format(
+                    "Matched \"%@\".",
+                    account.name,
+                    comment: "App Intent dialog naming the matched account."
+                )
+            )
         )
     }
 }
@@ -327,7 +373,13 @@ struct FindAccountsIntent: AppIntent {
 
         return .result(
             value: accounts,
-            dialog: IntentDialog("Found \(accounts.count) matching Codex account(s).")
+            dialog: IntentDialog(
+                stringLiteral: L10n.format(
+                    "Found %lld matching Codex account(s).",
+                    Int64(accounts.count),
+                    comment: "App Intent dialog with the number of matching accounts."
+                )
+            )
         )
     }
 }
@@ -363,7 +415,13 @@ struct RemoveAccountIntent: AppIntent {
                 denyAlternatives: [],
                 destructive: true
             ),
-            dialog: IntentDialog("Remove \"\(account.name)\" from Codex Switcher?")
+            dialog: IntentDialog(
+                stringLiteral: L10n.format(
+                    "Remove \"%@\" from Codex Switcher?",
+                    account.name,
+                    comment: "App Intent confirmation before removing an account."
+                )
+            )
         )
 
         let command = CodexSharedAppCommand(
@@ -376,11 +434,19 @@ struct RemoveAccountIntent: AppIntent {
 
         guard result.status == .success else {
             throw CodexSharedIntentExecutionError.commandFailed(
-                result.message ?? "Codex Switcher couldn't remove \"\(account.name)\"."
+                result.message ?? L10n.format(
+                    "Codex Switcher couldn't remove \"%@\".",
+                    account.name,
+                    comment: "App Intent error when removing an account fails."
+                )
             )
         }
 
-        let dialogMessage = result.message ?? "Removed \"\(account.name)\"."
+        let dialogMessage = result.message ?? L10n.format(
+            "Removed \"%@\".",
+            account.name,
+            comment: "App Intent dialog after removing an account."
+        )
         return .result(
             value: account,
             dialog: IntentDialog(stringLiteral: dialogMessage)
@@ -420,7 +486,10 @@ struct SwitchAccountIntent: AppIntent {
 
         guard result.status == .success else {
             throw CodexSharedIntentExecutionError.commandFailed(
-                result.message ?? "Codex Switcher couldn't switch accounts."
+                result.message ?? L10n.string(
+                    "Codex Switcher couldn't switch accounts.",
+                    comment: "App Intent error when switching accounts fails."
+                )
             )
         }
 
@@ -431,7 +500,11 @@ struct SwitchAccountIntent: AppIntent {
             value: switchedAccount,
             dialog: IntentDialog(
                 stringLiteral: result.message
-                    ?? "Now using \"\(switchedAccount.name)\"."
+                    ?? L10n.format(
+                        "Now using \"%@\".",
+                        switchedAccount.name,
+                        comment: "App Intent dialog after switching accounts."
+                    )
             )
         )
     }
@@ -454,7 +527,10 @@ struct SwitchToBestAccountIntent: AppIntent {
 
         guard result.status == .success else {
             throw CodexSharedIntentExecutionError.commandFailed(
-                result.message ?? "Codex Switcher couldn't switch to the best available account."
+                result.message ?? L10n.string(
+                    "Codex Switcher couldn't switch to the best available account.",
+                    comment: "App Intent error when switching to the best account fails."
+                )
             )
         }
 
@@ -465,7 +541,11 @@ struct SwitchToBestAccountIntent: AppIntent {
             value: switchedAccount,
             dialog: IntentDialog(
                 stringLiteral: result.message
-                    ?? "Now using \"\(switchedAccount.name)\", your best available account."
+                    ?? L10n.format(
+                        "Now using \"%@\", your best available account.",
+                        switchedAccount.name,
+                        comment: "App Intent dialog after switching to the best available account."
+                    )
             )
         )
     }
@@ -522,9 +602,22 @@ private nonisolated func rateLimitDialog(
     prefix: String
 ) -> IntentDialog {
     let message = [
-        "\(prefix): \"\(account.name)\".",
-        "5-hour remaining: \(formattedRemainingPercent(account.fiveHourLimitUsedPercent)).",
-        "7-day remaining: \(formattedRemainingPercent(account.sevenDayLimitUsedPercent)).",
+        L10n.format(
+            "%1$@: \"%2$@\".",
+            prefix,
+            account.name,
+            comment: "App Intent rate-limit dialog account heading. Arguments are prefix and account name."
+        ),
+        L10n.format(
+            "5-hour remaining: %@.",
+            formattedRemainingPercent(account.fiveHourLimitUsedPercent),
+            comment: "App Intent rate-limit dialog 5-hour remaining line."
+        ),
+        L10n.format(
+            "7-day remaining: %@.",
+            formattedRemainingPercent(account.sevenDayLimitUsedPercent),
+            comment: "App Intent rate-limit dialog 7-day remaining line."
+        ),
     ]
     .joined(separator: " ")
 
@@ -533,7 +626,7 @@ private nonisolated func rateLimitDialog(
 
 private nonisolated func formattedRemainingPercent(_ value: Int?) -> String {
     guard let value else {
-        return "unknown"
+        return L10n.string("unknown", comment: "Fallback value when a rate-limit percentage is unknown.")
     }
 
     return "\(min(max(value, 0), 100))%"

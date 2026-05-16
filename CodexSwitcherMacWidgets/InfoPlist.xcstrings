@@ -1,0 +1,942 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "bn-BD": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Codex Switcher"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "en-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "es-ES": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "es-MX": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "fr-FR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "gu-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "kn-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ml-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "mr-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "nl-NL": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "no": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "or-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "pa-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "sl-SI": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ta-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "te-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ur-PK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        }
+      }
+    },
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "bn-BD": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "en-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "es-ES": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "es-MX": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "fr-FR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "gu-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "kn-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "ml-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "mr-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "nl-NL": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "no": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "or-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "pa-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "sl-SI": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "ta-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "te-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "ur-PK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher Widgets"
+          }
+        }
+      }
+    },
+    "NSHumanReadableCopyright": {
+      "comment": "Copyright (human-readable)",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "bn-BD": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "en-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "es-ES": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "es-MX": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "fr-FR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "gu-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "kn-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ml-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "mr-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "nl-NL": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "no": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "or-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "pa-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "sl-SI": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ta-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "te-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ur-PK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        }
+      }
+    }
+  },
+  "version": "1.2"
+}

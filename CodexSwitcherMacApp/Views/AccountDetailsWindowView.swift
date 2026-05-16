@@ -64,7 +64,11 @@ struct AccountDetailsWindowView: View {
     }
 
     private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
-        "The saved refresh token for \"\(prompt.accountName)\" is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the \"Log out\" button in Codex."
+        L10n.format(
+            "The saved refresh token for \"%@\" is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the \"Log out\" button in Codex.",
+            prompt.accountName,
+            comment: "Recovery prompt for a saved Codex account whose refresh token is no longer valid."
+        )
     }
 }
 
@@ -302,26 +306,31 @@ private struct AccountDetailsWindowForm: View {
         if value == nil {
             RateLimitResetText(
                 resetAt: value,
-                fallbackText: "Unavailable",
+                fallbackText: L10n.string("Unavailable", comment: "Fallback text when a rate-limit reset time is unavailable."),
                 displayMode: resetDisplayModes[row] ?? .relative
             )
             .monospacedDigit()
             .foregroundStyle(.secondary)
-            .accessibilityHint("Reset time unavailable")
+            .accessibilityHint(L10n.string("Reset time unavailable", comment: "Accessibility hint for an unavailable reset time."))
         } else {
             Button {
                 toggleResetDisplayMode(for: row)
             } label: {
                 RateLimitResetText(
                     resetAt: value,
-                    fallbackText: "Unavailable",
+                    fallbackText: L10n.string("Unavailable", comment: "Fallback text when a rate-limit reset time is unavailable."),
                     displayMode: resetDisplayModes[row] ?? .relative
                 )
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Click to switch between relative and absolute time")
+            .accessibilityHint(
+                L10n.string(
+                    "Click to switch between relative and absolute time",
+                    comment: "Accessibility hint for toggling a reset-time label on macOS."
+                )
+            )
         }
     }
 
@@ -444,7 +453,10 @@ private struct AccountDetailsWindowForm: View {
     private func sharePreparationErrorMessage(for error: Error) -> String {
         if let snapshotError = error as? AccountSnapshotStoreError,
            snapshotError == .missingSnapshot {
-            return "That saved account is not exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here."
+            return L10n.string(
+                "That saved account is not exportable on this device yet. If it was added on another device, open Codex Switcher there once after updating, then wait a moment for iCloud Keychain to sync or import its .cxa file here.",
+                comment: "Error shown when an account archive cannot be exported because local credentials are not synced."
+            )
         }
 
         return error.localizedDescription

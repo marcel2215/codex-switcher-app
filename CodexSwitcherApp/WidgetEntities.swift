@@ -28,7 +28,7 @@ struct WidgetCodexAccountEntity: AppEntity, Identifiable, Hashable, Sendable {
 
     static let automatic = Self(
         id: automaticID,
-        name: "Automatic",
+        name: L10n.string("Automatic", comment: "Widget account picker option that lets the app choose an account automatically."),
         iconSystemName: "arrow.up.arrow.down.circle",
         isMissing: false,
         isAutomatic: true
@@ -47,7 +47,7 @@ struct WidgetCodexAccountEntity: AppEntity, Identifiable, Hashable, Sendable {
     static func missing(id: String) -> Self {
         Self(
             id: id,
-            name: "Missing Account",
+            name: L10n.string("Missing Account", comment: "Widget fallback name for an account that no longer exists."),
             iconSystemName: "questionmark.circle.fill",
             isMissing: true,
             isAutomatic: false
@@ -101,6 +101,7 @@ struct WidgetCodexAccountEntityQuery: EntityQuery, EntityStringQuery, Enumerable
         var matches: [WidgetCodexAccountEntity] = []
 
         if "automatic".localizedCaseInsensitiveContains(query)
+            || L10n.string("automatic", comment: "Search synonym for the automatic widget account option.").localizedCaseInsensitiveContains(query)
             || "default".localizedCaseInsensitiveContains(query)
             || "auto".localizedCaseInsensitiveContains(query)
         {

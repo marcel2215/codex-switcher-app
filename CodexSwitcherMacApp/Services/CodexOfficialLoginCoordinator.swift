@@ -40,27 +40,27 @@ nonisolated enum CodexOfficialLoginError: LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .codexExecutableNotFound:
-            "Codex Switcher couldn't find the installed Codex command-line tool."
+            L10n.string("Codex Switcher couldn't find the installed Codex command-line tool.", comment: "Official login error.")
         case .serverDidNotBecomeReady:
-            "Codex's official login service did not become ready."
+            L10n.string("Codex's official login service did not become ready.", comment: "Official login error.")
         case .invalidServerURL:
-            "Codex's official login service returned an invalid local URL."
+            L10n.string("Codex's official login service returned an invalid local URL.", comment: "Official login error.")
         case let .loginStartFailed(message):
-            "Codex couldn't start the browser login flow. \(message)"
+            L10n.format("Codex couldn't start the browser login flow. %@", message, comment: "Official login error with detail.")
         case let .loginFailed(message):
-            "Codex login did not finish successfully. \(message)"
+            L10n.format("Codex login did not finish successfully. %@", message, comment: "Official login error with detail.")
         case .missingAuthFile:
-            "Codex login completed but did not produce an auth.json file."
+            L10n.string("Codex login completed but did not produce an auth.json file.", comment: "Official login error.")
         case .secureRandomUnavailable:
-            "Codex Switcher couldn't create a secure OAuth challenge."
+            L10n.string("Codex Switcher couldn't create a secure OAuth challenge.", comment: "Official login error.")
         case let .callbackServerUnavailable(message):
-            "Codex Switcher couldn't start its local OAuth callback server. \(message)"
+            L10n.format("Codex Switcher couldn't start its local OAuth callback server. %@", message, comment: "Official login error with detail.")
         case .invalidOAuthCallback:
-            "Codex Switcher received an invalid OAuth callback."
+            L10n.string("Codex Switcher received an invalid OAuth callback.", comment: "Official login error.")
         case let .tokenExchangeFailed(message):
-            "Codex Switcher couldn't finish the OAuth token exchange. \(message)"
+            L10n.format("Codex Switcher couldn't finish the OAuth token exchange. %@", message, comment: "Official login error with detail.")
         case .cancelled:
-            "Codex login was cancelled."
+            L10n.string("Codex login was cancelled.", comment: "Official login error.")
         }
     }
 }
@@ -908,7 +908,10 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         expectedState: String
     ) -> (response: String, outcome: CodexOAuthCallbackOutcome) {
         guard isAllowedCallbackHost(hostHeader(in: request)) else {
-            return (httpResponse(status: 400, body: "Bad Request"), .failure(CodexOfficialLoginError.invalidOAuthCallback))
+            return (
+                httpResponse(status: 400, body: L10n.string("Bad Request", comment: "OAuth callback browser HTTP error body.")),
+                .failure(CodexOfficialLoginError.invalidOAuthCallback)
+            )
         }
 
         guard
@@ -916,7 +919,10 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
             let target = requestLine.split(separator: " ").dropFirst().first,
             let components = URLComponents(string: "http://localhost\(target)")
         else {
-            return (httpResponse(status: 400, body: "Bad Request"), .failure(CodexOfficialLoginError.invalidOAuthCallback))
+            return (
+                httpResponse(status: 400, body: L10n.string("Bad Request", comment: "OAuth callback browser HTTP error body.")),
+                .failure(CodexOfficialLoginError.invalidOAuthCallback)
+            )
         }
 
         switch components.path {
@@ -924,20 +930,31 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
             let queryItems = components.queryItems ?? []
             let receivedState = queryItems.first(where: { $0.name == "state" })?.value
             guard receivedState == expectedState else {
-                return (httpResponse(status: 400, body: "State mismatch"), .failure(CodexOfficialLoginError.invalidOAuthCallback))
+                return (
+                    httpResponse(status: 400, body: L10n.string("State mismatch", comment: "OAuth callback browser HTTP error body.")),
+                    .failure(CodexOfficialLoginError.invalidOAuthCallback)
+                )
             }
 
             if let error = queryItems.first(where: { $0.name == "error" })?.value {
                 let description = queryItems.first(where: { $0.name == "error_description" })?.value
                 let message = description?.isEmpty == false ? description! : error
                 return (
-                    httpResponse(status: 200, body: errorHTML(message: "Sign-in failed.")),
+                    httpResponse(
+                        status: 200,
+                        body: errorHTML(
+                            message: L10n.string("Sign-in failed.", comment: "OAuth callback browser failure message.")
+                        )
+                    ),
                     .failure(CodexOfficialLoginError.loginFailed(message))
                 )
             }
 
             guard let code = queryItems.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
-                return (httpResponse(status: 400, body: "Missing authorization code"), .failure(CodexOfficialLoginError.invalidOAuthCallback))
+                return (
+                    httpResponse(status: 400, body: L10n.string("Missing authorization code", comment: "OAuth callback browser HTTP error body.")),
+                    .failure(CodexOfficialLoginError.invalidOAuthCallback)
+                )
             }
 
             return (
@@ -946,10 +963,13 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
             )
 
         case "/cancel":
-            return (httpResponse(status: 200, body: "Login cancelled"), .failure(CodexOfficialLoginError.cancelled))
+            return (
+                httpResponse(status: 200, body: L10n.string("Login cancelled", comment: "OAuth callback browser cancellation body.")),
+                .failure(CodexOfficialLoginError.cancelled)
+            )
 
         default:
-            return (httpResponse(status: 404, body: "Not Found"), .none)
+            return (httpResponse(status: 404, body: L10n.string("Not Found", comment: "OAuth callback browser HTTP error body.")), .none)
         }
     }
 
@@ -1009,8 +1029,8 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         <html>
         <head><meta charset="utf-8"><title>Codex Switcher</title></head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 48px;">
-        <h1>Sign-in complete</h1>
-        <p>You can close this browser window and return to Codex Switcher.</p>
+        <h1>\(L10n.string("Sign-in complete", comment: "OAuth callback browser success heading."))</h1>
+        <p>\(L10n.string("You can close this browser window and return to Codex Switcher.", comment: "OAuth callback browser success message."))</p>
         </body>
         </html>
         """
@@ -1022,7 +1042,7 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         <html>
         <head><meta charset="utf-8"><title>Codex Switcher</title></head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 48px;">
-        <h1>Sign-in failed</h1>
+        <h1>\(L10n.string("Sign-in failed", comment: "OAuth callback browser failure heading."))</h1>
         <p>\(message)</p>
         </body>
         </html>

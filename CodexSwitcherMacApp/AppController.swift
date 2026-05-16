@@ -20,6 +20,11 @@ struct UserFacingAlert: Identifiable, Equatable {
     let id = UUID()
     let title: String
     let message: String
+
+    init(title: String, message: String) {
+        self.title = L10n.string(title, comment: "Alert title.")
+        self.message = L10n.string(message, comment: "Alert message.")
+    }
 }
 
 struct UnavailableAccountRecoveryPrompt: Identifiable, Equatable {
@@ -39,7 +44,7 @@ struct PendingCodexRestartBanner: Identifiable, Equatable {
             case let .account(name):
                 name
             case .none:
-                "None"
+                L10n.string("None", comment: "Display name for the signed-out account option.")
             }
         }
     }
@@ -386,28 +391,52 @@ final class AppController {
 
     var captureCurrentAccountHelpText: String {
         if isCapturingCurrentAccount {
-            return "Adding the current account..."
+            return L10n.string(
+                "Adding the current account...",
+                comment: "Help text shown while the current account is being added."
+            )
         }
 
         if isSwitching {
-            return "Wait for the current account switch to finish."
+            return L10n.string(
+                "Wait for the current account switch to finish.",
+                comment: "Help text shown while an account switch is in progress."
+            )
         }
 
         switch authAccessState {
         case .ready:
-            return "Add the current Codex auth.json account, or sign in through Codex if it is already saved."
+            return L10n.string(
+                "Add the current Codex auth.json account, or sign in through Codex if it is already saved.",
+                comment: "Help text for adding the current account."
+            )
         case .unlinked:
-            return "Sign in through Codex, or link the Codex folder to capture the current auth.json first."
+            return L10n.string(
+                "Sign in through Codex, or link the Codex folder to capture the current auth.json first.",
+                comment: "Help text for adding an account before the Codex folder is linked."
+            )
         case .missingAuthFile:
-            return "Sign in through Codex to add an account."
+            return L10n.string("Sign in through Codex to add an account.", comment: "Help text for adding an account.")
         case .locationUnavailable:
-            return "Relink the Codex folder or sign in through Codex to add an account."
+            return L10n.string(
+                "Relink the Codex folder or sign in through Codex to add an account.",
+                comment: "Help text for adding an account when the linked folder is missing."
+            )
         case .accessDenied:
-            return "Grant folder access or sign in through Codex to add an account."
+            return L10n.string(
+                "Grant folder access or sign in through Codex to add an account.",
+                comment: "Help text for adding an account when folder permission is missing."
+            )
         case .corruptAuthFile:
-            return "Sign in through Codex, or fix the linked auth.json and try again."
+            return L10n.string(
+                "Sign in through Codex, or fix the linked auth.json and try again.",
+                comment: "Help text for adding an account when auth.json is invalid."
+            )
         case .unsupportedCredentialStore:
-            return "Sign in through Codex to add an isolated file-backed account snapshot."
+            return L10n.string(
+                "Sign in through Codex to add an isolated file-backed account snapshot.",
+                comment: "Help text for adding an account when Codex uses unsupported credential storage."
+            )
         }
     }
 
@@ -416,7 +445,7 @@ final class AppController {
     }
 
     var settingsLinkButtonTitle: String {
-        "Select"
+        L10n.string("Select", comment: "Button title for selecting the Codex folder.")
     }
 
     var hasSavedAccounts: Bool {
@@ -754,11 +783,11 @@ final class AppController {
     var linkButtonTitle: String {
         switch authAccessState {
         case .unlinked:
-            "Link Codex Folder"
+            L10n.string("Link Codex Folder", comment: "Button title for linking the Codex folder.")
         case .locationUnavailable, .accessDenied, .corruptAuthFile, .unsupportedCredentialStore:
-            "Relink Codex Folder"
+            L10n.string("Relink Codex Folder", comment: "Button title for relinking the Codex folder.")
         case .ready, .missingAuthFile:
-            "Link Codex Folder"
+            L10n.string("Link Codex Folder", comment: "Button title for linking the Codex folder.")
         }
     }
 
@@ -2184,7 +2213,11 @@ final class AppController {
                         } catch {
                             let accountLabel = archivedAccount.preferredStoredName
                                 ?? archivedAccount.identityKey
-                                ?? "Account \(accountIndex + 1)"
+                                ?? L10n.format(
+                                    "Account %lld",
+                                    Int64(accountIndex + 1),
+                                    comment: "Generated account label. The argument is a one-based account index."
+                                )
                             failureMessages.append(
                                 "\(url.lastPathComponent) • \(accountLabel): \(error.localizedDescription)"
                             )
@@ -2200,7 +2233,12 @@ final class AppController {
                 present(
                     UserFacingAlert(
                         title: "Couldn't Import Account",
-                        message: message.isEmpty ? "Codex Switcher couldn't import that .cxa file." : message
+                        message: message.isEmpty
+                            ? L10n.string(
+                                "Codex Switcher couldn't import that .cxa file.",
+                                comment: "Import error shown when a Codex account archive cannot be imported."
+                            )
+                            : message
                     )
                 )
                 return false
@@ -2690,7 +2728,10 @@ final class AppController {
                     result: sharedCommandResult(
                         for: command,
                         status: .failure,
-                        message: "Codex Switcher couldn't save the current account."
+                        message: L10n.string(
+                            "Codex Switcher couldn't save the current account.",
+                            comment: "Shared command failure shown when saving the current account fails."
+                        )
                     )
                 )
             }
@@ -2698,7 +2739,16 @@ final class AppController {
             let savedAccount = activeIdentityKey.flatMap { identityKey in
                 try? fetchAccounts().first(where: { $0.identityKey == identityKey })
             }
-            let message = savedAccount.map { "Saved \"\($0.name)\"." } ?? "Saved the current Codex account."
+            let message = savedAccount.map {
+                L10n.format(
+                    "Saved \"%@\".",
+                    $0.name,
+                    comment: "Shared command success. The argument is the account name."
+                )
+            } ?? L10n.string(
+                "Saved the current Codex account.",
+                comment: "Shared command success shown after saving the current account."
+            )
             return SharedAppCommandHandlingOutcome(
                 shouldAcknowledge: true,
                 shouldTerminateAfterAcknowledgement: false,
@@ -2721,7 +2771,10 @@ final class AppController {
                     result: sharedCommandResult(
                         for: command,
                         status: .failure,
-                        message: "Codex Switcher couldn't determine which account to switch to."
+                        message: L10n.string(
+                            "Codex Switcher couldn't determine which account to switch to.",
+                            comment: "Shared command failure shown when the target account is missing."
+                        )
                     )
                 )
             }
@@ -2734,7 +2787,10 @@ final class AppController {
                         result: sharedCommandResult(
                             for: command,
                             status: .failure,
-                            message: "That Codex account no longer exists.",
+                            message: L10n.string(
+                                "That Codex account no longer exists.",
+                                comment: "Shared command failure shown when an account was deleted."
+                            ),
                             accountIdentityKey: identityKey
                         )
                     )
@@ -2747,7 +2803,10 @@ final class AppController {
                         result: sharedCommandResult(
                             for: command,
                             status: .failure,
-                            message: "That saved account needs a local capture on this Mac before it can be used.",
+                            message: L10n.string(
+                                "That saved account needs a local capture on this Mac before it can be used.",
+                                comment: "Shared command failure shown when an account lacks local credentials."
+                            ),
                             accountIdentityKey: identityKey
                         )
                     )
@@ -2767,15 +2826,27 @@ final class AppController {
                         result: sharedCommandResult(
                             for: command,
                             status: .failure,
-                            message: "Codex Switcher couldn't switch to \"\(account.name)\".",
+                            message: L10n.format(
+                                "Codex Switcher couldn't switch to \"%@\".",
+                                account.name,
+                                comment: "Shared command failure. The argument is the account name."
+                            ),
                             accountIdentityKey: identityKey
                         )
                     )
                 }
 
                 let message = previousIdentityKey == identityKey
-                    ? "Already using \"\(account.name)\"."
-                    : "Now using \"\(account.name)\"."
+                    ? L10n.format(
+                        "Already using \"%@\".",
+                        account.name,
+                        comment: "Shared command success. The argument is the account name."
+                    )
+                    : L10n.format(
+                        "Now using \"%@\".",
+                        account.name,
+                        comment: "Shared command success. The argument is the account name."
+                    )
                 return SharedAppCommandHandlingOutcome(
                     shouldAcknowledge: true,
                     shouldTerminateAfterAcknowledgement: false,
@@ -2796,7 +2867,10 @@ final class AppController {
                     result: sharedCommandResult(
                         for: command,
                         status: .failure,
-                        message: "Codex Switcher couldn't switch to that account.",
+                        message: L10n.string(
+                            "Codex Switcher couldn't switch to that account.",
+                            comment: "Shared command failure shown when switching fails."
+                        ),
                         accountIdentityKey: identityKey
                     )
                 )
@@ -2811,11 +2885,14 @@ final class AppController {
                         shouldAcknowledge: true,
                         shouldTerminateAfterAcknowledgement: false,
                         result: sharedCommandResult(
-                            for: command,
-                            status: .failure,
-                            message: "No saved account currently has both 5h and 7d rate limits available for ranking."
+                        for: command,
+                        status: .failure,
+                        message: L10n.string(
+                            "No saved account currently has both 5h and 7d rate limits available for ranking.",
+                            comment: "Shared command failure shown when no account can be ranked."
                         )
                     )
+                )
                 }
 
                 let previousIdentityKey = activeIdentityKey
@@ -2832,15 +2909,26 @@ final class AppController {
                         result: sharedCommandResult(
                             for: command,
                             status: .failure,
-                            message: "Codex Switcher couldn't switch to the best available account.",
+                            message: L10n.string(
+                                "Codex Switcher couldn't switch to the best available account.",
+                                comment: "Shared command failure shown when best-account switching fails."
+                            ),
                             accountIdentityKey: account.identityKey
                         )
                     )
                 }
 
                 let message = previousIdentityKey == account.identityKey
-                    ? "Already using \"\(account.name)\", your best available account."
-                    : "Now using \"\(account.name)\", your best available account."
+                    ? L10n.format(
+                        "Already using \"%@\", your best available account.",
+                        account.name,
+                        comment: "Shared command success. The argument is the account name."
+                    )
+                    : L10n.format(
+                        "Now using \"%@\", your best available account.",
+                        account.name,
+                        comment: "Shared command success. The argument is the account name."
+                    )
                 return SharedAppCommandHandlingOutcome(
                     shouldAcknowledge: true,
                     shouldTerminateAfterAcknowledgement: false,
@@ -2859,7 +2947,10 @@ final class AppController {
                     result: sharedCommandResult(
                         for: command,
                         status: .failure,
-                        message: "Codex Switcher couldn't switch to the best available account."
+                        message: L10n.string(
+                            "Codex Switcher couldn't switch to the best available account.",
+                            comment: "Shared command failure shown when best-account switching fails."
+                        )
                     )
                 )
             }
@@ -2875,7 +2966,10 @@ final class AppController {
                     result: sharedCommandResult(
                         for: command,
                         status: .failure,
-                        message: "Codex Switcher couldn't determine which account to remove."
+                        message: L10n.string(
+                            "Codex Switcher couldn't determine which account to remove.",
+                            comment: "Shared command failure shown when the target account is missing."
+                        )
                     )
                 )
             }
@@ -2888,7 +2982,10 @@ final class AppController {
                         result: sharedCommandResult(
                             for: command,
                             status: .success,
-                            message: "That Codex account was already removed.",
+                            message: L10n.string(
+                                "That Codex account was already removed.",
+                                comment: "Shared command success shown when the requested account is already gone."
+                            ),
                             accountIdentityKey: identityKey
                         )
                     )
@@ -2905,7 +3002,11 @@ final class AppController {
                         result: sharedCommandResult(
                             for: command,
                             status: .failure,
-                            message: "Codex Switcher couldn't remove \"\(account.name)\".",
+                            message: L10n.format(
+                                "Codex Switcher couldn't remove \"%@\".",
+                                account.name,
+                                comment: "Shared command failure. The argument is the account name."
+                            ),
                             accountIdentityKey: identityKey
                         )
                     )
@@ -2917,7 +3018,11 @@ final class AppController {
                     result: sharedCommandResult(
                         for: command,
                         status: .success,
-                        message: "Removed \"\(account.name)\".",
+                        message: L10n.format(
+                            "Removed \"%@\".",
+                            account.name,
+                            comment: "Shared command success. The argument is the account name."
+                        ),
                         accountIdentityKey: identityKey
                     )
                 )
@@ -2936,7 +3041,10 @@ final class AppController {
                     result: sharedCommandResult(
                         for: command,
                         status: .failure,
-                        message: "Codex Switcher couldn't remove that account.",
+                        message: L10n.string(
+                            "Codex Switcher couldn't remove that account.",
+                            comment: "Shared command failure shown when removing an account fails."
+                        ),
                         accountIdentityKey: identityKey
                     )
                 )
@@ -3538,7 +3646,11 @@ final class AppController {
                 present(
                     UserFacingAlert(
                         title: partialSuccessTitle,
-                        message: "The Codex account is active, but the local last-login update failed: \(error.localizedDescription)"
+                        message: L10n.format(
+                            "The Codex account is active, but the local last-login update failed: %@",
+                            error.localizedDescription,
+                            comment: "Partial switch success alert. The argument is the system error."
+                        )
                     )
                 )
             } else {
@@ -5125,21 +5237,33 @@ private enum ControllerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingModelContext:
-            "The app isn't ready to edit accounts yet."
+            L10n.string("The app isn't ready to edit accounts yet.", comment: "Controller error shown before storage is ready.")
         case .accountNotFound:
-            "That account no longer exists."
+            L10n.string("That account no longer exists.", comment: "Controller error shown when an account was deleted.")
         case .accountUnavailable:
-            "That saved account is no longer available. Keep it and capture a fresh login, or remove it from Codex Switcher."
+            L10n.string(
+                "That saved account is no longer available. Keep it and capture a fresh login, or remove it from Codex Switcher.",
+                comment: "Controller error shown for an unavailable saved account."
+            )
         case .accountLimitReached:
-            "Codex Switcher supports up to 1000 saved accounts."
+            L10n.string("Codex Switcher supports up to 1000 saved accounts.", comment: "Controller error shown at the account limit.")
         case .noSupportedAccountArchives:
-            "No supported .cxa files were provided."
+            L10n.string("No supported .cxa files were provided.", comment: "Import error shown when no selected files are account archives.")
         case .accountArchiveIdentityMismatch:
-            "That .cxa file doesn't match the account snapshot it contains."
+            L10n.string(
+                "That .cxa file doesn't match the account snapshot it contains.",
+                comment: "Import error shown when archive metadata does not match the credential payload."
+            )
         case .accountNeedsLocalSnapshotForExport:
-            "That saved account needs a local capture on this Mac before it can be exported."
+            L10n.string(
+                "That saved account needs a local capture on this Mac before it can be exported.",
+                comment: "Export error shown when credentials are not available on this Mac."
+            )
         case .pasteboardWriteFailed:
-            "Codex Switcher couldn't put the account archive on the clipboard."
+            L10n.string(
+                "Codex Switcher couldn't put the account archive on the clipboard.",
+                comment: "Clipboard export error."
+            )
         }
     }
 }

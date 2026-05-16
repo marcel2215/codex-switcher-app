@@ -55,17 +55,22 @@ struct WatchRateLimitCircularComplicationView: View {
     }
 
     private var accessibilityLabel: String {
-        "\(account?.displayName ?? "Missing Account") \(window.shortLabel)"
+        L10n.format(
+            "%1$@ %2$@",
+            account?.displayName ?? L10n.string("Missing Account", comment: "Widget fallback name for an account that no longer exists."),
+            window.shortLabel,
+            comment: "Accessibility label combining account name and rate-limit window short label."
+        )
     }
 
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
-            return "\(metric.percentText) remaining"
+            return L10n.format("%@ remaining", metric.percentText, comment: "Accessibility value for an exact rate-limit percentage.")
         case .cached:
-            return "\(metric.percentText) remaining, cached"
+            return L10n.format("%@ remaining, cached", metric.percentText, comment: "Accessibility value for a cached rate-limit percentage.")
         case .missing, .unavailable:
-            return "Unavailable"
+            return L10n.string("Unavailable", comment: "Accessibility value when a rate limit is unavailable.")
         }
     }
 }
@@ -116,17 +121,22 @@ struct WatchRateLimitCornerComplicationView: View {
     }
 
     private var accessibilityLabel: String {
-        "\(account?.displayName ?? "Missing Account") \(window.shortLabel)"
+        L10n.format(
+            "%1$@ %2$@",
+            account?.displayName ?? L10n.string("Missing Account", comment: "Widget fallback name for an account that no longer exists."),
+            window.shortLabel,
+            comment: "Accessibility label combining account name and rate-limit window short label."
+        )
     }
 
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
-            return "\(metric.percentText) remaining"
+            return L10n.format("%@ remaining", metric.percentText, comment: "Accessibility value for an exact rate-limit percentage.")
         case .cached:
-            return "\(metric.percentText) remaining, cached"
+            return L10n.format("%@ remaining, cached", metric.percentText, comment: "Accessibility value for a cached rate-limit percentage.")
         case .missing, .unavailable:
-            return "Unavailable"
+            return L10n.string("Unavailable", comment: "Accessibility value when a rate limit is unavailable.")
         }
     }
 }

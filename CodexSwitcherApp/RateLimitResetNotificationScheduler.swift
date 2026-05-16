@@ -45,18 +45,24 @@ actor RateLimitResetNotificationScheduler {
         var title: String {
             switch self {
             case .fiveHour:
-                "5-Hour Rate Limit Reset"
+                L10n.string(
+                    "5-Hour Rate Limit Reset",
+                    comment: "Notification title for a five-hour rate-limit reset."
+                )
             case .sevenDay:
-                "7-Day Rate Limit Reset"
+                L10n.string(
+                    "7-Day Rate Limit Reset",
+                    comment: "Notification title for a seven-day rate-limit reset."
+                )
             }
         }
 
         var bodyLabel: String {
             switch self {
             case .fiveHour:
-                "5-hour"
+                L10n.string("5-hour", comment: "Rate-limit window label used in notification body text.")
             case .sevenDay:
-                "7-day"
+                L10n.string("7-day", comment: "Rate-limit window label used in notification body text.")
             }
         }
 
@@ -221,11 +227,18 @@ actor RateLimitResetNotificationScheduler {
         }
 
         let trimmedAccountName = account.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let accountName = trimmedAccountName.isEmpty ? "Your account" : trimmedAccountName
+        let accountName = trimmedAccountName.isEmpty
+            ? L10n.string("Your account", comment: "Fallback account name used in notification body text.")
+            : trimmedAccountName
 
         let content = UNMutableNotificationContent()
         content.title = window.title
-        content.body = "\(accountName) is back to 100% for its \(window.bodyLabel) window."
+        content.body = L10n.format(
+            "%1$@ is back to 100% for its %2$@ window.",
+            accountName,
+            window.bodyLabel,
+            comment: "Rate-limit reset notification body. Arguments are account name and reset window label."
+        )
         content.threadIdentifier = "rate-limit-reset"
 
         return PendingResetNotification(

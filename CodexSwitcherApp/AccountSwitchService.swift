@@ -31,48 +31,118 @@ enum CodexSharedSwitchError: LocalizedError {
     nonisolated var errorDescription: String? {
         switch self {
         case .accountSelectionRequired:
-            return "Select an account first."
+            return L10n.string("Select an account first.", comment: "Switching error shown when no account is selected.")
         case let .accountNotFound(identityKey):
-            return "The saved account (\(identityKey)) is no longer available."
+            return L10n.format(
+                "The saved account (%@) is no longer available.",
+                identityKey,
+                comment: "Switching error. The argument is an account identifier."
+            )
         case let .accountUnavailable(accountName):
-            return "The saved account \(accountName) is no longer available. Open Codex Switcher to remove it or capture a fresh login."
+            return L10n.format(
+                "The saved account %@ is no longer available. Open Codex Switcher to remove it or capture a fresh login.",
+                accountName,
+                comment: "Switching error. The argument is an account name."
+            )
         case .noBestAccountAvailable:
-            return "No saved account currently has both 5h and 7d rate limits available for ranking."
+            return L10n.string(
+                "No saved account currently has both 5h and 7d rate limits available for ranking.",
+                comment: "Switching error shown when no account has enough rate-limit data."
+            )
         case let .missingStoredSnapshot(accountName):
-            return "Codex Switcher no longer has a saved auth snapshot for \(accountName)."
+            return L10n.format(
+                "Codex Switcher no longer has a saved auth snapshot for %@.",
+                accountName,
+                comment: "Switching error. The argument is an account name."
+            )
         case let .invalidStoredSnapshot(accountName):
-            return "The saved auth snapshot for \(accountName) is no longer valid."
+            return L10n.format(
+                "The saved auth snapshot for %@ is no longer valid.",
+                accountName,
+                comment: "Switching error. The argument is an account name."
+            )
         case .missingBookmark:
-            return "Choose the Codex folder before switching accounts."
+            return L10n.string(
+                "Choose the Codex folder before switching accounts.",
+                comment: "Switching error shown when the Codex folder is not linked."
+            )
         case .bookmarkRefreshRequired:
-            return "Open Codex Switcher once to refresh access to the linked Codex folder."
+            return L10n.string(
+                "Open Codex Switcher once to refresh access to the linked Codex folder.",
+                comment: "Switching error shown when a saved folder permission needs refreshing."
+            )
         case let .unsupportedAuthState(authState):
             switch authState {
             case .unlinked:
-                return "Choose the Codex folder before switching accounts."
+                return L10n.string(
+                    "Choose the Codex folder before switching accounts.",
+                    comment: "Switching error shown when the Codex folder is not linked."
+                )
             case .loggedOut, .ready:
-                return "Codex Switcher couldn't confirm the linked Codex folder."
+                return L10n.string(
+                    "Codex Switcher couldn't confirm the linked Codex folder.",
+                    comment: "Switching error shown when linked folder state is unexpected."
+                )
             case .locationUnavailable:
-                return "The linked Codex folder is no longer available."
+                return L10n.string(
+                    "The linked Codex folder is no longer available.",
+                    comment: "Switching error shown when the linked folder is missing."
+                )
             case .accessDenied:
-                return "Codex Switcher no longer has permission to access the linked Codex folder."
+                return L10n.string(
+                    "Codex Switcher no longer has permission to access the linked Codex folder.",
+                    comment: "Switching error shown when folder permission is missing."
+                )
             case .corruptAuthFile:
-                return "The linked auth.json is invalid."
+                return L10n.string(
+                    "The linked auth.json is invalid.",
+                    comment: "Switching error shown when the Codex auth file is invalid."
+                )
             case .unsupportedCredentialStore:
-                return "The linked Codex folder uses an unsupported credential store."
+                return L10n.string(
+                    "The linked Codex folder uses an unsupported credential store.",
+                    comment: "Switching error shown when Codex uses keyring or auto credential storage."
+                )
             }
         case let .unsupportedCredentialStore(folderURL, mode):
-            return "The linked Codex folder at \(folderURL.path) is configured for \(mode.displayName) credential storage. Codex Switcher only supports file-backed auth.json switching."
+            return L10n.format(
+                "The linked Codex folder at %1$@ is configured for %2$@ credential storage. Codex Switcher only supports file-backed auth.json switching.",
+                folderURL.path,
+                mode.displayName,
+                comment: "Switching error. The arguments are the folder path and credential store mode."
+            )
         case let .accessDenied(folderURL):
-            return "Codex Switcher no longer has permission to access \(folderURL.path)."
+            return L10n.format(
+                "Codex Switcher no longer has permission to access %@.",
+                folderURL.path,
+                comment: "Switching error. The argument is a folder path."
+            )
         case let .linkedFolderUnavailable(folderURL):
-            return "The linked Codex folder is no longer available: \(folderURL.path)."
+            return L10n.format(
+                "The linked Codex folder is no longer available: %@.",
+                folderURL.path,
+                comment: "Switching error. The argument is a folder path."
+            )
         case let .unreadable(fileURL, message):
-            return "Codex Switcher couldn't read \(fileURL.path). \(message)"
+            return L10n.format(
+                "Codex Switcher couldn't read %1$@. %2$@",
+                fileURL.path,
+                message,
+                comment: "Switching error. The arguments are a file path and system error."
+            )
         case let .unwritable(fileURL, message):
-            return "Codex Switcher couldn't write \(fileURL.path). \(message)"
+            return L10n.format(
+                "Codex Switcher couldn't write %1$@. %2$@",
+                fileURL.path,
+                message,
+                comment: "Switching error. The arguments are a file path and system error."
+            )
         case let .verificationFailed(fileURL):
-            return "Codex Switcher wrote \(fileURL.path), but the verification readback did not match the saved account."
+            return L10n.format(
+                "Codex Switcher wrote %@, but the verification readback did not match the saved account.",
+                fileURL.path,
+                comment: "Switching error. The argument is a file path."
+            )
         }
     }
 }
@@ -479,7 +549,10 @@ struct CodexSharedAccountSwitchService: Sendable {
         guard let readContents else {
             throw CodexSharedSwitchError.unreadable(
                 authFileURL,
-                message: "The file coordinator returned no contents."
+                message: L10n.string(
+                    "The file coordinator returned no contents.",
+                    comment: "File coordination error shown when a coordinated read yields no data."
+                )
             )
         }
 

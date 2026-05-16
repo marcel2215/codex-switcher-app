@@ -70,9 +70,14 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
 
     nonisolated var displayRepresentation: DisplayRepresentation {
         let subtitleParts = [
-            isCurrent ? "Current" : nil,
-            isPinned ? "Pinned" : nil,
-            hasLocalSnapshot ? nil : "Needs local capture on this Mac",
+            isCurrent ? L10n.string("Current", comment: "App Intents account subtitle for the current account.") : nil,
+            isPinned ? L10n.string("Pinned", comment: "App Intents account subtitle for a pinned account.") : nil,
+            hasLocalSnapshot
+                ? nil
+                : L10n.string(
+                    "Needs local capture on this Mac",
+                    comment: "App Intents account subtitle when credentials are not available on this Mac."
+                ),
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
         ]
@@ -91,9 +96,14 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
         let attributeSet = defaultAttributeSet
         attributeSet.displayName = name
         attributeSet.contentDescription = [
-            isCurrent ? "Current account" : nil,
-            isPinned ? "Pinned account" : nil,
-            hasLocalSnapshot ? nil : "Needs local capture on this Mac",
+            isCurrent ? L10n.string("Current account", comment: "Spotlight metadata description for the current account.") : nil,
+            isPinned ? L10n.string("Pinned account", comment: "Spotlight metadata description for a pinned account.") : nil,
+            hasLocalSnapshot
+                ? nil
+                : L10n.string(
+                    "Needs local capture on this Mac",
+                    comment: "Spotlight metadata description when credentials are not available on this Mac."
+                ),
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
         ]
@@ -103,11 +113,13 @@ struct CodexAccountEntity: AppEntity, CodexIndexedEntityProtocol, Hashable, Send
             name,
             emailHint.nilIfBlank,
             accountIdentifier.nilIfBlank,
-            isCurrent ? "Current" : nil,
-            isPinned ? "Pinned" : nil,
-            hasLocalSnapshot ? "Available" : "Needs local capture",
+            isCurrent ? L10n.string("Current", comment: "Spotlight keyword for the current account.") : nil,
+            isPinned ? L10n.string("Pinned", comment: "Spotlight keyword for a pinned account.") : nil,
+            hasLocalSnapshot
+                ? L10n.string("Available", comment: "Spotlight keyword for an account available on this Mac.")
+                : L10n.string("Needs local capture", comment: "Spotlight keyword for an account missing local credentials."),
             "Codex",
-            "Account",
+            L10n.string("Account", comment: "Spotlight keyword for an account."),
         ]
         .compactMap { $0 }
 
@@ -154,17 +166,37 @@ enum CodexSharedIntentLookupError: LocalizedError {
     nonisolated var errorDescription: String? {
         switch self {
         case .noSavedAccounts:
-            return "Codex Switcher doesn't have any saved accounts yet."
+            return L10n.string(
+                "Codex Switcher doesn't have any saved accounts yet.",
+                comment: "App Intent error when no saved accounts exist."
+            )
         case .noCurrentAccount:
-            return "Codex Switcher couldn't determine the current account."
+            return L10n.string(
+                "Codex Switcher couldn't determine the current account.",
+                comment: "App Intent error when the current account cannot be determined."
+            )
         case .noSelectedAccount:
-            return "No live account selection is currently available in Codex Switcher."
+            return L10n.string(
+                "No live account selection is currently available in Codex Switcher.",
+                comment: "App Intent error when there is no active app account selection."
+            )
         case .emptySearchQuery:
-            return "Enter an account name, email, or identifier to search."
+            return L10n.string(
+                "Enter an account name, email, or identifier to search.",
+                comment: "App Intent error for an empty account search query."
+            )
         case let .noMatchingAccount(query):
-            return "No saved account matched “\(query)”."
+            return L10n.format(
+                "No saved account matched \"%@\".",
+                query,
+                comment: "App Intent error when a single account search has no match."
+            )
         case let .noMatchingAccounts(query):
-            return "No saved accounts matched “\(query)”."
+            return L10n.format(
+                "No saved accounts matched \"%@\".",
+                query,
+                comment: "App Intent error when an account search has no matches."
+            )
         }
     }
 }

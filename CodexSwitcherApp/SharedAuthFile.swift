@@ -30,11 +30,11 @@ nonisolated enum SharedCodexAuthFileError: LocalizedError {
     nonisolated var errorDescription: String? {
         switch self {
         case .invalidEncoding:
-            "Codex auth.json isn't encoded as valid UTF-8 text."
+            L10n.string("Codex auth.json isn't encoded as valid UTF-8 text.", comment: "Auth file parsing error.")
         case .invalidJSON:
-            "Codex auth.json doesn't contain valid JSON."
+            L10n.string("Codex auth.json doesn't contain valid JSON.", comment: "Auth file parsing error.")
         case .missingCredentials:
-            "Codex auth.json doesn't contain a supported account payload."
+            L10n.string("Codex auth.json doesn't contain a supported account payload.", comment: "Auth file parsing error.")
         }
     }
 }

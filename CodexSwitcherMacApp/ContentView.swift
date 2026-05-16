@@ -62,7 +62,9 @@ struct ContentView: View {
     }
 
     private var emptyAccountsTitle: String {
-        controller.searchText.isEmpty ? "No Accounts" : "No Results"
+        controller.searchText.isEmpty
+            ? L10n.string("No Accounts", comment: "Empty account list title.")
+            : L10n.string("No Results", comment: "Empty account search results title.")
     }
 
     private var emptyAccountsSystemImage: String {
@@ -71,11 +73,14 @@ struct ContentView: View {
 
     private var emptyAccountsDescription: String {
         if !controller.searchText.isEmpty {
-            return "Try a different search term."
+            return L10n.string("Try a different search term.", comment: "Empty search results description.")
         }
 
         return controller.canCaptureCurrentAccount
-            ? "Click the plus button to add the currently used account."
+            ? L10n.string(
+                "Click the plus button to add the currently used account.",
+                comment: "Empty account list description when the user can capture the current Codex account."
+            )
             : controller.captureCurrentAccountHelpText
     }
 
@@ -359,7 +364,11 @@ struct ContentView: View {
     }
 
     private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
-        "The saved refresh token for “\(prompt.accountName)” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex."
+        L10n.format(
+            "The saved refresh token for \"%@\" is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the \"Log out\" button in Codex.",
+            prompt.accountName,
+            comment: "Recovery prompt for a saved Codex account whose refresh token is no longer valid."
+        )
     }
 
     @ViewBuilder
@@ -516,7 +525,9 @@ struct ContentView: View {
     private func accountListDisplayName(for item: AccountListItem) -> some View {
         if item.isUnavailable {
             var attributedName = AttributedString(item.displayName)
-            var unavailableSuffix = AttributedString(" (Unavailable)")
+            var unavailableSuffix = AttributedString(
+                L10n.string(" (Unavailable)", comment: "Suffix appended to an account name when the account cannot be used.")
+            )
             unavailableSuffix.foregroundColor = .red
             attributedName.append(unavailableSuffix)
 
@@ -873,11 +884,11 @@ struct ContentView: View {
     }
 
     private func menuActionLabel(title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
+        Label(L10n.string(title, comment: "Context menu item title."), systemImage: systemImage)
     }
 
     private func destructiveMenuLabel(title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
+        Label(L10n.string(title, comment: "Destructive context menu item title."), systemImage: systemImage)
             .foregroundStyle(.red)
     }
 }
@@ -912,11 +923,12 @@ private struct AccountListItem: Identifiable, Hashable {
     }
 
     static func none(isCurrentAccount: Bool) -> AccountListItem {
-        AccountListItem(
+        let displayName = L10n.string("None", comment: "Display name for the signed-out account option.")
+        return AccountListItem(
             id: AppController.noneAccountSelectionID,
             isNone: true,
-            name: "None",
-            displayName: "None",
+            name: displayName,
+            displayName: displayName,
             iconSystemName: "power",
             lastLoginAt: nil,
             sevenDayLimitUsedPercent: 0,

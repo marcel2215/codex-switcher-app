@@ -18,7 +18,7 @@ enum AccountDisplayFormatter {
 
     static func lastLoginValueDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
         guard let lastLoginAt else {
-            return "never"
+            return L10n.string("never", comment: "Last-login value for an account that has never been used.")
         }
 
         // Manual clock changes and skew should not produce future-facing copy.
@@ -27,18 +27,30 @@ enum AccountDisplayFormatter {
         let dayInSeconds: TimeInterval = 24 * hourInSeconds
 
         if elapsedSeconds < hourInSeconds {
-            return "this hour"
+            return L10n.string("this hour", comment: "Last-login value for an account used less than one hour ago.")
         }
 
         if elapsedSeconds < dayInSeconds {
-            return "\(Int(elapsedSeconds / hourInSeconds))h ago"
+            return L10n.format(
+                "%lldh ago",
+                Int64(elapsedSeconds / hourInSeconds),
+                comment: "Compact last-login value. The argument is the number of hours."
+            )
         }
 
-        return "\(max(Int(elapsedSeconds / dayInSeconds), 1))d ago"
+        return L10n.format(
+            "%lldd ago",
+            Int64(max(Int(elapsedSeconds / dayInSeconds), 1)),
+            comment: "Compact last-login value. The argument is the number of days."
+        )
     }
 
     static func lastLoginListDescription(from lastLoginAt: Date?, relativeTo now: Date = .now) -> String {
-        "Last login: \(lastLoginValueDescription(from: lastLoginAt, relativeTo: now))"
+        L10n.format(
+            "Last login: %@",
+            lastLoginValueDescription(from: lastLoginAt, relativeTo: now),
+            comment: "Account metadata label. The argument is a relative last-login value."
+        )
     }
 
     static func listMetadataDescription(
@@ -49,8 +61,16 @@ enum AccountDisplayFormatter {
     ) -> String {
         [
             lastLoginListDescription(from: lastLoginAt, relativeTo: now),
-            "5h: \(compactPercentDescription(fiveHourRemainingPercent))",
-            "7d: \(compactPercentDescription(sevenDayRemainingPercent))",
+            L10n.format(
+                "5h: %@",
+                compactPercentDescription(fiveHourRemainingPercent),
+                comment: "Compact 5-hour rate-limit metadata. The argument is a percentage or unavailable marker."
+            ),
+            L10n.format(
+                "7d: %@",
+                compactPercentDescription(sevenDayRemainingPercent),
+                comment: "Compact 7-day rate-limit metadata. The argument is a percentage or unavailable marker."
+            ),
         ].joined(separator: " • ")
     }
 
@@ -61,9 +81,21 @@ enum AccountDisplayFormatter {
         relativeTo now: Date = .now
     ) -> String {
         [
-            "Last login \(lastLoginValueDescription(from: lastLoginAt, relativeTo: now))",
-            "5 hour remaining \(detailedPercentDescription(fiveHourRemainingPercent))",
-            "7 day remaining \(detailedPercentDescription(sevenDayRemainingPercent))",
+            L10n.format(
+                "Last login %@",
+                lastLoginValueDescription(from: lastLoginAt, relativeTo: now),
+                comment: "Accessibility metadata. The argument is a relative last-login value."
+            ),
+            L10n.format(
+                "5 hour remaining %@",
+                detailedPercentDescription(fiveHourRemainingPercent),
+                comment: "Accessibility metadata. The argument is a 5-hour remaining percentage."
+            ),
+            L10n.format(
+                "7 day remaining %@",
+                detailedPercentDescription(sevenDayRemainingPercent),
+                comment: "Accessibility metadata. The argument is a 7-day remaining percentage."
+            ),
         ].joined(separator: ", ")
     }
 
@@ -72,8 +104,16 @@ enum AccountDisplayFormatter {
         fiveHourRemainingPercent: Int?
     ) -> String {
         [
-            "5h: \(compactPercentDescription(fiveHourRemainingPercent))",
-            "7d: \(compactPercentDescription(sevenDayRemainingPercent))",
+            L10n.format(
+                "5h: %@",
+                compactPercentDescription(fiveHourRemainingPercent),
+                comment: "Compact 5-hour rate-limit metadata. The argument is a percentage or unavailable marker."
+            ),
+            L10n.format(
+                "7d: %@",
+                compactPercentDescription(sevenDayRemainingPercent),
+                comment: "Compact 7-day rate-limit metadata. The argument is a percentage or unavailable marker."
+            ),
         ].joined(separator: " • ")
     }
 
@@ -82,8 +122,16 @@ enum AccountDisplayFormatter {
         fiveHourRemainingPercent: Int?
     ) -> String {
         [
-            "5 hour remaining \(detailedPercentDescription(fiveHourRemainingPercent))",
-            "7 day remaining \(detailedPercentDescription(sevenDayRemainingPercent))",
+            L10n.format(
+                "5 hour remaining %@",
+                detailedPercentDescription(fiveHourRemainingPercent),
+                comment: "Accessibility metadata. The argument is a 5-hour remaining percentage."
+            ),
+            L10n.format(
+                "7 day remaining %@",
+                detailedPercentDescription(sevenDayRemainingPercent),
+                comment: "Accessibility metadata. The argument is a 7-day remaining percentage."
+            ),
         ].joined(separator: ", ")
     }
 
@@ -105,7 +153,7 @@ enum AccountDisplayFormatter {
 
     static func detailedPercentDescription(_ value: Int?) -> String {
         guard let clampedPercent = clampedPercentValue(value) else {
-            return "Unavailable"
+            return L10n.string("Unavailable", comment: "Fallback value when a metric is not available.")
         }
 
         return "\(clampedPercent)%"
@@ -113,7 +161,7 @@ enum AccountDisplayFormatter {
 
     static func detailedPercentDescription(_ value: Int?, isUnavailable: Bool) -> String {
         guard !isUnavailable else {
-            return "Unavailable"
+            return L10n.string("Unavailable", comment: "Fallback value when a metric is not available.")
         }
 
         return detailedPercentDescription(value)
@@ -124,12 +172,12 @@ enum AccountDisplayFormatter {
     /// readable inside a `LabeledContent` trailing column.
     static func resetCountdownDescription(until resetAt: Date?, relativeTo now: Date = .now) -> String {
         guard let resetAt else {
-            return "Unavailable"
+            return L10n.string("Unavailable", comment: "Fallback value when a reset time is not available.")
         }
 
         let remainingSeconds = resetAt.timeIntervalSince(now)
         guard remainingSeconds > 0 else {
-            return "now"
+            return L10n.string("now", comment: "Reset countdown value for a reset that has already happened.")
         }
 
         // Round up to the next minute so a future reset never appears as "now"
@@ -137,7 +185,11 @@ enum AccountDisplayFormatter {
         let totalMinutes = Int(ceil(remainingSeconds / 60))
 
         if totalMinutes < 60 {
-            return "\(max(totalMinutes, 1))m"
+            return L10n.format(
+                "%lldm",
+                Int64(max(totalMinutes, 1)),
+                comment: "Compact countdown value. The argument is the number of minutes."
+            )
         }
 
         let totalHours = totalMinutes / 60
@@ -145,20 +197,38 @@ enum AccountDisplayFormatter {
 
         if totalHours < 24 {
             if remainingMinutes == 0 {
-                return "\(totalHours)h"
+                return L10n.format(
+                    "%lldh",
+                    Int64(totalHours),
+                    comment: "Compact countdown value. The argument is the number of hours."
+                )
             }
 
-            return "\(totalHours)h \(remainingMinutes)m"
+            return L10n.format(
+                "%1$lldh %2$lldm",
+                Int64(totalHours),
+                Int64(remainingMinutes),
+                comment: "Compact countdown value. The arguments are hours and remaining minutes."
+            )
         }
 
         let days = totalHours / 24
         let remainingHours = totalHours % 24
 
         if remainingHours == 0 {
-            return "\(days)d"
+            return L10n.format(
+                "%lldd",
+                Int64(days),
+                comment: "Compact countdown value. The argument is the number of days."
+            )
         }
 
-        return "\(days)d \(remainingHours)h"
+        return L10n.format(
+            "%1$lldd %2$lldh",
+            Int64(days),
+            Int64(remainingHours),
+            comment: "Compact countdown value. The arguments are days and remaining hours."
+        )
     }
 
     static func resetTimeDescription(
@@ -171,7 +241,7 @@ enum AccountDisplayFormatter {
             return resetCountdownDescription(until: resetAt, relativeTo: now)
         case .absolute:
             guard let resetAt else {
-                return "Unavailable"
+                return L10n.string("Unavailable", comment: "Fallback value when a reset time is not available.")
             }
 
             return resetAt.formatted(date: .abbreviated, time: .shortened)

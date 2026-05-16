@@ -105,183 +105,183 @@ enum AccountIconOption: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .key:
-            "Key"
+            L10n.string("Key", comment: "Display label for Key.")
         case .keyCard:
-            "Key Card"
+            L10n.string("Key Card", comment: "Display label for Key Card.")
         case .person:
-            "Person"
+            L10n.string("Person", comment: "Display label for Person.")
         case .personSquare:
-            "Person Square"
+            L10n.string("Person Square", comment: "Display label for Person Square.")
         case .personBadgeKey:
-            "Person Badge Key"
+            L10n.string("Person Badge Key", comment: "Display label for Person Badge Key.")
         case .people:
-            "People"
+            L10n.string("People", comment: "Display label for People.")
         case .profile:
-            "Profile"
+            L10n.string("Profile", comment: "Display label for Profile.")
         case .briefcase:
-            "Briefcase"
+            L10n.string("Briefcase", comment: "Display label for Briefcase.")
         case .building:
-            "Building"
+            L10n.string("Building", comment: "Display label for Building.")
         case .columns:
-            "Columns"
+            L10n.string("Columns", comment: "Display label for Columns.")
         case .house:
-            "House"
+            L10n.string("House", comment: "Display label for House.")
         case .terminal:
-            "Terminal"
+            L10n.string("Terminal", comment: "Display label for Terminal.")
         case .shield:
-            "Shield"
+            L10n.string("Shield", comment: "Display label for Shield.")
         case .lock:
-            "Lock"
+            L10n.string("Lock", comment: "Display label for Lock.")
         case .bolt:
-            "Bolt"
+            L10n.string("Bolt", comment: "Display label for Bolt.")
         case .star:
-            "Star"
+            L10n.string("Star", comment: "Display label for Star.")
         case .sparkles:
-            "Sparkles"
+            L10n.string("Sparkles", comment: "Display label for Sparkles.")
         case .heart:
-            "Heart"
+            L10n.string("Heart", comment: "Display label for Heart.")
         case .flame:
-            "Flame"
+            L10n.string("Flame", comment: "Display label for Flame.")
         case .leaf:
-            "Leaf"
+            L10n.string("Leaf", comment: "Display label for Leaf.")
         case .crown:
-            "Crown"
+            L10n.string("Crown", comment: "Display label for Crown.")
         case .diamond:
-            "Diamond"
+            L10n.string("Diamond", comment: "Display label for Diamond.")
         case .trophy:
-            "Trophy"
+            L10n.string("Trophy", comment: "Display label for Trophy.")
         case .medal:
-            "Medal"
+            L10n.string("Medal", comment: "Display label for Medal.")
         case .globe:
-            "Globe"
+            L10n.string("Globe", comment: "Display label for Globe.")
         case .cloud:
-            "Cloud"
+            L10n.string("Cloud", comment: "Display label for Cloud.")
         case .moon:
-            "Moon"
+            L10n.string("Moon", comment: "Display label for Moon.")
         case .sun:
-            "Sun"
+            L10n.string("Sun", comment: "Display label for Sun.")
         case .bell:
-            "Bell"
+            L10n.string("Bell", comment: "Display label for Bell.")
         case .flag:
-            "Flag"
+            L10n.string("Flag", comment: "Display label for Flag.")
         case .checkSeal:
-            "Checkmark Seal"
+            L10n.string("Checkmark Seal", comment: "Display label for Checkmark Seal.")
         case .lightbulb:
-            "Lightbulb"
+            L10n.string("Lightbulb", comment: "Display label for Lightbulb.")
         case .folder:
-            "Folder"
+            L10n.string("Folder", comment: "Display label for Folder.")
         case .document:
-            "Document"
+            L10n.string("Document", comment: "Display label for Document.")
         case .tray:
-            "Tray"
+            L10n.string("Tray", comment: "Display label for Tray.")
         case .archiveBox:
-            "Archive Box"
+            L10n.string("Archive Box", comment: "Display label for Archive Box.")
         case .shippingBox:
-            "Shipping Box"
+            L10n.string("Shipping Box", comment: "Display label for Shipping Box.")
         case .bookmark:
-            "Bookmark"
+            L10n.string("Bookmark", comment: "Display label for Bookmark.")
         case .tag:
-            "Tag"
+            L10n.string("Tag", comment: "Display label for Tag.")
         case .envelope:
-            "Envelope"
+            L10n.string("Envelope", comment: "Display label for Envelope.")
         case .at:
-            "At"
+            L10n.string("At", comment: "Display label for At.")
         case .bubble:
-            "Messages"
+            L10n.string("Messages", comment: "Display label for Messages.")
         case .paperPlane:
-            "Paper Plane"
+            L10n.string("Paper Plane", comment: "Display label for Paper Plane.")
         case .link:
-            "Link"
+            L10n.string("Link", comment: "Display label for Link.")
         case .calendar:
-            "Calendar"
+            L10n.string("Calendar", comment: "Display label for Calendar.")
         case .clock:
-            "Clock"
+            L10n.string("Clock", comment: "Display label for Clock.")
         case .timer:
-            "Timer"
+            L10n.string("Timer", comment: "Display label for Timer.")
         case .hourglass:
-            "Hourglass"
+            L10n.string("Hourglass", comment: "Display label for Hourglass.")
         case .phone:
-            "Phone"
+            L10n.string("Phone", comment: "Display label for Phone.")
         case .mapPin:
-            "Map Pin"
+            L10n.string("Map Pin", comment: "Display label for Map Pin.")
         case .map:
-            "Map"
+            L10n.string("Map", comment: "Display label for Map.")
         case .airplane:
-            "Airplane"
+            L10n.string("Airplane", comment: "Display label for Airplane.")
         case .car:
-            "Car"
+            L10n.string("Car", comment: "Display label for Car.")
         case .tram:
-            "Tram"
+            L10n.string("Tram", comment: "Display label for Tram.")
         case .bicycle:
-            "Bicycle"
+            L10n.string("Bicycle", comment: "Display label for Bicycle.")
         case .server:
-            "Server"
+            L10n.string("Server", comment: "Display label for Server.")
         case .drive:
-            "Drive"
+            L10n.string("Drive", comment: "Display label for Drive.")
         case .laptop:
-            "Laptop"
+            L10n.string("Laptop", comment: "Display label for Laptop.")
         case .tv:
-            "TV"
+            L10n.string("TV", comment: "Display label for TV.")
         case .printer:
-            "Printer"
+            L10n.string("Printer", comment: "Display label for Printer.")
         case .cpu:
-            "CPU"
+            L10n.string("CPU", comment: "Display label for CPU.")
         case .network:
-            "Network"
+            L10n.string("Network", comment: "Display label for Network.")
         case .wifi:
-            "Wi-Fi"
+            L10n.string("Wi-Fi", comment: "Display label for Wi-Fi.")
         case .antenna:
-            "Antenna"
+            L10n.string("Antenna", comment: "Display label for Antenna.")
         case .puzzle:
-            "Puzzle"
+            L10n.string("Puzzle", comment: "Display label for Puzzle.")
         case .hammer:
-            "Hammer"
+            L10n.string("Hammer", comment: "Display label for Hammer.")
         case .wrench:
-            "Wrench"
+            L10n.string("Wrench", comment: "Display label for Wrench.")
         case .camera:
-            "Camera"
+            L10n.string("Camera", comment: "Display label for Camera.")
         case .photo:
-            "Photo"
+            L10n.string("Photo", comment: "Display label for Photo.")
         case .video:
-            "Video"
+            L10n.string("Video", comment: "Display label for Video.")
         case .music:
-            "Music"
+            L10n.string("Music", comment: "Display label for Music.")
         case .speaker:
-            "Speaker"
+            L10n.string("Speaker", comment: "Display label for Speaker.")
         case .mic:
-            "Microphone"
+            L10n.string("Microphone", comment: "Display label for Microphone.")
         case .headphones:
-            "Headphones"
+            L10n.string("Headphones", comment: "Display label for Headphones.")
         case .film:
-            "Film"
+            L10n.string("Film", comment: "Display label for Film.")
         case .paintbrush:
-            "Paintbrush"
+            L10n.string("Paintbrush", comment: "Display label for Paintbrush.")
         case .gift:
-            "Gift"
+            L10n.string("Gift", comment: "Display label for Gift.")
         case .bag:
-            "Bag"
+            L10n.string("Bag", comment: "Display label for Bag.")
         case .cart:
-            "Cart"
+            L10n.string("Cart", comment: "Display label for Cart.")
         case .banknote:
-            "Banknote"
+            L10n.string("Banknote", comment: "Display label for Banknote.")
         case .chartBar:
-            "Bar Chart"
+            L10n.string("Bar Chart", comment: "Display label for Bar Chart.")
         case .chartPie:
-            "Pie Chart"
+            L10n.string("Pie Chart", comment: "Display label for Pie Chart.")
         case .book:
-            "Book"
+            L10n.string("Book", comment: "Display label for Book.")
         case .graduationCap:
-            "Graduation Cap"
+            L10n.string("Graduation Cap", comment: "Display label for Graduation Cap.")
         case .newspaper:
-            "Newspaper"
+            L10n.string("Newspaper", comment: "Display label for Newspaper.")
         case .safari:
-            "Compass"
+            L10n.string("Compass", comment: "Display label for Compass.")
         case .binoculars:
-            "Binoculars"
+            L10n.string("Binoculars", comment: "Display label for Binoculars.")
         case .ticket:
-            "Ticket"
+            L10n.string("Ticket", comment: "Display label for Ticket.")
         case .gameController:
-            "Game Controller"
+            L10n.string("Game Controller", comment: "Display label for Game Controller.")
         }
     }
 

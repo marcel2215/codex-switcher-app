@@ -31,8 +31,15 @@ enum CodexSharedSwitchNotificationContent {
             return nil
         case .backgroundConfirmation, .recoveryAttention:
             let content = UNMutableNotificationContent()
-            content.title = "Account Switched"
-            content.body = "Now using \"\(trimmedAccountName)\"."
+            content.title = L10n.string(
+                "Account Switched",
+                comment: "Notification title shown after a background account switch."
+            )
+            content.body = L10n.format(
+                "Now using \"%@\".",
+                trimmedAccountName,
+                comment: "Notification body. The argument is the account name."
+            )
             content.sound = nil
             content.threadIdentifier = threadIdentifier
 

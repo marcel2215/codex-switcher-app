@@ -117,11 +117,17 @@ struct MenuBarAccountsView: View {
                     .font(.headline)
 
                 if let currentAccount = displayedAccounts.first(where: { $0.identityKey == controller.activeIdentityKey }) {
-                    Text("Current: \(currentAccount.name)")
+                    Text(
+                        L10n.format(
+                            "Current: %@",
+                            currentAccount.name,
+                            comment: "Menu bar subtitle showing the current Codex account name."
+                        )
+                    )
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if case .missingAuthFile = controller.authAccessState {
-                    Text("Codex is currently logged out")
+                    Text(L10n.string("Codex is currently logged out", comment: "Menu bar subtitle shown when Codex has no active account."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -133,14 +139,24 @@ struct MenuBarAccountsView: View {
                 chromeButton(
                     systemImage: controller.isCapturingCurrentAccount ? "xmark" : "plus",
                     helpText: controller.isCapturingCurrentAccount
-                        ? "Cancel adding the account."
-                        : "Add Codex account",
-                    accessibilityLabel: controller.isCapturingCurrentAccount ? "Cancel adding account" : "Add Codex account",
+                        ? L10n.string("Cancel adding the account.", comment: "Menu bar add-account button help text while capture is in progress.")
+                        : L10n.string("Add Codex account", comment: "Menu bar add-account button help text."),
+                    accessibilityLabel: controller.isCapturingCurrentAccount
+                        ? L10n.string("Cancel adding account", comment: "Menu bar add-account button accessibility label while capture is in progress.")
+                        : L10n.string("Add Codex account", comment: "Menu bar add-account button accessibility label."),
                     isDisabled: controller.isSwitching,
                     action: addAccountChromeAction
                 )
-                chromeButton(systemImage: "rectangle.on.rectangle", helpText: "Open App", action: openMainWindow)
-                chromeButton(systemImage: "rectangle.portrait.and.arrow.right", helpText: "Quit", action: quitApp)
+                chromeButton(
+                    systemImage: "rectangle.on.rectangle",
+                    helpText: L10n.string("Open App", comment: "Menu bar button help text for opening the main app."),
+                    action: openMainWindow
+                )
+                chromeButton(
+                    systemImage: "rectangle.portrait.and.arrow.right",
+                    helpText: L10n.string("Quit", comment: "Menu bar button help text for quitting the app."),
+                    action: quitApp
+                )
             }
         }
     }
@@ -289,12 +305,19 @@ struct MenuBarAccountsView: View {
 
     private var emptyAccountDescription: String {
         controller.canCaptureCurrentAccount
-            ? "Add the currently used account from the menu bar or the main window."
+            ? L10n.string(
+                "Add the currently used account from the menu bar or the main window.",
+                comment: "Empty menu bar account list description."
+            )
             : controller.captureCurrentAccountHelpText
     }
 
     private func unavailableAccountMessage(for prompt: UnavailableAccountRecoveryPrompt) -> String {
-        "The saved refresh token for “\(prompt.accountName)” is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the “Log out” button in Codex."
+        L10n.format(
+            "The saved refresh token for \"%@\" is no longer valid. To fix this, remove the account from Codex Switcher, then add it again to regenerate the token. To avoid this issue in the future, do not use the \"Log out\" button in Codex.",
+            prompt.accountName,
+            comment: "Recovery prompt for a saved Codex account whose refresh token is no longer valid."
+        )
     }
 
     private func openMainWindow() {
@@ -370,10 +393,11 @@ private struct AccountListHeightPreferenceKey: PreferenceKey {
     }
 
     static func none(isCurrentAccount: Bool) -> MenuBarAccountRowItem {
-        MenuBarAccountRowItem(
+        let displayName = L10n.string("None", comment: "Display name for the signed-out account option.")
+        return MenuBarAccountRowItem(
             id: AppController.noneAccountSelectionID,
             identityKey: nil,
-            displayName: "None",
+            displayName: displayName,
             iconSystemName: "power",
             lastLoginAt: nil,
             sevenDayLimitUsedPercent: 0,
@@ -415,7 +439,9 @@ private struct AccountListHeightPreferenceKey: PreferenceKey {
 private func accountListDisplayName(for item: MenuBarAccountRowItem) -> some View {
     if item.isUnavailable {
         var attributedName = AttributedString(item.displayName)
-        var unavailableSuffix = AttributedString(" (Unavailable)")
+        var unavailableSuffix = AttributedString(
+            L10n.string(" (Unavailable)", comment: "Suffix appended to an account name when the account cannot be used.")
+        )
         unavailableSuffix.foregroundColor = .red
         attributedName.append(unavailableSuffix)
 

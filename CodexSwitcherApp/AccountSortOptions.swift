@@ -19,15 +19,15 @@ enum AccountSortCriterion: String, CaseIterable, Identifiable, Codable, Sendable
     var menuTitle: String {
         switch self {
         case .name:
-            "Name"
+            L10n.string("Name", comment: "Display label for Name.")
         case .dateAdded:
-            "Date Added"
+            L10n.string("Date Added", comment: "Display label for Date Added.")
         case .lastLogin:
-            "Last Login"
+            L10n.string("Last Login", comment: "Display label for Last Login.")
         case .rateLimit:
-            "Rate Limit"
+            L10n.string("Rate Limit", comment: "Display label for Rate Limit.")
         case .custom:
-            "Custom"
+            L10n.string("Custom", comment: "Display label for Custom.")
         }
     }
 }
@@ -41,9 +41,9 @@ enum SortDirection: String, CaseIterable, Identifiable, Codable, Sendable {
     var menuTitle: String {
         switch self {
         case .ascending:
-            "Ascending"
+            L10n.string("Ascending", comment: "Display label for Ascending.")
         case .descending:
-            "Descending"
+            L10n.string("Descending", comment: "Display label for Descending.")
         }
     }
 }

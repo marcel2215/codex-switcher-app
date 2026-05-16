@@ -19,11 +19,24 @@ enum CodexAuthFileReplacementError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidFileDescriptor:
-            "Codex Switcher couldn't create a temporary auth file."
+            L10n.string(
+                "Codex Switcher couldn't create a temporary auth file.",
+                comment: "File replacement error shown while switching accounts."
+            )
         case let .posixFailure(operation, code):
-            "Codex Switcher couldn't \(operation) auth.json securely (errno \(code))."
+            L10n.format(
+                "Codex Switcher couldn't %1$@ auth.json securely (errno %2$lld).",
+                operation,
+                Int64(code),
+                comment: "File replacement error. The arguments are the failed operation and errno."
+            )
         case let .insecurePermissions(url, mode):
-            "Codex Switcher wrote \(url.path), but couldn't restrict it to owner-only permissions (mode \(String(mode, radix: 8)))."
+            L10n.format(
+                "Codex Switcher wrote %1$@, but couldn't restrict it to owner-only permissions (mode %2$@).",
+                url.path,
+                String(mode, radix: 8),
+                comment: "File replacement error. The arguments are a file path and permissions mode."
+            )
         }
     }
 }

@@ -30,15 +30,31 @@ enum AccountSnapshotStoreError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidIdentityKey:
-            "That saved account no longer has a valid identity key."
+            L10n.string(
+                "That saved account no longer has a valid identity key.",
+                comment: "Keychain error shown when an account identifier is invalid."
+            )
         case .missingSnapshot:
-            "That saved account no longer has a stored auth snapshot on this device."
+            L10n.string(
+                "That saved account no longer has a stored auth snapshot on this device.",
+                comment: "Keychain error shown when credentials are missing locally."
+            )
         case .invalidEncoding:
-            "The stored auth snapshot is no longer valid UTF-8 text."
+            L10n.string(
+                "The stored auth snapshot is no longer valid UTF-8 text.",
+                comment: "Keychain error shown when stored credentials cannot be decoded."
+            )
         case .keychainUnavailableUntilUnlock:
-            "Unlock this device and try again."
+            L10n.string(
+                "Unlock this device and try again.",
+                comment: "Keychain error shown when protected data is unavailable."
+            )
         case let .unexpectedStatus(status):
-            "Keychain access failed with status \(status)."
+            L10n.format(
+                "Keychain access failed with status %lld.",
+                Int64(status),
+                comment: "Keychain error. The argument is the Security framework status code."
+            )
         }
     }
 }

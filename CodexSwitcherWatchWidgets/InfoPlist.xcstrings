@@ -1,0 +1,942 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "bn-BD": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Codex Switcher"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "en-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "es-ES": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "es-MX": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "fr-FR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "gu-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "kn-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ml-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "mr-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "nl-NL": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "no": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "or-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "pa-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "sl-SI": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ta-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "te-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "ur-PK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Switcher"
+          }
+        }
+      }
+    },
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "bn-BD": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "en-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "es-ES": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "es-MX": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "fr-FR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "gu-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "kn-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "ml-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "mr-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "nl-NL": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "no": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "or-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "pa-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "sl-SI": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "ta-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "te-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "ur-PK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexSwitcherWatchWidgets"
+          }
+        }
+      }
+    },
+    "NSHumanReadableCopyright": {
+      "comment": "Copyright (human-readable)",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ar-SA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "bn-BD": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "en-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "es-ES": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "es-MX": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "fr-FR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "gu-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "kn-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ml-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "mr-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "nl-NL": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "no": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "or-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "pa-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "sl-SI": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ta-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "te-IN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "ur-PK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        }
+      }
+    }
+  },
+  "version": "1.2"
+}

@@ -208,6 +208,7 @@
 				HomeScreenQuickActionAccountItem.swift,
 				HomeScreenQuickActionCoordinator.swift,
 				Info.plist,
+				InfoPlist.xcstrings,
 				PreviewData.swift,
 				RateLimitRefreshController.swift,
 				RateLimitWidgetSupport.swift,
@@ -239,6 +240,7 @@
 				HomeScreenQuickActionAccountItem.swift,
 				HomeScreenQuickActionCoordinator.swift,
 				Info.plist,
+				InfoPlist.xcstrings,
 				PreviewData.swift,
 				RateLimitRefreshController.swift,
 				RateLimitWidgetSupport.swift,
@@ -313,6 +315,7 @@
 				HomeScreenQuickActionAccountItem.swift,
 				HomeScreenQuickActionCoordinator.swift,
 				Info.plist,
+				InfoPlist.xcstrings,
 				PreviewData.swift,
 				RateLimitRefreshController.swift,
 				SettingsIntents.swift,
@@ -341,6 +344,7 @@
 				HomeScreenQuickActionAccountItem.swift,
 				HomeScreenQuickActionCoordinator.swift,
 				Info.plist,
+				InfoPlist.xcstrings,
 				PreviewData.swift,
 				RateLimitRefreshController.swift,
 				SettingsIntents.swift,
@@ -371,6 +375,7 @@
 				HomeScreenQuickActionAccountItem.swift,
 				HomeScreenQuickActionCoordinator.swift,
 				Info.plist,
+				InfoPlist.xcstrings,
 				PreviewData.swift,
 				RateLimitRefreshController.swift,
 				SettingsIntents.swift,
@@ -980,6 +985,56 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				"en-US",
+				ar-SA,
+				bn-BD,
+				ca,
+				zh-Hans,
+				zh-Hant,
+				hr,
+				cs,
+				da,
+				nl-NL,
+				en-AU,
+				en-CA,
+				en-GB,
+				fi,
+				fr-FR,
+				fr-CA,
+				de-DE,
+				el,
+				gu-IN,
+				he,
+				hi,
+				hu,
+				id,
+				it,
+				ja,
+				kn-IN,
+				ko,
+				ms,
+				ml-IN,
+				mr-IN,
+				no,
+				or-IN,
+				pl,
+				pt-BR,
+				pt-PT,
+				pa-IN,
+				ro,
+				ru,
+				sk,
+				sl-SI,
+				es-MX,
+				es-ES,
+				sv,
+				ta-IN,
+				te-IN,
+				th,
+				tr,
+				uk,
+				ur-PK,
+				vi,
 				Base,
 			);
 			mainGroup = 1F87C93E2F8406C7007DED25;
@@ -1258,7 +1313,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -1291,7 +1346,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -1341,7 +1396,7 @@
 				PRODUCT_NAME = "Codex Switcher Widgets";
 				REGISTER_APP_GROUPS = YES;
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -1389,7 +1444,7 @@
 				PRODUCT_NAME = "Codex Switcher Widgets";
 				REGISTER_APP_GROUPS = YES;
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -1422,7 +1477,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -1457,7 +1512,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -1632,7 +1687,7 @@
 				PRODUCT_NAME = "Codex Switcher";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) CODEX_ACCOUNT_SPOTLIGHT";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -1686,7 +1741,7 @@
 				PRODUCT_NAME = "Codex Switcher";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) CODEX_ACCOUNT_SPOTLIGHT";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -1808,7 +1863,7 @@
 				PRODUCT_MODULE_NAME = Codex_Switcher;
 				PRODUCT_NAME = "Codex Switcher";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -1851,7 +1906,7 @@
 				PRODUCT_MODULE_NAME = Codex_Switcher;
 				PRODUCT_NAME = "Codex Switcher";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -1986,7 +2041,7 @@
 				PRODUCT_NAME = "Codex Switcher";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -2025,7 +2080,7 @@
 				PRODUCT_NAME = "Codex Switcher";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;

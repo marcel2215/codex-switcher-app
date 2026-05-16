@@ -86,7 +86,7 @@ struct WidgetRateLimitAccount: Identifiable, Sendable {
     let sevenDayMetric: WidgetRateLimitMetric
 
     var displayName: String {
-        isMissingAccount ? "Missing Account" : name
+        isMissingAccount ? L10n.string("Missing Account", comment: "Widget fallback name for an account that no longer exists.") : name
     }
 
     func metric(for window: RateLimitWindow) -> WidgetRateLimitMetric {
@@ -120,7 +120,7 @@ struct WidgetRateLimitAccount: Identifiable, Sendable {
     static func missing(id: String) -> Self {
         Self(
             id: id,
-            name: "Missing Account",
+            name: L10n.string("Missing Account", comment: "Widget fallback name for an account that no longer exists."),
             iconSystemName: "questionmark.circle.fill",
             isMissingAccount: true,
             fiveHourMetric: .init(remainingPercent: nil, resetsAt: nil, status: .missing),
@@ -139,7 +139,7 @@ struct WidgetRateLimitAccount: Identifiable, Sendable {
 
     static let cachedPlaceholder = Self(
         id: "preview-cached",
-        name: "Cached Account",
+        name: L10n.string("Cached Account", comment: "Widget preview account name that indicates cached data."),
         iconSystemName: "house.fill",
         isMissingAccount: false,
         fiveHourMetric: .init(remainingPercent: 61, resetsAt: .now.addingTimeInterval(90 * 60), status: .cached),
@@ -385,7 +385,10 @@ struct RateLimitOverviewProvider: AppIntentTimelineProvider {
         intent.account5 = suggestedAccounts[safe: 4]
 
         return [
-            AppIntentRecommendation(intent: intent, description: "Rate Limits")
+            AppIntentRecommendation(
+                intent: intent,
+                description: L10n.string("Rate Limits", comment: "Widget recommendation description.")
+            )
         ]
     }
 
@@ -563,7 +566,9 @@ struct RateLimitAccessoryProvider: AppIntentTimelineProvider {
                 .map(WidgetCodexAccountEntity.live(from:))
 
         return entities.flatMap { entity in
-            let accountName = entity.isAutomatic ? "Automatic" : entity.name
+            let accountName = entity.isAutomatic
+                ? L10n.string("Automatic", comment: "Widget account picker option that lets the app choose an account automatically.")
+                : entity.name
             let fiveHourDescription = accountName + " • 5h"
             let sevenDayDescription = accountName + " • 7d"
 
@@ -959,21 +964,26 @@ struct RateLimitCircularAccessoryView: View {
     }
 
     private var accountName: String {
-        account?.displayName ?? "Missing Account"
+        account?.displayName ?? L10n.string("Missing Account", comment: "Widget fallback name for an account that no longer exists.")
     }
 
     private var accessibilityLabel: String {
-        "\(accountName) \(window.shortLabel)"
+        L10n.format(
+            "%1$@ %2$@",
+            accountName,
+            window.shortLabel,
+            comment: "Accessibility label combining account name and rate-limit window short label."
+        )
     }
 
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
-            return "\(metric.percentText) remaining"
+            return L10n.format("%@ remaining", metric.percentText, comment: "Accessibility value for an exact rate-limit percentage.")
         case .cached:
-            return "\(metric.percentText) remaining, cached"
+            return L10n.format("%@ remaining, cached", metric.percentText, comment: "Accessibility value for a cached rate-limit percentage.")
         case .missing, .unavailable:
-            return "Unavailable"
+            return L10n.string("Unavailable", comment: "Accessibility value when a rate limit is unavailable.")
         }
     }
 }
@@ -1040,7 +1050,14 @@ struct RateLimitRectangularAccessoryView: View {
             .padding(.top, BatteryAccessoryRectangularMetrics.barTopPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .accessibilityLabel("\(account?.displayName ?? "Missing Account") \(window.shortLabel)")
+        .accessibilityLabel(
+            L10n.format(
+                "%1$@ %2$@",
+                account?.displayName ?? L10n.string("Missing Account", comment: "Widget fallback name for an account that no longer exists."),
+                window.shortLabel,
+                comment: "Accessibility label combining account name and rate-limit window short label."
+            )
+        )
         .accessibilityValue(accessibilityValue)
     }
 
@@ -1055,24 +1072,43 @@ struct RateLimitRectangularAccessoryView: View {
     private var subtitle: String {
         switch metric.status {
         case .exact:
-            return "\(account?.displayName ?? "Missing Account") • \(window.shortLabel)"
+            return L10n.format(
+                "%1$@ • %2$@",
+                account?.displayName ?? L10n.string("Missing Account", comment: "Widget fallback name for an account that no longer exists."),
+                window.shortLabel,
+                comment: "Lock Screen widget subtitle with account name and rate-limit window."
+            )
         case .cached:
-            return "\(account?.displayName ?? "Missing Account") • \(window.shortLabel) • Cached"
+            return L10n.format(
+                "%1$@ • %2$@ • Cached",
+                account?.displayName ?? L10n.string("Missing Account", comment: "Widget fallback name for an account that no longer exists."),
+                window.shortLabel,
+                comment: "Lock Screen widget subtitle for cached rate-limit data."
+            )
         case .missing:
-            return "Missing Account • \(window.shortLabel)"
+            return L10n.format(
+                "Missing Account • %@",
+                window.shortLabel,
+                comment: "Lock Screen widget subtitle for a missing account."
+            )
         case .unavailable:
-            return "\(account?.displayName ?? "Unavailable Account") • \(window.shortLabel) • Unavailable"
+            return L10n.format(
+                "%1$@ • %2$@ • Unavailable",
+                account?.displayName ?? L10n.string("Unavailable Account", comment: "Widget fallback name for an unavailable account."),
+                window.shortLabel,
+                comment: "Lock Screen widget subtitle for unavailable rate-limit data."
+            )
         }
     }
 
     private var accessibilityValue: String {
         switch metric.status {
         case .exact:
-            return "\(metric.percentText) remaining"
+            return L10n.format("%@ remaining", metric.percentText, comment: "Accessibility value for an exact rate-limit percentage.")
         case .cached:
-            return "\(metric.percentText) remaining, cached"
+            return L10n.format("%@ remaining, cached", metric.percentText, comment: "Accessibility value for a cached rate-limit percentage.")
         case .missing, .unavailable:
-            return "Unavailable"
+            return L10n.string("Unavailable", comment: "Accessibility value when a rate limit is unavailable.")
         }
     }
 }
