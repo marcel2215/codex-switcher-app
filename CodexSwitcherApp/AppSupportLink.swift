@@ -55,7 +55,9 @@ enum AppSupportLink {
 
     @MainActor
     private static var hardwareIdentifier: String {
-        #if canImport(UIKit)
+        #if os(watchOS)
+        sysctlString(named: "hw.machine") ?? unknownValue
+        #elseif canImport(UIKit)
         UIDevice.current.identifierForVendor?.uuidString ?? unknownValue
         #elseif os(macOS)
         macHardwareIdentifier() ?? unknownValue
@@ -70,7 +72,10 @@ enum AppSupportLink {
 
     @MainActor
     private static var operatingSystemVersion: String {
-        #if canImport(UIKit)
+        #if os(watchOS)
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+        #elseif canImport(UIKit)
         return UIDevice.current.systemVersion
         #elseif os(macOS)
         let version = ProcessInfo.processInfo.operatingSystemVersion
