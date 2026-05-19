@@ -493,6 +493,11 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
         static let originator = "codex_cli_rs"
         static let callbackPort: UInt16 = 1455
         static let callbackTimeout: TimeInterval = 90
+        static let tokenExchangeMaxAttempts = 3
+        static let tokenExchangeRetryDelays: [Duration] = [
+            .milliseconds(350),
+            .seconds(1),
+        ]
     }
 
     nonisolated func login(applicationSupportBaseURL: URL) async throws -> CodexOfficialLoginResult {
@@ -530,18 +535,26 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
         } onCancel: {
             callbackServer.cancel()
         }
-        let tokens = try await Self.exchangeCodeForTokens(
-            code,
-            redirectURI: redirectURI,
-            pkce: pkce
-        )
-        let authFileContents = try Self.makeAuthFileContents(from: tokens, refreshedAt: Date())
-        let snapshot = try CodexAuthFile.parse(contents: authFileContents)
-        return CodexOfficialLoginResult(
-            authFileContents: authFileContents,
-            parsedAuth: snapshot,
-            sourceHomeURL: loginHomeURL
-        )
+
+        do {
+            let tokens = try await Self.exchangeCodeForTokens(
+                code,
+                redirectURI: redirectURI,
+                pkce: pkce
+            )
+            let authFileContents = try Self.makeAuthFileContents(from: tokens, refreshedAt: Date())
+            let snapshot = try CodexAuthFile.parse(contents: authFileContents)
+            let result = CodexOfficialLoginResult(
+                authFileContents: authFileContents,
+                parsedAuth: snapshot,
+                sourceHomeURL: loginHomeURL
+            )
+            callbackServer.completeBrowserResponse(.success(()))
+            return result
+        } catch {
+            callbackServer.completeBrowserResponse(.failure(error))
+            throw error
+        }
     }
 
     private nonisolated static func makeCallbackServer(
@@ -601,10 +614,7 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
             throw CodexOfficialLoginError.tokenExchangeFailed("")
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Self.formURLEncodedBody([
+        let requestBody = Self.formURLEncodedBody([
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": redirectURI,
@@ -612,28 +622,49 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
             "code_verifier": pkce.verifier,
         ])
 
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            throw CodexOfficialLoginError.tokenExchangeFailed(error.localizedDescription)
+        for attempt in 1...Constants.tokenExchangeMaxAttempts {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            request.httpBody = requestBody
+
+            let (data, response): (Data, URLResponse)
+            do {
+                (data, response) = try await URLSession.shared.data(for: request)
+            } catch is CancellationError {
+                throw CodexOfficialLoginError.cancelled
+            } catch let error as URLError where error.code == .cancelled {
+                throw CodexOfficialLoginError.cancelled
+            } catch let error as URLError where Self.shouldRetryTokenExchange(error.code, afterAttempt: attempt) {
+                try await Self.sleepBeforeTokenExchangeRetry(afterAttempt: attempt)
+                continue
+            } catch {
+                throw CodexOfficialLoginError.tokenExchangeFailed(error.localizedDescription)
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw CodexOfficialLoginError.tokenExchangeFailed("")
+            }
+
+            if Self.shouldRetryTokenExchange(httpResponse.statusCode, afterAttempt: attempt) {
+                try await Self.sleepBeforeTokenExchangeRetry(afterAttempt: attempt)
+                continue
+            }
+
+            guard (200..<300).contains(httpResponse.statusCode) else {
+                throw CodexOfficialLoginError.tokenExchangeFailed(
+                    Self.tokenEndpointErrorMessage(from: data) ?? "Status \(httpResponse.statusCode)"
+                )
+            }
+
+            do {
+                return try JSONDecoder().decode(OAuthTokens.self, from: data)
+            } catch {
+                throw CodexOfficialLoginError.tokenExchangeFailed("The token response was not valid JSON.")
+            }
         }
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw CodexOfficialLoginError.tokenExchangeFailed("")
-        }
-
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            throw CodexOfficialLoginError.tokenExchangeFailed(
-                Self.tokenEndpointErrorMessage(from: data) ?? "Status \(httpResponse.statusCode)"
-            )
-        }
-
-        do {
-            return try JSONDecoder().decode(OAuthTokens.self, from: data)
-        } catch {
-            throw CodexOfficialLoginError.tokenExchangeFailed("The token response was not valid JSON.")
-        }
+        throw CodexOfficialLoginError.tokenExchangeFailed("")
     }
 
     private nonisolated static func makeAuthFileContents(
@@ -697,6 +728,44 @@ nonisolated final class CodexDirectOAuthLoginFlow: CodexDirectOAuthLoginFlowing,
         allowed.remove(charactersIn: ":#[]@!$&'()*+,;=")
         return value.addingPercentEncoding(withAllowedCharacters: allowed)?
             .replacingOccurrences(of: "%20", with: "+") ?? ""
+    }
+
+    private nonisolated static func shouldRetryTokenExchange(
+        _ code: URLError.Code,
+        afterAttempt attempt: Int
+    ) -> Bool {
+        guard attempt < Constants.tokenExchangeMaxAttempts else {
+            return false
+        }
+
+        switch code {
+        case .networkConnectionLost,
+             .timedOut,
+             .cannotConnectToHost,
+             .cannotFindHost,
+             .dnsLookupFailed,
+             .notConnectedToInternet,
+             .secureConnectionFailed:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private nonisolated static func shouldRetryTokenExchange(
+        _ statusCode: Int,
+        afterAttempt attempt: Int
+    ) -> Bool {
+        guard attempt < Constants.tokenExchangeMaxAttempts else {
+            return false
+        }
+
+        return statusCode == 408 || statusCode == 425 || statusCode == 429 || (500..<600).contains(statusCode)
+    }
+
+    private nonisolated static func sleepBeforeTokenExchangeRetry(afterAttempt attempt: Int) async throws {
+        let delayIndex = min(max(attempt - 1, 0), Constants.tokenExchangeRetryDelays.count - 1)
+        try await Task.sleep(for: Constants.tokenExchangeRetryDelays[delayIndex])
     }
 
     private nonisolated static func tokenEndpointErrorMessage(from data: Data) -> String? {
@@ -776,6 +845,7 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
     private let timeout: TimeInterval
     private let queue = DispatchQueue(label: "com.marcel2215.codexswitcher.oauth-callback")
     private let state = CodexOAuthCallbackState()
+    private let browserResponseState = CodexOAuthBrowserResponseState()
     private let cancellationLock = NSLock()
     private var listener: NWListener?
     private var isListenerCancelled = false
@@ -835,9 +905,25 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         try await state.waitForCallback()
     }
 
+    nonisolated func completeBrowserResponse(_ result: Result<Void, Error>) {
+        let response: String
+        switch result {
+        case .success:
+            response = Self.httpResponse(status: 200, body: Self.successHTML())
+        case let .failure(error):
+            response = Self.httpResponse(
+                status: 200,
+                body: Self.errorHTML(message: Self.browserErrorMessage(for: error))
+            )
+        }
+
+        browserResponseState.complete(response)
+    }
+
     nonisolated func cancel() {
         state.failStart(CodexOfficialLoginError.cancelled)
         state.failCallback(CodexOfficialLoginError.cancelled)
+        completeBrowserResponse(.failure(CodexOfficialLoginError.cancelled))
         cancelListener()
     }
 
@@ -850,19 +936,24 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
             }
 
             let result = Self.response(for: request, expectedState: self.expectedState)
-            connection.send(content: Data(result.response.utf8), completion: .contentProcessed { [weak self] _ in
-                connection.cancel()
-                switch result.outcome {
-                case let .success(code):
-                    self?.state.completeCallback(code)
-                    self?.cancelListener()
-                case let .failure(error):
+            switch result.outcome {
+            case let .success(code):
+                self.browserResponseState.register(connection)
+                self.state.completeCallback(code)
+                self.cancelListener()
+
+            case let .failure(error):
+                connection.send(content: Data(result.response.utf8), completion: .contentProcessed { [weak self] _ in
+                    connection.cancel()
                     self?.state.failCallback(error)
                     self?.cancelListener()
-                case .none:
-                    break
-                }
-            })
+                })
+
+            case .none:
+                connection.send(content: Data(result.response.utf8), completion: .contentProcessed { _ in
+                    connection.cancel()
+                })
+            }
         }
     }
 
@@ -941,7 +1032,7 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
             }
 
             return (
-                httpResponse(status: 200, body: successHTML()),
+                "",
                 .success(code)
             )
 
@@ -1010,7 +1101,7 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         <head><meta charset="utf-8"><title>Codex Switcher</title></head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 48px;">
         <h1>Sign-in complete</h1>
-        <p>You can close this browser window and return to Codex Switcher.</p>
+        <p>Codex Switcher finished the token exchange. Return to Codex Switcher and close this tab after the account appears.</p>
         </body>
         </html>
         """
@@ -1023,10 +1114,99 @@ private nonisolated final class CodexOAuthCallbackServer: @unchecked Sendable {
         <head><meta charset="utf-8"><title>Codex Switcher</title></head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 48px;">
         <h1>Sign-in failed</h1>
-        <p>\(message)</p>
+        <p>\(htmlEscaped(message))</p>
         </body>
         </html>
         """
+    }
+
+    private nonisolated static func browserErrorMessage(for error: Error) -> String {
+        let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        if message.isEmpty {
+            return "Codex Switcher couldn't finish adding the account. Return to Codex Switcher and try again."
+        }
+
+        return message
+    }
+
+    private nonisolated static func htmlEscaped(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#39;")
+    }
+}
+
+private nonisolated final class CodexOAuthBrowserResponseState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var connection: NWConnection?
+    private var pendingResponse: String?
+    private var didSend = false
+
+    nonisolated func register(_ connection: NWConnection) {
+        let duplicateConnection: NWConnection?
+        let responseToSend: String?
+
+        lock.lock()
+        if didSend {
+            lock.unlock()
+            connection.cancel()
+            return
+        }
+
+        if self.connection == nil {
+            self.connection = connection
+            duplicateConnection = nil
+        } else {
+            duplicateConnection = connection
+        }
+        responseToSend = pendingResponse
+        lock.unlock()
+
+        duplicateConnection?.cancel()
+
+        if let responseToSend {
+            send(responseToSend)
+        }
+    }
+
+    nonisolated func complete(_ response: String) {
+        let shouldSend: Bool
+
+        lock.lock()
+        guard !didSend else {
+            lock.unlock()
+            return
+        }
+
+        pendingResponse = response
+        shouldSend = connection != nil
+        lock.unlock()
+
+        if shouldSend {
+            send(response)
+        }
+    }
+
+    private nonisolated func send(_ response: String) {
+        let connectionToSend: NWConnection
+
+        lock.lock()
+        guard !didSend, let connection else {
+            lock.unlock()
+            return
+        }
+
+        didSend = true
+        connectionToSend = connection
+        self.connection = nil
+        lock.unlock()
+
+        connectionToSend.send(content: Data(response.utf8), completion: .contentProcessed { _ in
+            connectionToSend.cancel()
+        })
     }
 }
 

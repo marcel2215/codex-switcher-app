@@ -4416,7 +4416,7 @@ final class AppController {
         _ account: StoredAccount,
         reason: StoredAccountUnavailableReason
     ) async {
-        if CodexSharedPreferences.automaticallyRemoveAccounts {
+        if CodexSharedPreferences.automaticallyRemoveAccounts, account.isUnavailable {
             await removeAccountBecauseUnavailable(account, reason: reason)
             return
         }
