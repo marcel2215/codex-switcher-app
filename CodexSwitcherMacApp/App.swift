@@ -278,6 +278,9 @@ struct CodexSwitcherApp: App {
             sortCriterionRawValue: persistedSortCriterionRawValue,
             sortDirectionRawValue: persistedSortDirectionRawValue
         )
+        Task {
+            await controller.unlinkCodexFolderForSettingsReset()
+        }
         CodexSharedPreferenceFeedback.postPreferencesDidChange()
         Task {
             await RateLimitResetNotificationScheduler.shared.synchronizeWithStoredState()
@@ -834,7 +837,7 @@ private struct SettingsView: View {
     }
 
     private var isResetSettingsEnabled: Bool {
-        !areAppPreferencesAtDefaults || launchAtLoginState.isEnabled
+        !areAppPreferencesAtDefaults || launchAtLoginState.isEnabled || controller.hasLinkedCodexFolder
     }
 
     @ViewBuilder
@@ -1064,7 +1067,7 @@ private enum SettingsConfirmationAction: String, Identifiable {
         case .removeAllAccounts:
             "This removes every saved account from Codex Switcher on this device and from iCloud sync."
         case .resetSettings:
-            "This restores the menu bar and sorting preferences to their default values."
+            "This restores app settings to their defaults and unlinks the Codex folder. Saved accounts stay in Codex Switcher."
         }
     }
 

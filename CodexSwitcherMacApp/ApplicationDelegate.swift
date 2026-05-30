@@ -86,7 +86,7 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func handlePrimaryQuitCommand() {
+    func hideToMenuBar() {
         guard keepsRunningInMenuBar || keepsRunningForAutopilot else {
             NSApp.terminate(nil)
             return

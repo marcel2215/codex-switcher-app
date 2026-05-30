@@ -415,6 +415,10 @@ final class AppController {
         authAccessState.linkedFolderURL?.path
     }
 
+    var hasLinkedCodexFolder: Bool {
+        authAccessState.linkedFolderURL != nil
+    }
+
     var settingsLinkButtonTitle: String {
         "Select"
     }
@@ -724,6 +728,16 @@ final class AppController {
     /// prompt stays centralized and testable.
     func requestNotificationAuthorizationForSettings() async -> NotificationAuthorizationRequestResult {
         await notificationManager.requestAuthorizationForNotificationsPreference()
+    }
+
+    func unlinkCodexFolderForSettingsReset() async {
+        await waitForInitializationIfNeeded()
+
+        pendingLocationAction = nil
+        await authFileManager.clearLinkedLocation()
+        activeIdentityKey = nil
+        authAccessState = .unlinked
+        publishSharedState(immediate: true)
     }
 
     func setAutopilotEnabled(_ isEnabled: Bool) {

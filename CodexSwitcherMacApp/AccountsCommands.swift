@@ -110,24 +110,15 @@ struct AccountsCommands: Commands {
             accountMenuItems
         }
 
-        CommandGroup(replacing: .appTermination) {
+        // Keep the system Quit command intact. Cmd-Q must terminate the app;
+        // menu-bar residency is a separate, explicit action.
+        CommandGroup(before: .appTermination) {
             if showsMenuBarExtra {
                 Button("Hide to Menu Bar") {
-                    applicationDelegate.handlePrimaryQuitCommand()
+                    applicationDelegate.hideToMenuBar()
                 }
-                .keyboardShortcut("q", modifiers: [.command])
 
                 Divider()
-
-                Button("Quit Codex Switcher") {
-                    NSApp.terminate(nil)
-                }
-                .keyboardShortcut("q", modifiers: [.command, .option])
-            } else {
-                Button("Quit Codex Switcher") {
-                    NSApp.terminate(nil)
-                }
-                .keyboardShortcut("q", modifiers: [.command])
             }
         }
     }

@@ -2241,6 +2241,26 @@ struct Tests {
         #expect(controller.presentedAlert == nil)
     }
 
+    @Test func settingsResetUnlinksCodexFolder() async throws {
+        let container = try makeInMemoryContainer()
+        let authFileManager = FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-linked"))
+        let controller = makeController(authFileManager: authFileManager)
+
+        controller.configure(modelContext: container.mainContext, undoManager: nil)
+        await controller.refreshAuthStateForTesting()
+
+        #expect(controller.hasLinkedCodexFolder)
+        #expect(controller.linkedFolderPath == "/tmp/.codex")
+
+        await controller.unlinkCodexFolderForSettingsReset()
+
+        #expect(controller.authAccessState == .unlinked)
+        #expect(controller.hasLinkedCodexFolder == false)
+        #expect(controller.linkedFolderPath == nil)
+        #expect(controller.activeIdentityKey == nil)
+        #expect(try await authFileManager.linkedLocation() == nil)
+    }
+
     @Test func selectedAccountIconCanBeChanged() throws {
         let container = try makeInMemoryContainer()
         let controller = makeController(authFileManager: FakeAuthFileManager(contents: makeChatGPTAuthJSON(accountID: "acct-123")))
