@@ -364,10 +364,12 @@ The checked-in Xcode project currently declares:
 | macOS deployment target | 26.0 for app/widget targets; one macOS test configuration also declares 26.4. |
 | iOS deployment target | 26.0 |
 | watchOS deployment target | 26.0 |
-| Marketing version | 1.0 |
-| Build number | 1 |
+| Marketing version | 1.1 |
+| Build number | 45 |
 
 Use an Xcode version that includes the SDKs needed by those deployment targets.
+
+Keep build numbers increasing across releases; do not reset them when changing the marketing version. Xcode Cloud uses its existing automatically increasing build counter. For local release archives, increment the build number above the most recently uploaded build and keep it consistent across app and extension targets.
 
 ### Schemes and targets
 
