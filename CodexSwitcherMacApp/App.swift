@@ -732,12 +732,12 @@ private struct SettingsView: View {
             }
 
             Section("Actions") {
-                Link(destination: AppSupportLink.contactURL) {
-                    settingsActionLabel("Contact Us", systemImage: "envelope")
-                }
-
                 Link(destination: AppSupportLink.websiteURL) {
                     settingsActionLabel("Visit Our Website", systemImage: "globe")
+                }
+
+                Link(destination: AppSupportLink.contactURL) {
+                    settingsActionLabel("Contact Us", systemImage: "envelope")
                 }
 
                 Link(destination: AppSupportLink.termsOfServiceURL) {
@@ -745,7 +745,7 @@ private struct SettingsView: View {
                 }
 
                 Link(destination: AppSupportLink.privacyPolicyURL) {
-                    settingsActionLabel("Privacy Policy", systemImage: "hand.raised")
+                    settingsActionLabel("Privacy Policy", systemImage: "lock.shield")
                 }
 
                 Link(destination: AppSupportLink.sourceCodeURL) {

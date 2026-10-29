@@ -76,6 +76,7 @@ struct IOSSettingsView: View {
     @State private var isUpdatingNotificationPreferences = false
     @State private var presentedSettingsAlert: PresentedSettingsAlert?
     @State private var presentedDangerZoneAction: DangerZoneAction?
+    @State private var selectedWebLink: SettingsWebLink?
     @State private var notificationAuthorizationStatus: UNAuthorizationStatus?
 
     var body: some View {
@@ -99,23 +100,29 @@ struct IOSSettingsView: View {
             }
 
             Section("Actions") {
-                Link(destination: AppSupportLink.contactURL) {
-                    Label("Contact Us", systemImage: "envelope")
-                }
-
                 Link(destination: AppSupportLink.websiteURL) {
                     Label("Visit Our Website", systemImage: "globe")
                 }
 
-                Link(destination: AppSupportLink.termsOfServiceURL) {
+                Link(destination: AppSupportLink.contactURL) {
+                    Label("Contact Us", systemImage: "envelope")
+                }
+
+                Button {
+                    selectedWebLink = SettingsWebLink(url: AppSupportLink.termsOfServiceURL)
+                } label: {
                     Label("Terms of Service", systemImage: "doc.text")
                 }
 
-                Link(destination: AppSupportLink.privacyPolicyURL) {
-                    Label("Privacy Policy", systemImage: "hand.raised")
+                Button {
+                    selectedWebLink = SettingsWebLink(url: AppSupportLink.privacyPolicyURL)
+                } label: {
+                    Label("Privacy Policy", systemImage: "lock.shield")
                 }
 
-                Link(destination: AppSupportLink.sourceCodeURL) {
+                Button {
+                    selectedWebLink = SettingsWebLink(url: AppSupportLink.sourceCodeURL)
+                } label: {
                     Label("Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
 
@@ -153,6 +160,10 @@ struct IOSSettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .sheet(item: $selectedWebLink) { link in
+            SettingsSafariView(url: link.url)
+                .ignoresSafeArea()
+        }
         .task {
             await refreshNotificationAuthorizationStatus()
         }
